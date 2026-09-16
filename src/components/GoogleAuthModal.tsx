@@ -60,12 +60,45 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
           const clientId = '84460130822-placeholder.apps.googleusercontent.com';
           window.google.accounts.id.initialize({
             client_id: clientId,
-            callback: (response: any) => {
-              if (response.credential) {
-                const payload = parseJwt(response.credential);
-                if (payload && payload.email) {
-                  handleProcessLogin(payload.email, payload.name || payload.given_name, payload.picture);
+            callback: async (response: any) => {
+              if (!response?.credential) {
+                setError('No se recibió la credencial de autenticación de Google.');
+                return;
+              }
+
+              setError('');
+              setIsLoading(true);
+
+              try {
+                const verifyRes = await fetch('/api/auth/google', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ credential: response.credential }),
+                });
+
+                if (!verifyRes.ok) {
+                  const errData = await verifyRes.json().catch(() => ({}));
+                  setError(errData.error || 'Credencial de Google inválida o expirada.');
+                  setIsLoading(false);
+                  return;
                 }
+
+                const verifyData = await verifyRes.json();
+                if (verifyData.verified && verifyData.user) {
+                  // Only trust verified user payload returned by the backend
+                  await handleProcessLogin(
+                    verifyData.user.email,
+                    verifyData.user.name,
+                    verifyData.user.picture
+                  );
+                } else {
+                  setError('No se pudo validar la cuenta de Google en el servidor.');
+                  setIsLoading(false);
+                }
+              } catch (err: any) {
+                console.error('Error al verificar credencial de Google con backend:', err);
+                setError('Error de comunicación con el servidor de autenticación.');
+                setIsLoading(false);
               }
             },
             auto_select: false,
@@ -135,37 +168,7 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
 
     } catch (err: any) {
       console.error('Error logging in:', err);
-      // Fallback local persistence if offline
-      const now = new Date().toISOString();
-      const localUser: ClientUser = {
-        id: `usr-${Date.now()}`,
-        email: cleanEmail,
-        name: name ? name.trim() : cleanEmail.split('@')[0],
-        picture: picture || '',
-        firstLoginDate: now,
-        lastLoginDate: now,
-        trialDurationDays: 30,
-        customGrantedDays: 0,
-        isBlocked: false,
-      };
-      const localTrial: TrialInfo = {
-        daysRemaining: 30,
-        isExpired: false,
-        firstLoginDate: now,
-        totalAllowedDays: 30,
-        elapsedDays: 0,
-      };
-      localStorage.setItem('openvoley_user', JSON.stringify(localUser));
-      localStorage.setItem('openvoley_trial', JSON.stringify(localTrial));
-      
-      setSuccessAnimation({
-        client: localUser,
-        trial: localTrial,
-      });
-
-      setTimeout(() => {
-        onLoginSuccess(localUser, localTrial);
-      }, 1200);
+      setError('No se pudo validar tu sesión. Intenta nuevamente.');
     } finally {
       setIsLoading(false);
     }
@@ -173,12 +176,7 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!emailInput) {
-      setError('Debes ingresar tu correo Google para comenzar.');
-      return;
-    }
-    const derivedName = nameInput.trim() || emailInput.split('@')[0].replace('.', ' ');
-    handleProcessLogin(emailInput, derivedName);
+    setError('Por seguridad, inicia sesión con Google.');
   };
 
   // If success state is active, show confirmation screen

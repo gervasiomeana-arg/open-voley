@@ -3,6 +3,8 @@ import path from 'path';
 import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
+import { OAuth2Client } from 'google-auth-library';
+import jwt from 'jsonwebtoken';
 
 interface PaymentRecord {
   id: string;
@@ -194,6 +196,140 @@ async function startServer() {
   app.get('/api/clients', (req, res) => {
     clients = loadClients();
     res.json({ clients });
+  });
+
+  // Google OAuth verification client
+  const googleAuthClient = new OAuth2Client();
+
+  async function verifyGoogleCredential(credential: string): Promise<{
+    email: string;
+    name: string;
+    picture: string;
+    sub: string;
+  } | null> {
+    try {
+      const audience = process.env.GOOGLE_CLIENT_ID;
+      const ticket = await googleAuthClient.verifyIdToken({
+        idToken: credential,
+        audience: audience || undefined,
+      });
+      const payload = ticket.getPayload();
+      if (!payload || !payload.email || !payload.sub) {
+        return null;
+      }
+      return {
+        email: payload.email,
+        name: payload.name || '',
+        picture: payload.picture || '',
+        sub: payload.sub,
+      };
+    } catch (error) {
+      console.error('Error verifying Google credential:', error);
+      return null;
+    }
+  }
+
+  // Session JWT management
+  function createSessionToken(user: { userId: string; email: string; role?: string }): string {
+    const secret = process.env.SESSION_SECRET;
+    if (!secret) {
+      throw new Error('SESSION_SECRET environment variable is not defined');
+    }
+
+    const payload = {
+      userId: user.userId,
+      email: user.email,
+      role: user.role || 'user',
+    };
+
+    return jwt.sign(payload, secret, { expiresIn: '7d' });
+  }
+
+  function verifySessionToken(token: string): { userId: string; email: string; role: string } | null {
+    const secret = process.env.SESSION_SECRET;
+    if (!secret) {
+      throw new Error('SESSION_SECRET environment variable is not defined');
+    }
+
+    try {
+      const decoded = jwt.verify(token, secret) as jwt.JwtPayload;
+      if (!decoded || typeof decoded !== 'object' || !decoded.userId || !decoded.email) {
+        return null;
+      }
+
+      return {
+        userId: decoded.userId,
+        email: decoded.email,
+        role: decoded.role,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  // Expose to module scope if needed without affecting current endpoints
+  void verifySessionToken;
+
+  app.post('/api/auth/google', async (req, res) => {
+    try {
+      const { credential } = req.body || {};
+      if (!credential) {
+        return res.status(400).json({ error: 'Credential is required' });
+      }
+
+      const verifiedUser = await verifyGoogleCredential(credential);
+      if (!verifiedUser) {
+        return res.status(401).json({ error: 'Invalid Google credential' });
+      }
+
+      // 1. Buscar o crear el cliente por el email verificado
+      clients = loadClients();
+      const normalizedEmail = verifiedUser.email.toLowerCase().trim();
+      let client = clients.find((c) => c.email.toLowerCase() === normalizedEmail);
+      const nowIso = new Date().toISOString();
+
+      if (!client) {
+        client = {
+          id: `usr-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          email: normalizedEmail,
+          name: verifiedUser.name || normalizedEmail.split('@')[0],
+          picture: verifiedUser.picture || '',
+          firstLoginDate: nowIso,
+          lastLoginDate: nowIso,
+          trialDurationDays: 7,
+          customGrantedDays: 0,
+          isBlocked: false,
+        };
+        clients.unshift(client);
+      } else {
+        client.lastLoginDate = nowIso;
+        if (verifiedUser.name) client.name = verifiedUser.name;
+        if (verifiedUser.picture) client.picture = verifiedUser.picture;
+      }
+      saveClients(clients);
+
+      // 2. Crear sessionToken
+      const sessionToken = createSessionToken({
+        userId: client.id,
+        email: client.email,
+        role: client.role || 'Entrenador',
+      });
+
+      // 3. Incluir sessionToken en la respuesta HTTP 200
+      return res.status(200).json({
+        verified: true,
+        sessionToken,
+        user: {
+          email: verifiedUser.email,
+          name: verifiedUser.name,
+          picture: verifiedUser.picture,
+          sub: verifiedUser.sub,
+        },
+      });
+    } catch (err: any) {
+      console.error('Error in /api/auth/google:', err);
+      return res.status(500).json({ error: err?.message || 'Authentication error' });
+    }
   });
 
   app.post('/api/clients/login', (req, res) => {
