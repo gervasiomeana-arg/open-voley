@@ -1,0 +1,389 @@
+import React, { useState } from 'react';
+import { 
+  Dumbbell, 
+  Plus, 
+  Sparkles, 
+  Clock, 
+  Users, 
+  CheckCircle2, 
+  ChevronRight, 
+  Calendar, 
+  Activity, 
+  ArrowRight,
+  Edit3,
+  Save,
+  Trash2,
+  X,
+  Layers,
+  Volleyball
+} from 'lucide-react';
+import { TrainingSession, TrainingExercise, MatchData } from '../types';
+import { sampleTrainingSessions } from '../data/sampleCompetitionAndTraining';
+
+interface TrainingCenterProps {
+  match?: MatchData;
+  initialFocusProblem?: string;
+  onNavigateToMatch?: () => void;
+}
+
+export const TrainingCenter: React.FC<TrainingCenterProps> = ({
+  match,
+  initialFocusProblem,
+  onNavigateToMatch,
+}) => {
+  const [sessions, setSessions] = useState<TrainingSession[]>(sampleTrainingSessions);
+  const [selectedSessionId, setSelectedSessionId] = useState<string>(sampleTrainingSessions[0].id);
+
+  // Generator modal state
+  const [isGeneratorOpen, setIsGeneratorOpen] = useState(Boolean(initialFocusProblem));
+  const [genDuration, setGenDuration] = useState<number>(90);
+  const [genPlayers, setGenPlayers] = useState<number>(14);
+  const [genProblem, setGenProblem] = useState<string>(initialFocusProblem || 'Recepción en zona 5 frente a saque flotado');
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
+
+  const activeSession = sessions.find((s) => s.id === selectedSessionId) || sessions[0];
+
+  const handleGenerateWithAi = () => {
+    setIsGenerating(true);
+    setTimeout(() => {
+      const newSession: TrainingSession = {
+        id: `train_${Date.now()}`,
+        title: `Sesión Táctica: ${genProblem.substring(0, 38)}`,
+        date: new Date().toISOString().split('T')[0],
+        time: '19:00',
+        durationMin: genDuration,
+        playersCount: genPlayers,
+        focusProblem: genProblem,
+        linkedMatchId: match?.id,
+        status: 'planned',
+        completed: false,
+        notes: `Generado por OPEN AI para resolver déficit detectado en ${match?.homeTeamName || 'el equipo'}.`,
+        exercises: [
+          {
+            id: `ex_${Date.now()}_1`,
+            block: 'Calentamiento',
+            name: 'Activación neuromuscular y sombras de desplazamiento',
+            durationMin: 15,
+            description: 'Movilidad dinámica, activación de hombros con bandas y simulación de lectura de saque en 3 posiciones.',
+            courtFocus: 'Línea de fondo completa',
+            keyObjective: 'Preparación fisiológica y lectura visual rápida'
+          },
+          {
+            id: `ex_${Date.now()}_2`,
+            block: 'Recepción',
+            name: `Entrenamiento analítico: ${genProblem}`,
+            durationMin: 25,
+            description: 'Dos sacadores desde zona 1 rival alternan balones flotados profundos y cortos. Exigencia de plataforma fija hacia zona 3.',
+            courtFocus: 'Zona 5 y 6 con conos de delimitación',
+            keyObjective: 'Fijar el ángulo de entrega y estabilidad postural'
+          },
+          {
+            id: `ex_${Date.now()}_3`,
+            block: 'Side-out',
+            name: 'Transición de Side-Out bajo presión con ataque de primer tiempo',
+            durationMin: 25,
+            description: 'Recepción obligada bajo saque competitivo. Salida inmediata con central en primer tiempo o punta por zona 4.',
+            courtFocus: 'Media cancha con bloqueo rival estructurado',
+            keyObjective: 'Transferencia directa al juego de salida de recepción'
+          },
+          {
+            id: `ex_${Date.now()}_4`,
+            block: 'Juego condicionado',
+            name: '6 vs 6 con bonificación por resolución de problema',
+            durationMin: 20,
+            description: 'Sets a 15 puntos. Cada punto anotado tras recepción positiva en zona 5 suma 2 puntos.',
+            courtFocus: 'Cancha completa',
+            keyObjective: 'Estimular la toma de decisiones en situación competitiva'
+          },
+          {
+            id: `ex_${Date.now()}_5`,
+            block: 'Cierre',
+            name: 'Saques tácticos bajo fatiga y estiramientos',
+            durationMin: 5,
+            description: 'Serie de 10 saques por atleta con objetivo marcado. Vuelta a la calma.',
+            courtFocus: 'Zona de saque',
+            keyObjective: 'Consolidación técnica final y recuperación'
+          }
+        ]
+      };
+
+      setSessions([newSession, ...sessions]);
+      setSelectedSessionId(newSession.id);
+      setIsGenerating(false);
+      setIsGeneratorOpen(false);
+    }, 600);
+  };
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-200">
+      {/* Header Banner: The Closed Performance Cycle */}
+      <div className="p-5 sm:p-6 bg-gradient-to-r from-slate-900 via-slate-900 to-purple-950/40 border border-slate-800 rounded-3xl shadow-xl space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="p-3 bg-purple-500/20 text-purple-400 rounded-2xl border border-purple-500/30">
+              <Dumbbell className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-black text-white">Centro de Entrenamiento Táctico</h2>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30">
+                  OPEN AI Connected
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Diseño de sesiones cerrando el ciclo: Análisis del Partido → Detección de Problema → Entrenamiento Guiado
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setIsGeneratorOpen(true)}
+            className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-xs px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-lg shadow-purple-500/20 transition cursor-pointer shrink-0"
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>Generar Sesión con OPEN AI</span>
+          </button>
+        </div>
+
+        {/* Closed Loop Visual Bar */}
+        <div className="p-3 bg-slate-950/70 rounded-2xl border border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-2 text-slate-400">
+            <span className="font-bold text-white uppercase text-[10px] tracking-wider">Ciclo Táctico:</span>
+          </div>
+          <div className="flex items-center gap-2 font-mono text-[11px] overflow-x-auto custom-scrollbar py-1">
+            <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300">1. PARTIDO</span>
+            <span className="text-slate-600">→</span>
+            <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300">2. ANÁLISIS</span>
+            <span className="text-slate-600">→</span>
+            <span className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 font-bold">3. PROBLEMA</span>
+            <span className="text-slate-600">→</span>
+            <span className="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30 font-bold">4. ENTRENAMIENTO</span>
+            <span className="text-slate-600">→</span>
+            <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">5. MEJORA</span>
+            <span className="text-slate-600">→</span>
+            <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold">6. PRÓXIMO PARTIDO</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Grid: Sessions List & Active Session Details */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Col: Saved Sessions */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between text-xs font-bold text-slate-400 px-1">
+            <span>Sesiones Planificadas ({sessions.length})</span>
+          </div>
+
+          <div className="space-y-2">
+            {sessions.map((s) => {
+              const isSelected = s.id === activeSession.id;
+              return (
+                <div
+                  key={s.id}
+                  onClick={() => setSelectedSessionId(s.id)}
+                  className={`p-4 rounded-2xl border transition cursor-pointer text-left space-y-2 ${
+                    isSelected
+                      ? 'bg-purple-950/20 border-purple-500/50 shadow-lg shadow-purple-500/10'
+                      : 'bg-slate-900 border-slate-800 hover:border-slate-700'
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-purple-400 font-bold flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {s.durationMin} min • {s.playersCount} jug.
+                    </span>
+                    <span className="text-slate-500 font-mono">{s.date}</span>
+                  </div>
+
+                  <h4 className="font-bold text-white text-xs leading-snug">
+                    {s.title}
+                  </h4>
+
+                  <p className="text-[11px] text-slate-400 line-clamp-2">
+                    Foco: <span className="text-slate-300 font-medium">{s.focusProblem}</span>
+                  </p>
+
+                  <div className="flex items-center justify-between pt-1 text-[10px]">
+                    <span className="text-slate-500">{s.exercises.length} bloques de trabajo</span>
+                    <span className="text-purple-400 font-bold">Ver Plan →</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Right Col (2 cols): Active Session Detailed Plan */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="p-6 bg-slate-900 border border-slate-800 rounded-3xl shadow-xl space-y-5">
+            {/* Header info */}
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b border-slate-800 pb-4">
+              <div>
+                <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wider">
+                  Plan de Entrenamiento
+                </span>
+                <h3 className="text-lg font-black text-white mt-0.5">
+                  {activeSession.title}
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  Fecha: <strong className="text-slate-300">{activeSession.date}</strong> a las {activeSession.time} • Duración: <strong className="text-slate-300">{activeSession.durationMin} min</strong> • Plantel: <strong className="text-slate-300">{activeSession.playersCount} jugadoras</strong>
+                </p>
+              </div>
+
+              <div className="p-2.5 bg-rose-500/10 border border-rose-500/20 rounded-xl text-[11px] max-w-xs">
+                <span className="text-rose-400 font-bold block mb-0.5">Déficit a corregir:</span>
+                <span className="text-slate-300">{activeSession.focusProblem}</span>
+              </div>
+            </div>
+
+            {/* Exercise Blocks List */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-black text-white uppercase tracking-wider flex items-center justify-between">
+                <span>Estructura de la Sesión (5 Bloques Progresivos)</span>
+                <span className="text-[10px] text-purple-400 font-mono">100% Personalizable</span>
+              </h4>
+
+              <div className="space-y-3">
+                {activeSession.exercises.map((ex, i) => (
+                  <div
+                    key={ex.id}
+                    className="p-4 bg-slate-950/70 border border-slate-800 rounded-2xl space-y-2 hover:border-slate-700/80 transition"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="w-5 h-5 rounded-md bg-purple-500/20 text-purple-400 font-mono font-bold text-[11px] flex items-center justify-center">
+                          {i + 1}
+                        </span>
+                        <span className="text-xs font-bold text-amber-400">
+                          {ex.block}
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-mono font-bold text-slate-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+                        {ex.durationMin} min
+                      </span>
+                    </div>
+
+                    <div className="font-bold text-white text-xs">
+                      {ex.name}
+                    </div>
+
+                    <p className="text-xs text-slate-300 leading-relaxed">
+                      {ex.description}
+                    </p>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/60 text-[10px] text-slate-400">
+                      <span><strong>Ubicación en cancha:</strong> {ex.courtFocus}</span>
+                      <span className="text-emerald-400 font-medium"><strong>Objetivo:</strong> {ex.keyObjective}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Tactical Closing Notes */}
+            {activeSession.notes && (
+              <div className="p-3.5 bg-slate-800/40 rounded-xl border border-slate-700/60 text-xs text-slate-300">
+                <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Notas del Cuerpo Técnico</span>
+                {activeSession.notes}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* GENERATOR MODAL (OPEN AI) */}
+      {isGeneratorOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
+          <div className="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl overflow-hidden flex flex-col">
+            <div className="p-5 border-b border-slate-800 bg-slate-950/60 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-purple-500/20 text-purple-400 rounded-xl border border-purple-500/30">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white">Generador Táctico OPEN AI</h3>
+                  <p className="text-xs text-slate-400">Diseño automatizado basado en el problema detectado</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsGeneratorOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 text-xs">
+              <div>
+                <label className="block text-slate-300 font-bold mb-1">
+                  Problema Táctico o Déficit Detectado
+                </label>
+                <textarea
+                  value={genProblem}
+                  onChange={(e) => setGenProblem(e.target.value)}
+                  rows={2}
+                  placeholder="Ej: Recepción en zona 5 frente a saques flotados o Side-out en R4"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white placeholder-slate-500 focus:outline-none focus:border-purple-400 text-xs"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-300 font-bold mb-1">Duración Total (min)</label>
+                  <select
+                    value={genDuration}
+                    onChange={(e) => setGenDuration(parseInt(e.target.value))}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white font-mono"
+                  >
+                    <option value={60}>60 minutos</option>
+                    <option value={75}>75 minutos</option>
+                    <option value={90}>90 minutos (Estándar)</option>
+                    <option value={120}>120 minutos</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-bold mb-1">Jugadoras Presentes</label>
+                  <input
+                    type="number"
+                    min={8}
+                    max={24}
+                    value={genPlayers}
+                    onChange={(e) => setGenPlayers(parseInt(e.target.value) || 14)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="p-3.5 bg-purple-950/20 border border-purple-800/30 rounded-xl text-slate-300 space-y-1">
+                <span className="font-bold text-purple-400 block text-[11px]">Estructura que generará la IA:</span>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  1. Calentamiento específico (15m) • 2. Recepción analítica (25m) • 3. Side-out R4 (25m) • 4. Juego condicionado con puntuación doble (20m) • 5. Cierre y saque táctico (5m).
+                </p>
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-slate-800 bg-slate-950/80 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setIsGeneratorOpen(false)}
+                className="px-4 py-2 text-slate-400 hover:text-white font-bold text-xs"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={isGenerating || !genProblem.trim()}
+                onClick={handleGenerateWithAi}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-xs flex items-center gap-2 shadow-lg shadow-purple-500/20 transition disabled:opacity-40 cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>{isGenerating ? 'Generando sesión...' : 'Generar Sesión Completa'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

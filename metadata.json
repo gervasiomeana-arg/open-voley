@@ -1,0 +1,8 @@
+{
+  "name": "Remix OPEN VOLEY",
+  "description": "plataforma para scouting de voleibol en tiempo real.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
