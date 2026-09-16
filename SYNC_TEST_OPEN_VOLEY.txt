@@ -1,0 +1,7 @@
+OPEN VOLEY - PRUEBA DE SINCRONIZACION
+
+Si este archivo aparece dentro del proyecto OPEN VOLEY en AI Studio, significa que AI Studio ha sincronizado los cambios desde la rama main de GitHub.
+
+Creado para prueba de sincronizacion el 2026-09-16.
+
+Este archivo no afecta el funcionamiento de la aplicacion y puede eliminarse despues de la prueba.
