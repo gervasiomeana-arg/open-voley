@@ -1,6 +1,7 @@
 import express from 'express';
 import { authMeRouter } from './src/server/authMeRouter';
 import { securityMiddleware } from './src/server/securityMiddleware';
+import { securePaymentConfirmation } from './src/server/securePaymentConfirmation';
 
 const expressApplication = express.application as any;
 const originalInit = expressApplication.init;
@@ -8,6 +9,7 @@ const originalInit = expressApplication.init;
 expressApplication.init = function patchedInit(this: any) {
   originalInit.call(this);
   this.use(securityMiddleware);
+  this.use(securePaymentConfirmation);
   this.use('/api/auth', authMeRouter);
 };
 
