@@ -98,7 +98,7 @@ authMeRouter.get('/me', (req, res) => {
   const sessionEmail = session.email.toLowerCase().trim();
   const client = clients.find(
     (candidate) =>
-      candidate.id === session.userId ||
+      candidate.id === session.userId &&
       candidate.email.toLowerCase().trim() === sessionEmail,
   );
 
