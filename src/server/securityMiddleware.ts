@@ -1,11 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
-
-interface SessionPayload {
-  userId: string;
-  email: string;
-  role?: string;
-}
+import { getSessionFromRequest, isSameOriginMutation } from './sessionSecurity';
 
 const protectedAdminRoutes = new Set([
   'GET /api/clients',
@@ -19,31 +13,6 @@ const protectedAdminRoutes = new Set([
   'POST /api/mercadopago/test-credentials',
 ]);
 
-function verifySessionToken(token: string): SessionPayload | null {
-  const secret = process.env.SESSION_SECRET;
-  if (!secret) return null;
-
-  try {
-    const decoded = jwt.verify(token, secret) as jwt.JwtPayload;
-    if (
-      !decoded ||
-      typeof decoded !== 'object' ||
-      typeof decoded.userId !== 'string' ||
-      typeof decoded.email !== 'string'
-    ) {
-      return null;
-    }
-
-    return {
-      userId: decoded.userId,
-      email: decoded.email,
-      role: typeof decoded.role === 'string' ? decoded.role : undefined,
-    };
-  } catch {
-    return null;
-  }
-}
-
 function getAdminEmails(): Set<string> {
   return new Set(
     (process.env.ADMIN_EMAILS || '')
@@ -54,6 +23,18 @@ function getAdminEmails(): Set<string> {
 }
 
 export function securityMiddleware(req: Request, res: Response, next: NextFunction) {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+
+  if (!isSameOriginMutation(req)) {
+    return res.status(403).json({ error: 'Cross-origin request rejected' });
+  }
+
   if (req.method === 'POST' && req.path === '/api/clients/login') {
     return res.status(410).json({
       error: 'Legacy login disabled',
@@ -62,29 +43,19 @@ export function securityMiddleware(req: Request, res: Response, next: NextFuncti
   }
 
   const routeKey = `${req.method} ${req.path}`;
-  if (!protectedAdminRoutes.has(routeKey)) {
-    return next();
-  }
+  if (!protectedAdminRoutes.has(routeKey)) return next();
 
   const adminEmails = getAdminEmails();
   if (adminEmails.size === 0) {
-    return res.status(503).json({
-      error: 'Admin access is not configured',
-    });
+    return res.status(503).json({ error: 'Admin access is not configured' });
   }
 
-  const authorization = req.headers.authorization;
-  if (!authorization || !authorization.startsWith('Bearer ')) {
+  const session = getSessionFromRequest(req);
+  if (!session) {
     return res.status(401).json({ error: 'Authentication required' });
   }
 
-  const token = authorization.slice('Bearer '.length).trim();
-  const session = verifySessionToken(token);
-  if (!session) {
-    return res.status(401).json({ error: 'Invalid or expired session' });
-  }
-
-  if (!adminEmails.has(session.email.trim().toLowerCase())) {
+  if (!adminEmails.has(session.email)) {
     return res.status(403).json({ error: 'Admin access required' });
   }
 
