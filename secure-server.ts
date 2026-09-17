@@ -1,5 +1,6 @@
 import express from 'express';
 import { authMeRouter } from './src/server/authMeRouter';
+import { authCookieBridge } from './src/server/authCookieBridge';
 import { securityMiddleware } from './src/server/securityMiddleware';
 import { securePaymentConfirmation } from './src/server/securePaymentConfirmation';
 
@@ -8,6 +9,7 @@ const originalInit = expressApplication.init;
 
 expressApplication.init = function patchedInit(this: any) {
   originalInit.call(this);
+  this.use(authCookieBridge);
   this.use(securityMiddleware);
   this.use(securePaymentConfirmation);
   this.use('/api/auth', authMeRouter);
