@@ -5,6 +5,7 @@ import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
+import { sessionCookieHeader } from './src/server/sessionSecurity';
 
 interface PaymentRecord {
   id: string;
@@ -315,10 +316,11 @@ async function startServer() {
         role: client.role || 'Entrenador',
       });
 
-      // 3. Incluir sessionToken en la respuesta HTTP 200
+      // 3. Keep the signed session token out of browser JavaScript.
+      // The backend stores it in an HttpOnly cookie and the frontend verifies it via /api/auth/me.
+      res.setHeader('Set-Cookie', sessionCookieHeader(sessionToken));
       return res.status(200).json({
         verified: true,
-        sessionToken,
         user: {
           email: verifiedUser.email,
           name: verifiedUser.name,
