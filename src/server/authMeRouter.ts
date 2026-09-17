@@ -1,13 +1,7 @@
 import { Router } from 'express';
 import fs from 'fs';
 import path from 'path';
-import jwt from 'jsonwebtoken';
-
-interface SessionPayload {
-  userId: string;
-  email: string;
-  role?: string;
-}
+import { clearSessionCookieHeader, getSessionFromRequest } from './sessionSecurity';
 
 interface ClientRecord {
   id: string;
@@ -38,68 +32,34 @@ function loadClients(): ClientRecord[] {
   }
 }
 
-function verifySessionToken(token: string): SessionPayload | null {
-  const secret = process.env.SESSION_SECRET;
-  if (!secret) {
-    console.error('SESSION_SECRET is not configured');
-    return null;
-  }
+function getTrialInfo(client: ClientRecord) {
+  const firstLoginMs = new Date(client.firstLoginDate).getTime();
+  const totalAllowedDays = client.trialDurationDays + (client.customGrantedDays || 0);
+  const elapsedMs = Math.max(0, Date.now() - firstLoginMs);
+  const remainingMs = totalAllowedDays * 24 * 60 * 60 * 1000 - elapsedMs;
 
-  try {
-    const decoded = jwt.verify(token, secret) as jwt.JwtPayload;
-    if (
-      !decoded ||
-      typeof decoded !== 'object' ||
-      typeof decoded.userId !== 'string' ||
-      typeof decoded.email !== 'string'
-    ) {
-      return null;
-    }
-
-    return {
-      userId: decoded.userId,
-      email: decoded.email,
-      role: typeof decoded.role === 'string' ? decoded.role : undefined,
-    };
-  } catch {
-    return null;
-  }
+  return {
+    daysRemaining: Math.max(0, Math.ceil(remainingMs / (24 * 60 * 60 * 1000))),
+    isExpired: remainingMs <= 0 || !!client.isBlocked,
+    firstLoginDate: client.firstLoginDate,
+    totalAllowedDays,
+    elapsedDays: Math.floor(elapsedMs / (24 * 60 * 60 * 1000)),
+  };
 }
 
 export const authMeRouter = Router();
 
 authMeRouter.get('/me', (req, res) => {
-  const authorization = req.headers.authorization;
-
-  if (!authorization || !authorization.startsWith('Bearer ')) {
-    return res.status(401).json({
-      authenticated: false,
-      error: 'Authentication required',
-    });
-  }
-
-  const token = authorization.slice('Bearer '.length).trim();
-  if (!token) {
-    return res.status(401).json({
-      authenticated: false,
-      error: 'Authentication required',
-    });
-  }
-
-  const session = verifySessionToken(token);
+  const session = getSessionFromRequest(req);
   if (!session) {
-    return res.status(401).json({
-      authenticated: false,
-      error: 'Invalid or expired session',
-    });
+    return res.status(401).json({ authenticated: false, error: 'Authentication required' });
   }
 
   const clients = loadClients();
-  const sessionEmail = session.email.toLowerCase().trim();
   const client = clients.find(
     (candidate) =>
       candidate.id === session.userId &&
-      candidate.email.toLowerCase().trim() === sessionEmail,
+      candidate.email.toLowerCase().trim() === session.email,
   );
 
   if (!client || client.isBlocked) {
@@ -115,9 +75,16 @@ authMeRouter.get('/me', (req, res) => {
       id: client.id,
       email: client.email,
       name: client.name,
+      picture: client.picture || '',
       role: client.role || session.role || 'Entrenador',
       plan: client.plan || null,
       club: client.club || null,
     },
+    trial: getTrialInfo(client),
   });
+});
+
+authMeRouter.post('/logout', (_req, res) => {
+  res.setHeader('Set-Cookie', clearSessionCookieHeader());
+  return res.status(200).json({ success: true });
 });
