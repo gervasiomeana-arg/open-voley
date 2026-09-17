@@ -9,4 +9,7 @@ expressApplication.init = function patchedInit(this: any) {
   this.use('/api/auth', authMeRouter);
 };
 
-await import('./server.ts');
+import('./server.ts').catch((error) => {
+  console.error('Failed to start OPEN VOLEY secure server:', error);
+  process.exitCode = 1;
+});
