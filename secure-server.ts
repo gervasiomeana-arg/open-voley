@@ -1,6 +1,5 @@
 import express from 'express';
 import { authMeRouter } from './src/server/authMeRouter';
-import { authCookieBridge } from './src/server/authCookieBridge';
 import { requestProtection } from './src/server/requestProtection';
 import { securityMiddleware } from './src/server/securityMiddleware';
 import { secureMercadoPago } from './src/server/secureMercadoPago';
@@ -11,9 +10,8 @@ const originalInit = expressApplication.init;
 
 expressApplication.init = function patchedInit(this: any) {
   originalInit.call(this);
-  // Parse request bodies before security interceptors and cap JSON payload size.
+  // Transitional entrypoint: security middleware must execute before legacy application routes.
   this.use(express.json({ limit: '1mb' }));
-  this.use(authCookieBridge);
   this.use(securityMiddleware);
   this.use(requestProtection);
   this.use(secureMercadoPago);
