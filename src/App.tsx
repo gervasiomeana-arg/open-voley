@@ -41,6 +41,7 @@ import {
   getCurrentMatch,
   saveCurrentMatch
 } from './services/teamStorage';
+import { getAuthenticatedSession, logoutAuthenticatedSession } from './services/authSession';
 import { 
   Menu, 
   Download, 
@@ -206,105 +207,90 @@ export default function App() {
     setAiRallies([]);
   };
 
-  // Authentication & 30-Day Trial State
-  const [currentUser, setCurrentUser] = useState<ClientUser | null>(() => {
-    try {
-      const stored = localStorage.getItem('openvoley_user');
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
-    }
-  });
+  // Authentication is server-authoritative. Browser storage is never accepted as identity.
+  const [currentUser, setCurrentUser] = useState<ClientUser | null>(null);
+  const [trialInfo, setTrialInfo] = useState<TrialInfo | null>(null);
 
-  const [trialInfo, setTrialInfo] = useState<TrialInfo | null>(() => {
-    try {
-      const stored = localStorage.getItem('openvoley_trial');
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
-    }
-  });
-
-  // Verify / Sync trial status on startup with the server & Check Mercado Pago return status
   useEffect(() => {
-    // 1. Check if user is returning from a Mercado Pago checkout
-    const searchParams = new URLSearchParams(window.location.search);
-    const paymentStatus = searchParams.get('payment_status') || searchParams.get('collection_status') || searchParams.get('status');
-    const planParam = searchParams.get('plan') || 'pro';
-    const emailParam = searchParams.get('email') || currentUser?.email;
-    const daysParam = Number(searchParams.get('days')) || 30;
-    const paymentId = searchParams.get('payment_id') || searchParams.get('collection_id');
+    let cancelled = false;
 
-    if (paymentStatus === 'approved' && (emailParam || currentUser?.email)) {
-      const targetEmail = emailParam || currentUser?.email || 'cliente@openvoley.com';
-      
-      fetch('/api/mercadopago/confirm-payment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: targetEmail,
-          planId: planParam,
-          days: daysParam,
-          paymentId: paymentId || `mp-${Date.now()}`,
-        }),
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.client && data.trial) {
-            setCurrentUser(data.client);
-            setTrialInfo(data.trial);
-            localStorage.setItem('openvoley_user', JSON.stringify(data.client));
-            localStorage.setItem('openvoley_trial', JSON.stringify(data.trial));
-            
+    const syncVerifiedSession = async () => {
+      const searchParams = new URLSearchParams(window.location.search);
+      const paymentStatus =
+        searchParams.get('payment_status') ||
+        searchParams.get('collection_status') ||
+        searchParams.get('status');
+      const paymentId =
+        searchParams.get('payment_id') ||
+        searchParams.get('collection_id') ||
+        searchParams.get('data.id');
+
+      try {
+        if (paymentStatus === 'approved' && paymentId) {
+          const confirmation = await fetch('/api/mercadopago/confirm-payment', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ paymentId }),
+          });
+
+          const confirmationData = await confirmation.json().catch(() => ({}));
+          if (!confirmation.ok) {
+            console.warn('Mercado Pago confirmation was not completed:', confirmationData);
+          } else if (!cancelled) {
             setPaymentSuccessToast({
-              message: `¡Pago de Mercado Pago Acreditado! Tu licencia fue extendida +${daysParam} días.`,
-              planName: planParam,
+              message: confirmationData.alreadyProcessed
+                ? 'Pago verificado. Tu licencia ya estaba acreditada.'
+                : `Pago verificado. Licencia acreditada${confirmationData.grantedDays ? ` +${confirmationData.grantedDays} días` : ''}.`,
+              planName: confirmationData.plan || undefined,
             });
-            setTimeout(() => setPaymentSuccessToast(null), 8000);
+            window.setTimeout(() => setPaymentSuccessToast(null), 8000);
           }
-        })
-        .catch((err) => console.error('Error confirming MP payment:', err))
-        .finally(() => {
-          // Clean URL params without reloading page
+        }
+
+        const session = await getAuthenticatedSession();
+        if (cancelled) return;
+
+        if (session) {
+          setCurrentUser(session.user);
+          setTrialInfo(session.trial);
+        } else {
+          setCurrentUser(null);
+          setTrialInfo(null);
+        }
+      } catch (error) {
+        console.error('Could not synchronize verified OPEN VOLEY session:', error);
+        if (!cancelled) {
+          setCurrentUser(null);
+          setTrialInfo(null);
+        }
+      } finally {
+        if (paymentStatus) {
           window.history.replaceState({}, document.title, window.location.pathname);
-        });
-    } else if (currentUser?.email) {
-      // Regular trial status sync
-      fetch('/api/clients/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: currentUser.email,
-          name: currentUser.name,
-          picture: currentUser.picture,
-        }),
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.client && data.trial) {
-            setCurrentUser(data.client);
-            setTrialInfo(data.trial);
-            localStorage.setItem('openvoley_user', JSON.stringify(data.client));
-            localStorage.setItem('openvoley_trial', JSON.stringify(data.trial));
-          }
-        })
-        .catch((err) => {
-          console.warn('Using cached trial info offline:', err);
-        });
-    }
+        }
+      }
+    };
+
+    void syncVerifiedSession();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleLoginSuccess = (user: ClientUser, trial: TrialInfo) => {
+    // GoogleAuthModal obtains these values only from /api/auth/me after the HttpOnly
+    // session cookie has been created and verified by the backend.
     setCurrentUser(user);
     setTrialInfo(trial);
     setShowAuthModal(false);
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('openvoley_user');
-    localStorage.removeItem('openvoley_trial');
-    setCurrentUser(null);
-    setTrialInfo(null);
+    void logoutAuthenticatedSession().finally(() => {
+      setCurrentUser(null);
+      setTrialInfo(null);
+      setShowAuthModal(false);
+    });
   };
 
   // Handlers for scouting actions
