@@ -59,19 +59,17 @@ export interface TrainingRepositoryStatus {
   message: string;
 }
 
-function createTrainingRepository(): {
+export function createTrainingRepositoryForDriver(
+  requestedDriver: 'json' | 'sqlite',
+  sqliteFactory: () => TrainingRepository = () => new SqliteTrainingRepository(),
+): {
   repository: TrainingRepository;
   status: TrainingRepositoryStatus;
 } {
-  const requestedDriver =
-    process.env.OPENVOLEY_STORAGE_DRIVER?.trim().toLowerCase() === 'sqlite'
-      ? 'sqlite'
-      : 'json';
-
   if (requestedDriver === 'sqlite') {
     try {
       return {
-        repository: new SqliteTrainingRepository(),
+        repository: sqliteFactory(),
         status: {
           requestedDriver: 'sqlite',
           activeDriver: 'sqlite',
@@ -105,6 +103,17 @@ function createTrainingRepository(): {
       message: 'JSON persistence active',
     },
   };
+}
+
+function createTrainingRepository(): {
+  repository: TrainingRepository;
+  status: TrainingRepositoryStatus;
+} {
+  const requestedDriver =
+    process.env.OPENVOLEY_STORAGE_DRIVER?.trim().toLowerCase() === 'sqlite'
+      ? 'sqlite'
+      : 'json';
+  return createTrainingRepositoryForDriver(requestedDriver);
 }
 
 const created = createTrainingRepository();
