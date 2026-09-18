@@ -77,6 +77,12 @@ export function saveMontageLocallyFirst(montage: SmartSportsMontage) {
   return updated;
 }
 
+export async function publishMontageConfirmed(montage: SmartSportsMontage): Promise<{ ok: boolean; montages: SmartSportsMontage[] }> {
+  const updated = saveSmartSportsMontage(montage);
+  const ok = await pushMontageToServer(montage);
+  return { ok, montages: updated };
+}
+
 export function deleteMontageLocallyFirst(id: string) {
   const updated = deleteSmartSportsMontage(id);
   void deleteMontageFromServer(id);
