@@ -112,6 +112,7 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const montageRecorderRef = useRef<MediaRecorder | null>(null);
+  const sourceVideoFileRef = useRef<File | null>(null);
   const montageChunksRef = useRef<Blob[]>([]);
   const montageExtensionRef = useRef<'mp4' | 'webm'>('webm');
   const montageNameRef = useRef<string>('');
@@ -317,7 +318,7 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
     }
   };
 
-  const exportPlaylistVideo = (queue: ScoutCodeAction[], preRoll: number, postRoll: number, montageName?: string, shareAfterExport = false) => {
+  const exportPlaylistVideoBrowser = (queue: ScoutCodeAction[], preRoll: number, postRoll: number, montageName?: string, shareAfterExport = false) => {
     if (youtubeId) {
       setVideoError('La exportación de montaje requiere un archivo de video local. YouTube no permite capturar el stream del iframe para generar un archivo.');
       return;
@@ -406,6 +407,101 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
     }
   };
 
+  const exportPlaylistVideo = async (queue: ScoutCodeAction[], preRoll: number, postRoll: number, montageName?: string, shareAfterExport = false) => {
+    if (youtubeId) {
+      setVideoError('La exportación MP4 automática requiere el archivo local original del partido.');
+      return;
+    }
+    const sourceFile = sourceVideoFileRef.current;
+    if (!sourceFile || queue.length === 0) {
+      exportPlaylistVideoBrowser(queue, preRoll, postRoll, montageName, shareAfterExport);
+      return;
+    }
+
+    const safeName = (montageName?.trim() || match.title || 'montaje')
+      .replace(/[^a-zA-Z0-9-_]+/g, '-').replace(/^-+|-+$/g, '') || 'montaje';
+
+    try {
+      setVideoError('Preparando MP4 automático: subiendo video fuente...');
+      const capabilityResponse = await fetch('/api/video-render/capabilities', {
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' },
+      });
+      const capabilities = capabilityResponse.ok ? await capabilityResponse.json() : null;
+      if (!capabilities?.ffmpeg) {
+        exportPlaylistVideoBrowser(queue, preRoll, postRoll, montageName, shareAfterExport);
+        return;
+      }
+
+      const uploadResponse = await fetch(`/api/video-render/source/${encodeURIComponent(match.id)}`, {
+        method: 'PUT',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': sourceFile.type || 'application/octet-stream', Accept: 'application/json' },
+        body: sourceFile,
+      });
+      if (!uploadResponse.ok) throw new Error((await uploadResponse.json().catch(() => null))?.error || 'No se pudo subir el video fuente');
+
+      setVideoError(`Renderizando ${queue.length} clips en MP4...`);
+      const renderResponse = await fetch('/api/video-render/render', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          matchId: match.id,
+          name: safeName,
+          clips: queue.map((action) => ({
+            actionId: action.id,
+            startSec: Math.max(0, action.timestamp - preRoll),
+            endSec: action.timestamp + postRoll,
+          })),
+        }),
+      });
+      if (!renderResponse.ok) throw new Error((await renderResponse.json().catch(() => null))?.error || 'No se pudo iniciar el render');
+      const { jobId } = await renderResponse.json();
+
+      for (let attempt = 0; attempt < 900; attempt += 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, 1000));
+        const statusResponse = await fetch(`/api/video-render/render/${encodeURIComponent(jobId)}`, {
+          credentials: 'same-origin',
+          headers: { Accept: 'application/json' },
+          cache: 'no-store',
+        });
+        if (!statusResponse.ok) throw new Error('No se pudo consultar el estado del render');
+        const status = await statusResponse.json();
+        if (status.status === 'failed') throw new Error(status.error || 'Falló el render MP4');
+        if (status.status !== 'ready' || !status.downloadUrl) continue;
+
+        setVideoError(null);
+        const fileName = `open-voley-${safeName}.mp4`;
+        if (shareAfterExport && typeof navigator.share === 'function') {
+          const rendered = await fetch(status.downloadUrl, { credentials: 'same-origin' });
+          const blob = await rendered.blob();
+          const file = new File([blob], fileName, { type: 'video/mp4' });
+          const canShare = typeof navigator.canShare !== 'function' || navigator.canShare({ files: [file] });
+          if (canShare) {
+            try {
+              await navigator.share({ files: [file], title: montageName || 'Montaje OPEN VOLEY', text: 'Montaje deportivo generado con OPEN VOLEY' });
+              return;
+            } catch (error) {
+              if (error instanceof DOMException && error.name === 'AbortError') return;
+            }
+          }
+        }
+        const anchor = document.createElement('a');
+        anchor.href = status.downloadUrl;
+        anchor.download = fileName;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        return;
+      }
+      throw new Error('El render superó el tiempo máximo de espera');
+    } catch (error) {
+      setVideoError(`MP4 automático no disponible: ${error instanceof Error ? error.message : 'error de render'}. Se intentará la exportación del navegador.`);
+      window.setTimeout(() => exportPlaylistVideoBrowser(queue, preRoll, postRoll, montageName, shareAfterExport), 800);
+    }
+  };
+
   const startPlaylistPlayback = (queue: ScoutCodeAction[], preRoll: number, postRoll: number) => {
     if (youtubeId) {
       setVideoError('La reproducción secuencial automática requiere un archivo de video local. En YouTube puedes abrir cada clip individualmente.');
@@ -457,6 +553,7 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
 
   // Process uploaded video file (e.g. phone recording .mp4/.mov)
   const processFile = (file: File) => {
+    sourceVideoFileRef.current = file;
     const sizeMb = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
     setVideoError(null);
     setIsPlaying(false);
