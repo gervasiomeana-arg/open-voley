@@ -43,7 +43,9 @@ assert.equal((await repo.list('user-b')).length, 1);
 
 const db = new DatabaseSync(dbPath);
 const rows = db.prepare('SELECT user_id, montage_id FROM smart_sports_montages ORDER BY user_id').all() as Array<{user_id:string;montage_id:string}>;
-assert.deepEqual(rows, [{ user_id: 'user-b', montage_id: 'same-id' }]);
+assert.equal(rows.length, 1);
+assert.equal(rows[0].user_id, 'user-b');
+assert.equal(rows[0].montage_id, 'same-id');
 db.close();
 
 fs.rmSync(dir, { recursive: true, force: true });
