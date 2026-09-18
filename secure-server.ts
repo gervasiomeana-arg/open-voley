@@ -7,6 +7,7 @@ import { securePaymentConfirmation } from './src/server/securePaymentConfirmatio
 import { trainingSessionsRouter } from './src/server/trainingSessionsRouter';
 import { storageHealthRouter } from './src/server/storageHealthRouter';
 import { smartSportsMontageRouter } from './src/server/smartSportsMontageRouter';
+import { videoRenderRouter } from './src/server/videoRenderRouter';
 
 const expressApplication = express.application as any;
 const originalInit = expressApplication.init;
@@ -22,6 +23,7 @@ expressApplication.init = function patchedInit(this: any) {
   this.use('/api/auth', authMeRouter);
   this.use('/api/training-sessions', trainingSessionsRouter);
   this.use('/api/smart-sports-montages', smartSportsMontageRouter);
+  this.use('/api/video-render', videoRenderRouter);
   this.use('/api/storage-health', storageHealthRouter);
 };
 

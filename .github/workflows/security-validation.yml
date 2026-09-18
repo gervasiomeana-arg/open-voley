@@ -60,5 +60,8 @@ jobs:
       - name: Montage sync tests
         run: npm run test:montage-sync
 
+      - name: Video render plan tests
+        run: npm run test:video-render
+
       - name: Production build
         run: npm run build
