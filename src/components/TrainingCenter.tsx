@@ -17,18 +17,20 @@ import {
   Layers,
   Volleyball
 } from 'lucide-react';
-import { TrainingSession, TrainingExercise, MatchData } from '../types';
+import { TrainingSession, TrainingExercise, MatchData, TrainingEvidenceContext } from '../types';
 import { sampleTrainingSessions } from '../data/sampleCompetitionAndTraining';
 
 interface TrainingCenterProps {
   match?: MatchData;
   initialFocusProblem?: string;
+  evidenceContext?: TrainingEvidenceContext;
   onNavigateToMatch?: () => void;
 }
 
 export const TrainingCenter: React.FC<TrainingCenterProps> = ({
   match,
   initialFocusProblem,
+  evidenceContext,
   onNavigateToMatch,
 }) => {
   const [sessions, setSessions] = useState<TrainingSession[]>(sampleTrainingSessions);
@@ -38,14 +40,132 @@ export const TrainingCenter: React.FC<TrainingCenterProps> = ({
   const [isGeneratorOpen, setIsGeneratorOpen] = useState(Boolean(initialFocusProblem));
   const [genDuration, setGenDuration] = useState<number>(90);
   const [genPlayers, setGenPlayers] = useState<number>(14);
-  const [genProblem, setGenProblem] = useState<string>(initialFocusProblem || 'Recepción en zona 5 frente a saque flotado');
+  const [genProblem, setGenProblem] = useState<string>(initialFocusProblem || 'Definir problema táctico a trabajar');
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
 
   const activeSession = sessions.find((s) => s.id === selectedSessionId) || sessions[0];
 
+  const buildEvidenceExercises = (): TrainingExercise[] => {
+    const now = Date.now();
+    const category = evidenceContext?.category || 'generic';
+    const focus = genProblem.trim();
+
+    const warmup: TrainingExercise = {
+      id: `ex_${now}_1`,
+      block: 'Activación',
+      name: 'Activación orientada al patrón del partido',
+      durationMin: Math.max(10, Math.round(genDuration * 0.15)),
+      description: evidenceContext
+        ? `Preparación técnica usando como referencia el hallazgo: ${evidenceContext.title}. No se agregan zonas, gestos ni patrones que no estén presentes en la evidencia.`
+        : `Preparación general vinculada al foco definido por el cuerpo técnico: ${focus}.`,
+      courtFocus: 'Según el foco definido',
+      keyObjective: 'Preparar la tarea principal sin introducir supuestos tácticos',
+    };
+
+    const categoryExercise: Record<string, TrainingExercise> = {
+      rotation_sideout: {
+        id: `ex_${now}_2`,
+        block: 'Side-out',
+        name: `Repetición contextual del problema: ${focus}`,
+        durationMin: Math.max(20, Math.round(genDuration * 0.30)),
+        description: `Recrear secuencias de recepción y salida correspondientes al hallazgo observado. Mantener la rotación indicada por la evidencia y registrar cada resolución para poder comparar después.`,
+        courtFocus: evidenceContext?.rotationRef ? `Rotación R${evidenceContext.rotationRef}` : 'Rotación observada en la evidencia',
+        keyObjective: 'Aumentar la eficacia de Side-out en el contexto realmente detectado',
+      },
+      serve_reception: {
+        id: `ex_${now}_2`,
+        block: 'Recepción',
+        name: `Recepción sobre el patrón detectado: ${focus}`,
+        durationMin: Math.max(20, Math.round(genDuration * 0.30)),
+        description: `Reproducir únicamente el tipo de saque y la zona que figuran en el hallazgo. Registrar calidad de recepción para comparar el ejercicio con la muestra del partido.`,
+        courtFocus: 'Zona indicada por la evidencia del hallazgo',
+        keyObjective: 'Reducir la recepción negativa frente al patrón observado',
+      },
+      attack: {
+        id: `ex_${now}_2`,
+        block: 'Ataque',
+        name: `Resolución ofensiva: ${focus}`,
+        durationMin: Math.max(20, Math.round(genDuration * 0.30)),
+        description: 'Repetir situaciones ofensivas equivalentes a las registradas, conservando sólo las condiciones conocidas en los datos.',
+        courtFocus: 'Contexto ofensivo registrado',
+        keyObjective: 'Mejorar la resolución del problema ofensivo observado',
+      },
+      serve: {
+        id: `ex_${now}_2`,
+        block: 'Saque',
+        name: `Trabajo específico: ${focus}`,
+        durationMin: Math.max(20, Math.round(genDuration * 0.30)),
+        description: 'Entrenar el patrón de saque sustentado por el hallazgo y registrar resultado de cada intento.',
+        courtFocus: 'Objetivo indicado por la evidencia, si existe',
+        keyObjective: 'Mejorar consistencia y presión de saque sin inventar objetivos no registrados',
+      },
+      reception: {
+        id: `ex_${now}_2`,
+        block: 'Recepción',
+        name: `Trabajo específico: ${focus}`,
+        durationMin: Math.max(20, Math.round(genDuration * 0.30)),
+        description: 'Repetir el contexto de recepción respaldado por los datos y registrar la evaluación de cada acción.',
+        courtFocus: 'Contexto respaldado por la evidencia',
+        keyObjective: 'Mejorar la calidad de recepción en el problema observado',
+      },
+      generic: {
+        id: `ex_${now}_2`,
+        block: 'Trabajo específico',
+        name: `Foco técnico-táctico: ${focus}`,
+        durationMin: Math.max(20, Math.round(genDuration * 0.30)),
+        description: evidenceContext
+          ? 'Trabajar exclusivamente el problema descrito por el hallazgo. La evidencia disponible no permite especificar automáticamente una zona, tipo de saque o rotación adicional.'
+          : 'Foco definido manualmente por el cuerpo técnico. OPEN VOLEY no atribuye este ejercicio a evidencia automática.',
+        courtFocus: 'A definir por el cuerpo técnico',
+        keyObjective: 'Trabajar el foco sin completar información inexistente',
+      },
+    };
+
+    return [
+      warmup,
+      categoryExercise[category] || categoryExercise.generic,
+      {
+        id: `ex_${now}_3`,
+        block: 'Transferencia',
+        name: 'Transferencia a situación de juego',
+        durationMin: Math.max(20, Math.round(genDuration * 0.25)),
+        description: 'Integrar el foco trabajado en rallies completos y registrar las acciones con el Scout para conservar evidencia comparable.',
+        courtFocus: 'Cancha completa',
+        keyObjective: 'Transferir la mejora al rally real',
+      },
+      {
+        id: `ex_${now}_4`,
+        block: 'Evaluación',
+        name: 'Bloque de control y comparación',
+        durationMin: Math.max(15, Math.round(genDuration * 0.20)),
+        description: 'Repetir el contexto objetivo sin corrección durante la acción y registrar resultados. La mejora se evalúa con datos, no por una conclusión automática.',
+        courtFocus: 'Mismo contexto del bloque específico',
+        keyObjective: 'Crear una nueva muestra comparable',
+      },
+      {
+        id: `ex_${now}_5`,
+        block: 'Cierre',
+        name: 'Revisión del objetivo de la sesión',
+        durationMin: Math.max(5, genDuration - (
+          Math.max(10, Math.round(genDuration * 0.15)) +
+          Math.max(20, Math.round(genDuration * 0.30)) +
+          Math.max(20, Math.round(genDuration * 0.25)) +
+          Math.max(15, Math.round(genDuration * 0.20))
+        )),
+        description: 'Registrar observaciones del cuerpo técnico y dejar definido qué indicador se revisará en el próximo partido.',
+        courtFocus: 'Fuera de cancha',
+        keyObjective: 'Cerrar el ciclo con un criterio de seguimiento explícito',
+      },
+    ];
+  };
+
   const handleGenerateWithAi = () => {
     setIsGenerating(true);
     setTimeout(() => {
+      const evidenceNote = evidenceContext
+        ? `Basado en ${evidenceContext.evidenceSource || 'evidencia del partido'}${evidenceContext.evidenceCount ? ` (n=${evidenceContext.evidenceCount})` : ''}${evidenceContext.rallyIds?.length ? `; rallies vinculados: ${evidenceContext.rallyIds.length}` : ''}.`
+        : 'Foco ingresado manualmente por el cuerpo técnico; no se presenta como hallazgo automático.';
+
       const newSession: TrainingSession = {
         id: `train_${Date.now()}`,
         title: `Sesión Táctica: ${genProblem.substring(0, 38)}`,
@@ -57,54 +177,8 @@ export const TrainingCenter: React.FC<TrainingCenterProps> = ({
         linkedMatchId: match?.id,
         status: 'planned',
         completed: false,
-        notes: `Generado por OPEN AI para resolver déficit detectado en ${match?.homeTeamName || 'el equipo'}.`,
-        exercises: [
-          {
-            id: `ex_${Date.now()}_1`,
-            block: 'Calentamiento',
-            name: 'Activación neuromuscular y sombras de desplazamiento',
-            durationMin: 15,
-            description: 'Movilidad dinámica, activación de hombros con bandas y simulación de lectura de saque en 3 posiciones.',
-            courtFocus: 'Línea de fondo completa',
-            keyObjective: 'Preparación fisiológica y lectura visual rápida'
-          },
-          {
-            id: `ex_${Date.now()}_2`,
-            block: 'Recepción',
-            name: `Entrenamiento analítico: ${genProblem}`,
-            durationMin: 25,
-            description: 'Dos sacadores desde zona 1 rival alternan balones flotados profundos y cortos. Exigencia de plataforma fija hacia zona 3.',
-            courtFocus: 'Zona 5 y 6 con conos de delimitación',
-            keyObjective: 'Fijar el ángulo de entrega y estabilidad postural'
-          },
-          {
-            id: `ex_${Date.now()}_3`,
-            block: 'Side-out',
-            name: 'Transición de Side-Out bajo presión con ataque de primer tiempo',
-            durationMin: 25,
-            description: 'Recepción obligada bajo saque competitivo. Salida inmediata con central en primer tiempo o punta por zona 4.',
-            courtFocus: 'Media cancha con bloqueo rival estructurado',
-            keyObjective: 'Transferencia directa al juego de salida de recepción'
-          },
-          {
-            id: `ex_${Date.now()}_4`,
-            block: 'Juego condicionado',
-            name: '6 vs 6 con bonificación por resolución de problema',
-            durationMin: 20,
-            description: 'Sets a 15 puntos. Cada punto anotado tras recepción positiva en zona 5 suma 2 puntos.',
-            courtFocus: 'Cancha completa',
-            keyObjective: 'Estimular la toma de decisiones en situación competitiva'
-          },
-          {
-            id: `ex_${Date.now()}_5`,
-            block: 'Cierre',
-            name: 'Saques tácticos bajo fatiga y estiramientos',
-            durationMin: 5,
-            description: 'Serie de 10 saques por atleta con objetivo marcado. Vuelta a la calma.',
-            courtFocus: 'Zona de saque',
-            keyObjective: 'Consolidación técnica final y recuperación'
-          }
-        ]
+        notes: `${evidenceNote} Objetivo: generar una nueva muestra comparable en el próximo control.`,
+        exercises: buildEvidenceExercises(),
       };
 
       setSessions([newSession, ...sessions]);
@@ -358,7 +432,7 @@ export const TrainingCenter: React.FC<TrainingCenterProps> = ({
               <div className="p-3.5 bg-purple-950/20 border border-purple-800/30 rounded-xl text-slate-300 space-y-1">
                 <span className="font-bold text-purple-400 block text-[11px]">Estructura que generará la IA:</span>
                 <p className="text-[11px] text-slate-400 leading-relaxed">
-                  1. Calentamiento específico (15m) • 2. Recepción analítica (25m) • 3. Side-out R4 (25m) • 4. Juego condicionado con puntuación doble (20m) • 5. Cierre y saque táctico (5m).
+                  La estructura se adapta al tipo de evidencia recibida. Si faltan datos de zona, rotación o tipo de saque, OPEN VOLEY no los completa: deja ese detalle para el cuerpo técnico.
                 </p>
               </div>
             </div>
