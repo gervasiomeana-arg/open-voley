@@ -1,32 +1,8 @@
 import { Router } from 'express';
-import fs from 'fs';
-import path from 'path';
 import { TrainingSession } from '../types';
 import { getSessionFromRequest } from './sessionSecurity';
-import {
-  UserTrainingRecord,
-  deleteUserTrainingSession,
-  getUserTrainingSessions,
-  upsertUserTrainingSession,
-} from './trainingSessionsStore';
-
-const TRAINING_FILE = path.join(process.cwd(), 'training_sessions_db.json');
+import { getTrainingRepository } from './trainingRepository';
 const router = Router();
-
-function loadRecords(): UserTrainingRecord[] {
-  try {
-    if (!fs.existsSync(TRAINING_FILE)) return [];
-    const parsed = JSON.parse(fs.readFileSync(TRAINING_FILE, 'utf-8'));
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (error) {
-    console.error('Training sessions read failed:', error);
-    return [];
-  }
-}
-
-function saveRecords(records: UserTrainingRecord[]): void {
-  fs.writeFileSync(TRAINING_FILE, JSON.stringify(records, null, 2), 'utf-8');
-}
 
 function isTrainingSession(value: unknown): value is TrainingSession {
   if (!value || typeof value !== 'object') return false;
@@ -51,28 +27,26 @@ router.use((req, res, next) => {
   return next();
 });
 
-router.get('/', (_req, res) => {
+router.get('/', async (_req, res) => {
   const userId = String(res.locals.sessionUserId);
-  return res.json({ sessions: getUserTrainingSessions(loadRecords(), userId) });
+  return res.json({ sessions: await getTrainingRepository().list(userId) });
 });
 
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
   const userId = String(res.locals.sessionUserId);
   const id = String(req.params.id || '').slice(0, 120);
   if (!isTrainingSession(req.body) || req.body.id !== id) {
     return res.status(400).json({ error: 'Invalid training session' });
   }
 
-  const records = upsertUserTrainingSession(loadRecords(), userId, req.body);
-  saveRecords(records);
+  await getTrainingRepository().upsert(userId, req.body);
   return res.json({ success: true, session: req.body });
 });
 
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   const userId = String(res.locals.sessionUserId);
   const id = String(req.params.id || '').slice(0, 120);
-  const records = deleteUserTrainingSession(loadRecords(), userId, id);
-  saveRecords(records);
+  await getTrainingRepository().delete(userId, id);
 
   return res.json({ success: true });
 });
