@@ -46,15 +46,15 @@ export const SmartSportsLibrary: React.FC<Props> = ({ currentMatchId, onOpenMont
   };
 
   return (
-    <div className="space-y-4 animate-fadeIn">
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+    <div className="space-y-3 sm:space-y-4 animate-fadeIn">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-5">
+        <div className="flex items-start lg:items-center justify-between gap-3 sm:gap-4">
           <div>
             <div className="text-xs font-black uppercase tracking-wider text-violet-400 flex items-center gap-2">
               <Film className="w-4 h-4" /> Biblioteca deportiva
             </div>
-            <h2 className="text-xl font-black text-white mt-1">Mis montajes de video</h2>
-            <p className="text-xs text-slate-400 mt-1">
+            <h2 className="text-lg sm:text-xl font-black text-white mt-1">Mis montajes</h2>
+            <p className="hidden sm:block text-xs text-slate-400 mt-1">
               Montajes guardados y sincronizados con tu cuenta. Busca por nombre, partido, jugador o fundamento.
             </p>
           </div>
@@ -63,7 +63,7 @@ export const SmartSportsLibrary: React.FC<Props> = ({ currentMatchId, onOpenMont
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_220px] gap-3 mt-5">
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_220px] gap-2 sm:gap-3 mt-3 sm:mt-5">
           <label className="relative">
             <Search className="absolute left-3 top-3 w-4 h-4 text-slate-500" />
             <input
@@ -87,7 +87,7 @@ export const SmartSportsLibrary: React.FC<Props> = ({ currentMatchId, onOpenMont
       </div>
 
       {filtered.length === 0 ? (
-        <div className="bg-slate-900 border border-dashed border-slate-700 rounded-3xl p-10 text-center">
+        <div className="bg-slate-900 border border-dashed border-slate-700 rounded-2xl sm:rounded-3xl p-7 sm:p-10 text-center">
           <Scissors className="w-9 h-9 text-slate-600 mx-auto mb-3" />
           <div className="font-black text-white">No hay montajes para mostrar</div>
           <p className="text-xs text-slate-500 mt-1">Crea y guarda un montaje desde el Editor Deportivo Inteligente.</p>
@@ -95,7 +95,7 @@ export const SmartSportsLibrary: React.FC<Props> = ({ currentMatchId, onOpenMont
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           {filtered.map((montage) => (
-            <article key={montage.id} className="bg-slate-900 border border-slate-800 rounded-3xl p-5">
+            <article key={montage.id} className="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-[10px] uppercase tracking-wider text-slate-500">{montage.matchTitle}</div>
@@ -136,11 +136,11 @@ export const SmartSportsLibrary: React.FC<Props> = ({ currentMatchId, onOpenMont
                 </div>
               )}
 
-              <div className="flex items-center justify-between gap-2 mt-5 pt-4 border-t border-slate-800">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-4 sm:mt-5 pt-3 sm:pt-4 border-t border-slate-800">
                 <div className="text-[10px] text-slate-500">
                   {new Date(montage.updatedAt).toLocaleDateString()} · {montage.preRoll}s antes / {montage.postRoll}s después
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 self-end sm:self-auto">
                   <button type="button" onClick={() => remove(montage.id)} className="p-2 rounded-xl text-slate-500 hover:text-rose-400 hover:bg-rose-500/10" title="Eliminar montaje">
                     <Trash2 className="w-4 h-4" />
                   </button>
