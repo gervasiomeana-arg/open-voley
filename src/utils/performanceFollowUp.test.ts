@@ -92,7 +92,7 @@ const receptionTarget = buildPerformanceTargetFromMatch(sourceReception, {
 assert.equal(receptionTarget.baselineSample, 5);
 assert.equal(receptionTarget.baselineValue, 60);
 
-const improvedReception = baseMatch('next-reception', [
+const improvedReception = { ...baseMatch('next-reception', [
   action('s11', 'away', 'S', '+', 'n1', { serveType: 'jump_spin', endZone: 5, phase: 'K2' }),
   action('r11', 'home', 'R', '-', 'n1', { receptionContext: 'negative', phase: 'K1' }),
   action('s12', 'away', 'S', '+', 'n2', { serveType: 'jump_spin', endZone: 5, phase: 'K2' }),
@@ -103,7 +103,7 @@ const improvedReception = baseMatch('next-reception', [
   action('r14', 'home', 'R', '!', 'n4', { receptionContext: 'negative', phase: 'K1' }),
   action('s15', 'away', 'S', '+', 'n5', { serveType: 'jump_spin', endZone: 5, phase: 'K2' }),
   action('r15', 'home', 'R', '+', 'n5', { receptionContext: 'positive', phase: 'K1' }),
-]);
+]), date: '2026-09-19' };
 
 const receptionResult = evaluatePerformanceFollowUp(receptionTarget, improvedReception);
 assert.equal(receptionResult.status, 'improved');
@@ -144,7 +144,7 @@ const sideoutTarget = buildPerformanceTargetFromMatch(sourceSideout, {
 assert.equal(sideoutTarget.baselineSample, 4);
 assert.equal(sideoutTarget.baselineValue, 50);
 
-const nextSideout = baseMatch('next-sideout', [
+const nextSideout = { ...baseMatch('next-sideout', [
   action('r41', 'home', 'R', '+', 'nr1', { phase: 'K1' }),
   action('a41', 'home', 'A', '#', 'nr1', { phase: 'K1' }),
   action('r42', 'home', 'R', '+', 'nr2', { phase: 'K1' }),
@@ -152,7 +152,7 @@ const nextSideout = baseMatch('next-sideout', [
   action('r43', 'home', 'R', '+', 'nr3', { phase: 'K1' }),
   action('a43', 'home', 'A', '#', 'nr3', { phase: 'K1' }),
   action('r44', 'home', 'R', '+', 'nr4', { phase: 'K1' }),
-]);
+]), date: '2026-09-19' };
 
 const sideoutResult = evaluatePerformanceFollowUp(sideoutTarget, nextSideout);
 assert.equal(sideoutResult.status, 'improved');
