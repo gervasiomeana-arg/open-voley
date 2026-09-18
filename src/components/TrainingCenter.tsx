@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Dumbbell, 
   Plus, 
@@ -21,7 +21,8 @@ import { TrainingSession, TrainingExercise, MatchData, TrainingEvidenceContext }
 import { sampleTrainingSessions } from '../data/sampleCompetitionAndTraining';
 import { buildEvidenceExercises, buildTrainingEvidenceNote } from '../utils/trainingEvidence';
 import { buildPerformanceTargetFromMatch, evaluatePerformanceFollowUp } from '../utils/performanceFollowUp';
-import { deleteTrainingSession, getSavedTrainingSessions, saveTrainingSession } from '../services/trainingStorage';
+import { deleteTrainingSession, getSavedTrainingSessions } from '../services/trainingStorage';
+import { deleteTrainingSessionFromServer, saveTrainingSessionLocallyFirst, syncTrainingSessions } from '../services/trainingSync';
 
 interface TrainingCenterProps {
   match?: MatchData;
@@ -51,6 +52,26 @@ export const TrainingCenter: React.FC<TrainingCenterProps> = ({
   const [genPlayers, setGenPlayers] = useState<number>(14);
   const [genProblem, setGenProblem] = useState<string>(initialFocusProblem || 'Definir problema táctico a trabajar');
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [syncStatus, setSyncStatus] = useState<'checking' | 'synced' | 'local'>('checking');
+
+  useEffect(() => {
+    let cancelled = false;
+    void syncTrainingSessions().then((result) => {
+      if (cancelled) return;
+      if (result.sessions.length) {
+        setSessions(result.sessions);
+        setSelectedSessionId((current) =>
+          result.sessions.some((session) => session.id === current)
+            ? current
+            : result.sessions[0].id,
+        );
+      }
+      setSyncStatus(result.status === 'synced' ? 'synced' : 'local');
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const activeSession = sessions.find((s) => s.id === selectedSessionId) || sessions[0];
   const activeFollowUp =
@@ -65,20 +86,21 @@ export const TrainingCenter: React.FC<TrainingCenterProps> = ({
       completed: !activeSession.completed,
       status: activeSession.completed ? 'planned' : 'completed',
     };
-    setSessions(saveTrainingSession(updatedSession));
+    setSessions(saveTrainingSessionLocallyFirst(updatedSession));
   };
 
   const handleDeleteSession = () => {
     if (!activeSession) return;
     const updated = deleteTrainingSession(activeSession.id);
     setSessions(updated);
+    void deleteTrainingSessionFromServer(activeSession.id);
     setSelectedSessionId(updated[0]?.id || '');
   };
 
   const handleUpdateNotes = (notes: string) => {
     if (!activeSession) return;
     const updatedSession: TrainingSession = { ...activeSession, notes };
-    setSessions(saveTrainingSession(updatedSession));
+    setSessions(saveTrainingSessionLocallyFirst(updatedSession));
   };
 
   const handleGenerateWithAi = () => {
@@ -116,7 +138,7 @@ export const TrainingCenter: React.FC<TrainingCenterProps> = ({
         exercises: buildEvidenceExercises(genProblem, genDuration, evidenceContext),
       };
 
-      setSessions(saveTrainingSession(newSession));
+      setSessions(saveTrainingSessionLocallyFirst(newSession));
       setSelectedSessionId(newSession.id);
       setIsGenerating(false);
       setIsGeneratorOpen(false);
@@ -137,6 +159,13 @@ export const TrainingCenter: React.FC<TrainingCenterProps> = ({
                 <h2 className="text-xl font-black text-white">Centro de Entrenamiento Táctico</h2>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30">
                   OPEN AI Connected
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-bold border border-slate-700">
+                  {syncStatus === 'checking'
+                    ? 'Sincronizando…'
+                    : syncStatus === 'synced'
+                      ? 'Historial sincronizado'
+                      : 'Modo local'}
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
