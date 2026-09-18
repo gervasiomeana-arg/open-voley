@@ -21,6 +21,7 @@ import { TrainingSession, TrainingExercise, MatchData, TrainingEvidenceContext }
 import { sampleTrainingSessions } from '../data/sampleCompetitionAndTraining';
 import { buildEvidenceExercises, buildTrainingEvidenceNote } from '../utils/trainingEvidence';
 import { buildPerformanceTargetFromMatch, evaluatePerformanceFollowUp } from '../utils/performanceFollowUp';
+import { deleteTrainingSession, getSavedTrainingSessions, saveTrainingSession } from '../services/trainingStorage';
 
 interface TrainingCenterProps {
   match?: MatchData;
@@ -35,8 +36,14 @@ export const TrainingCenter: React.FC<TrainingCenterProps> = ({
   evidenceContext,
   onNavigateToMatch,
 }) => {
-  const [sessions, setSessions] = useState<TrainingSession[]>(sampleTrainingSessions);
-  const [selectedSessionId, setSelectedSessionId] = useState<string>(sampleTrainingSessions[0].id);
+  const [sessions, setSessions] = useState<TrainingSession[]>(() => {
+    const saved = getSavedTrainingSessions();
+    return saved.length ? saved : sampleTrainingSessions;
+  });
+  const [selectedSessionId, setSelectedSessionId] = useState<string>(() => {
+    const saved = getSavedTrainingSessions();
+    return saved[0]?.id || sampleTrainingSessions[0]?.id || '';
+  });
 
   // Generator modal state
   const [isGeneratorOpen, setIsGeneratorOpen] = useState(Boolean(initialFocusProblem));
@@ -50,6 +57,29 @@ export const TrainingCenter: React.FC<TrainingCenterProps> = ({
     activeSession?.performanceTarget && match
       ? evaluatePerformanceFollowUp(activeSession.performanceTarget, match)
       : undefined;
+
+  const handleToggleCompleted = () => {
+    if (!activeSession) return;
+    const updatedSession: TrainingSession = {
+      ...activeSession,
+      completed: !activeSession.completed,
+      status: activeSession.completed ? 'planned' : 'completed',
+    };
+    setSessions(saveTrainingSession(updatedSession));
+  };
+
+  const handleDeleteSession = () => {
+    if (!activeSession) return;
+    const updated = deleteTrainingSession(activeSession.id);
+    setSessions(updated);
+    setSelectedSessionId(updated[0]?.id || '');
+  };
+
+  const handleUpdateNotes = (notes: string) => {
+    if (!activeSession) return;
+    const updatedSession: TrainingSession = { ...activeSession, notes };
+    setSessions(saveTrainingSession(updatedSession));
+  };
 
   const handleGenerateWithAi = () => {
     setIsGenerating(true);
@@ -86,7 +116,7 @@ export const TrainingCenter: React.FC<TrainingCenterProps> = ({
         exercises: buildEvidenceExercises(genProblem, genDuration, evidenceContext),
       };
 
-      setSessions([newSession, ...sessions]);
+      setSessions(saveTrainingSession(newSession));
       setSelectedSessionId(newSession.id);
       setIsGenerating(false);
       setIsGeneratorOpen(false);
@@ -207,6 +237,29 @@ export const TrainingCenter: React.FC<TrainingCenterProps> = ({
                 <p className="text-xs text-slate-400 mt-1">
                   Fecha: <strong className="text-slate-300">{activeSession.date}</strong> a las {activeSession.time} • Duración: <strong className="text-slate-300">{activeSession.durationMin} min</strong> • Plantel: <strong className="text-slate-300">{activeSession.playersCount} jugadoras</strong>
                 </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleToggleCompleted}
+                  className={`px-3 py-2 rounded-xl border text-[11px] font-bold flex items-center gap-1.5 transition ${
+                    activeSession.completed
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                      : 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white'
+                  }`}
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  {activeSession.completed ? 'Sesión realizada' : 'Marcar realizada'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteSession}
+                  className="px-3 py-2 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-[11px] font-bold flex items-center gap-1.5 hover:bg-rose-500/20 transition"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Eliminar
+                </button>
               </div>
 
               <div className="p-2.5 bg-rose-500/10 border border-rose-500/20 rounded-xl text-[11px] max-w-xs">
@@ -335,12 +388,18 @@ export const TrainingCenter: React.FC<TrainingCenterProps> = ({
             </div>
 
             {/* Tactical Closing Notes */}
-            {activeSession.notes && (
-              <div className="p-3.5 bg-slate-800/40 rounded-xl border border-slate-700/60 text-xs text-slate-300">
-                <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Notas del Cuerpo Técnico</span>
-                {activeSession.notes}
-              </div>
-            )}
+            <div className="p-3.5 bg-slate-800/40 rounded-xl border border-slate-700/60 text-xs text-slate-300">
+              <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
+                Notas del Cuerpo Técnico
+              </label>
+              <textarea
+                value={activeSession.notes || ''}
+                onChange={(event) => handleUpdateNotes(event.target.value)}
+                rows={3}
+                placeholder="Agregar observaciones de la sesión..."
+                className="w-full bg-slate-950/60 border border-slate-700 rounded-xl p-3 text-slate-200 placeholder-slate-600 focus:outline-none focus:border-purple-500"
+              />
+            </div>
           </div>
         </div>
       </div>

@@ -39,5 +39,8 @@ jobs:
       - name: Performance follow-up tests
         run: npm run test:performance-followup
 
+      - name: Training storage tests
+        run: npm run test:training-storage
+
       - name: Production build
         run: npm run build
