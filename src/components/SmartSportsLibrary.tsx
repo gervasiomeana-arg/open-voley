@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Film, Search, Scissors, Trash2, User, Volleyball } from 'lucide-react';
+import { Film, Search, Scissors, Trash2, User, Volleyball, Send, MessageSquare } from 'lucide-react';
 import { SmartSportsMontage, VolleySkill } from '../types';
 import { deleteMontageLocallyFirst, syncSmartSportsMontages } from '../services/smartSportsMontageSync';
 
@@ -117,7 +117,24 @@ export const SmartSportsLibrary: React.FC<Props> = ({ currentMatchId, onOpenMont
                     <Volleyball className="w-3 h-3" /> {SKILL_LABEL[item]}
                   </span>
                 ))}
+                {montage.recipientLabel && (
+                  <span className="bg-violet-500/10 border border-violet-500/20 rounded-lg px-2 py-1 text-violet-300 flex items-center gap-1">
+                    <Send className="w-3 h-3" /> {montage.recipientLabel}
+                  </span>
+                )}
               </div>
+
+              {(montage.shareTitle || montage.coachNote) && (
+                <div className="mt-4 rounded-2xl bg-slate-950 border border-slate-800 p-3">
+                  {montage.shareTitle && <div className="text-xs font-black text-white">{montage.shareTitle}</div>}
+                  {montage.coachNote && (
+                    <div className="text-[11px] text-slate-400 mt-1 flex gap-1.5">
+                      <MessageSquare className="w-3 h-3 shrink-0 mt-0.5" />
+                      <span>{montage.coachNote}</span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="flex items-center justify-between gap-2 mt-5 pt-4 border-t border-slate-800">
                 <div className="text-[10px] text-slate-500">
