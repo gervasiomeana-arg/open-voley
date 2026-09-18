@@ -51,20 +51,93 @@ export class JsonTrainingRepository implements TrainingRepository {
   }
 }
 
-function createTrainingRepository(): TrainingRepository {
-  const driver = process.env.OPENVOLEY_STORAGE_DRIVER?.trim().toLowerCase();
-  if (driver === 'sqlite') {
-    return new SqliteTrainingRepository();
-  }
-  return new JsonTrainingRepository();
+export interface TrainingRepositoryStatus {
+  requestedDriver: 'json' | 'sqlite';
+  activeDriver: 'json' | 'sqlite';
+  fallbackActive: boolean;
+  healthy: boolean;
+  message: string;
 }
 
-let repository: TrainingRepository = createTrainingRepository();
+export function createTrainingRepositoryForDriver(
+  requestedDriver: 'json' | 'sqlite',
+  sqliteFactory: () => TrainingRepository = () => new SqliteTrainingRepository(),
+): {
+  repository: TrainingRepository;
+  status: TrainingRepositoryStatus;
+} {
+  if (requestedDriver === 'sqlite') {
+    try {
+      return {
+        repository: sqliteFactory(),
+        status: {
+          requestedDriver: 'sqlite',
+          activeDriver: 'sqlite',
+          fallbackActive: false,
+          healthy: true,
+          message: 'SQLite persistence active',
+        },
+      };
+    } catch (error) {
+      console.error('SQLite initialization failed; falling back to JSON storage:', error);
+      return {
+        repository: new JsonTrainingRepository(),
+        status: {
+          requestedDriver: 'sqlite',
+          activeDriver: 'json',
+          fallbackActive: true,
+          healthy: false,
+          message: 'SQLite initialization failed; JSON fallback active',
+        },
+      };
+    }
+  }
+
+  return {
+    repository: new JsonTrainingRepository(),
+    status: {
+      requestedDriver: 'json',
+      activeDriver: 'json',
+      fallbackActive: false,
+      healthy: true,
+      message: 'JSON persistence active',
+    },
+  };
+}
+
+function createTrainingRepository(): {
+  repository: TrainingRepository;
+  status: TrainingRepositoryStatus;
+} {
+  const requestedDriver =
+    process.env.OPENVOLEY_STORAGE_DRIVER?.trim().toLowerCase() === 'sqlite'
+      ? 'sqlite'
+      : 'json';
+  return createTrainingRepositoryForDriver(requestedDriver);
+}
+
+const created = createTrainingRepository();
+let repository: TrainingRepository = created.repository;
+let repositoryStatus: TrainingRepositoryStatus = created.status;
 
 export function getTrainingRepository(): TrainingRepository {
   return repository;
 }
 
-export function setTrainingRepositoryForTests(next: TrainingRepository): void {
+export function getTrainingRepositoryStatus(): TrainingRepositoryStatus {
+  return { ...repositoryStatus };
+}
+
+export function setTrainingRepositoryForTests(
+  next: TrainingRepository,
+  status?: Partial<TrainingRepositoryStatus>,
+): void {
   repository = next;
+  repositoryStatus = {
+    requestedDriver: status?.requestedDriver || 'json',
+    activeDriver: status?.activeDriver || 'json',
+    fallbackActive: status?.fallbackActive || false,
+    healthy: status?.healthy ?? true,
+    message: status?.message || 'Test repository active',
+  };
 }

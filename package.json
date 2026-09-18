@@ -16,7 +16,8 @@
     "test:training-storage": "tsx src/services/trainingStorage.test.ts",
     "test:training-backend": "tsx src/server/trainingSessionsStore.test.ts",
     "test:training-sync": "tsx src/services/trainingSync.test.ts",
-    "test:training-sqlite": "tsx src/server/trainingSqliteRepository.test.ts"
+    "test:training-sqlite": "tsx src/server/trainingSqliteRepository.test.ts",
+    "test:sqlite-rollout": "tsx src/server/trainingRepositoryRollout.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
