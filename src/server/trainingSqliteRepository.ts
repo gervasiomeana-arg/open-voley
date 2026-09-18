@@ -33,7 +33,7 @@ export class SqliteTrainingRepository implements TrainingRepository {
         '  migration_key TEXT PRIMARY KEY,',
         '  applied_at TEXT NOT NULL',
         ');',
-      ].join('\\n'),
+      ].join('\n'),
     );
 
     this.migrateLegacyJsonOnce(legacyJsonPath);
