@@ -229,6 +229,11 @@ interface ActionInsightItem {
   actionType: 'generate_training' | 'view_clips' | 'view_tactics' | 'player_profile';
   actionTarget?: string;
   rallyIds?: string[];
+  evidenceCount?: number;
+  performanceMetric?: TrainingEvidenceContext['metric'];
+  rotationRef?: number;
+  serveTypeRef?: TrainingEvidenceContext['serveType'];
+  zoneRef?: number;
   actionCta: string;
 }
 
@@ -244,6 +249,7 @@ interface ActionInsightItem {
             sourceEvidence: 'Área prioritaria: Ataque',
             actionType: 'generate_training' as const,
             actionTarget: trainingRecommendation,
+            performanceMetric: 'attack_efficiency_pct' as const,
             actionCta: 'Crear Sesión de Entrenamiento',
           },
         ]
@@ -259,6 +265,7 @@ interface ActionInsightItem {
             sourceEvidence: 'Área prioritaria: Saque',
             actionType: 'generate_training' as const,
             actionTarget: serveTrainingAction,
+            performanceMetric: 'serve_efficiency_pct' as const,
             actionCta: 'Crear Sesión de Entrenamiento',
           },
         ]
@@ -282,6 +289,11 @@ interface ActionInsightItem {
             : 'view_tactics',
     actionTarget: insight.rotationRef ? `R${insight.rotationRef}` : undefined,
     rallyIds: insight.rallyIds,
+    evidenceCount: insight.evidenceCount,
+    performanceMetric: insight.performanceMetric,
+    rotationRef: insight.rotationRef,
+    serveTypeRef: insight.serveTypeRef,
+    zoneRef: insight.zoneRef,
     actionCta:
       insight.actionType === 'view_video'
         ? 'Ver rallies / clips'
@@ -459,8 +471,25 @@ interface ActionInsightItem {
                           title: item.title,
                           description: item.actionTarget || item.description,
                           evidenceSource: item.sourceEvidence,
+                          evidenceCount: item.evidenceCount,
                           rallyIds: item.rallyIds,
-                          category: item.id.includes('attack') ? 'attack' : item.id.includes('serve') ? 'serve' : item.id.includes('reception') ? 'reception' : 'generic',
+                          rotationRef: item.rotationRef,
+                          category:
+                            item.performanceMetric === 'sideout_pct'
+                              ? 'rotation_sideout'
+                              : item.performanceMetric === 'reception_negative_pct'
+                                ? 'serve_reception'
+                                : item.id.includes('attack')
+                                  ? 'attack'
+                                  : item.id.includes('serve')
+                                    ? 'serve'
+                                    : item.id.includes('reception')
+                                      ? 'reception'
+                                      : 'generic',
+                          metric: item.performanceMetric,
+                          serveType: item.serveTypeRef,
+                          zoneRef: item.zoneRef,
+                          teamSide: 'home',
                         });
                       } else if (item.actionType === 'view_clips' && onOpenVideoClips) {
                         onOpenVideoClips(item.rallyIds);
@@ -481,6 +510,39 @@ interface ActionInsightItem {
                     </span>
                     <ArrowRight className="w-3.5 h-3.5 group-hover/btn:translate-x-1 transition-transform" />
                   </button>
+                  {item.performanceMetric && item.actionType !== 'generate_training' && onGenerateTraining && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onGenerateTraining({
+                          insightId: item.id,
+                          title: item.title,
+                          description: item.description,
+                          evidenceSource: item.sourceEvidence,
+                          evidenceCount: item.evidenceCount,
+                          rallyIds: item.rallyIds,
+                          rotationRef: item.rotationRef,
+                          category:
+                            item.performanceMetric === 'sideout_pct'
+                              ? 'rotation_sideout'
+                              : item.performanceMetric === 'reception_negative_pct'
+                                ? 'serve_reception'
+                                : 'generic',
+                          metric: item.performanceMetric,
+                          serveType: item.serveTypeRef,
+                          zoneRef: item.zoneRef,
+                          teamSide: 'home',
+                        })
+                      }
+                      className="w-full mt-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 font-bold text-xs py-2 px-3 rounded-xl border border-emerald-500/30 transition flex items-center justify-between"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <Dumbbell className="w-3.5 h-3.5" />
+                        Crear entrenamiento desde esta evidencia
+                      </span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
             );
