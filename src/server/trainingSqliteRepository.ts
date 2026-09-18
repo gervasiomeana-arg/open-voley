@@ -93,7 +93,8 @@ export class SqliteTrainingRepository implements TrainingRepository {
 
     if (alreadyApplied) return;
 
-    const applyMigration = this.db.transaction(() => {
+    this.db.exec('BEGIN IMMEDIATE');
+    try {
       if (fs.existsSync(legacyJsonPath)) {
         const parsed = JSON.parse(fs.readFileSync(legacyJsonPath, 'utf-8'));
         const records: UserTrainingRecord[] = Array.isArray(parsed) ? parsed : [];
@@ -126,8 +127,11 @@ export class SqliteTrainingRepository implements TrainingRepository {
       this.db
         .prepare('INSERT INTO app_migrations (migration_key, applied_at) VALUES (?, ?)')
         .run(MIGRATION_KEY, new Date().toISOString());
-    });
-
-    applyMigration();
+      this.db.exec('COMMIT');
+    } catch (error) {
+      this.db.exec('ROLLBACK');
+      console.error('Legacy training migration failed:', error);
+      throw error;
+    }
   }
 }
