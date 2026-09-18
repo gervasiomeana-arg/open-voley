@@ -13,7 +13,9 @@
     "test:evidence": "tsx src/utils/evidenceInsights.test.ts",
     "test:training-evidence": "tsx src/utils/trainingEvidence.test.ts",
     "test:performance-followup": "tsx src/utils/performanceFollowUp.test.ts",
-    "test:training-storage": "tsx src/services/trainingStorage.test.ts"
+    "test:training-storage": "tsx src/services/trainingStorage.test.ts",
+    "test:training-backend": "tsx src/server/trainingSessionsStore.test.ts",
+    "test:training-sync": "tsx src/services/trainingSync.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
