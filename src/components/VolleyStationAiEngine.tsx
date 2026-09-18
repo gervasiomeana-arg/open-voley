@@ -470,8 +470,8 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
                   >
                     Overlay IA: {showAiOverlays ? 'ACTIVO' : 'OCULTO'}
                   </button>
-                  <div className="text-[11px] font-mono text-emerald-400 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800">
-                    60 FPS • Precisión IA: 98.4%
+                  <div className="text-[11px] font-mono text-slate-400 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800">
+                    Análisis visual experimental
                   </div>
                 </div>
               </div>
