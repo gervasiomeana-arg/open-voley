@@ -54,5 +54,11 @@ jobs:
       - name: SQLite rollout tests
         run: npm run test:sqlite-rollout
 
+      - name: Montage SQLite isolation tests
+        run: npm run test:montage-sqlite
+
+      - name: Montage sync tests
+        run: npm run test:montage-sync
+
       - name: Production build
         run: npm run build
