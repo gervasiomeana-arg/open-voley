@@ -216,7 +216,10 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
       shareTitle: shareTitle.trim() || montageName.trim() || undefined,
       readyToShare: Boolean(recipientLabel.trim() || coachNote.trim()),
       recipientEmail: recipientEmail.trim().toLowerCase() || undefined,
-      publishedAt: existing?.publishedAt,
+      publishedAt:
+        existing?.recipientEmail?.toLowerCase().trim() === recipientEmail.trim().toLowerCase()
+          ? existing?.publishedAt
+          : undefined,
     };
     const updated = saveMontageLocallyFirst(montage).filter((item) => item.matchId === match.id);
     setSavedMontages(updated);
