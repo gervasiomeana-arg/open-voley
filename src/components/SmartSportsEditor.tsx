@@ -27,7 +27,7 @@ interface SmartSportsEditorProps {
   userCuts: ScoutCodeAction[];
   onPreviewAction: (action: ScoutCodeAction) => void;
   onPlayPlaylist: (actions: ScoutCodeAction[], preRoll: number, postRoll: number) => void;
-  onExportVideo: (actions: ScoutCodeAction[], preRoll: number, postRoll: number) => void;
+  onExportVideo: (actions: ScoutCodeAction[], preRoll: number, postRoll: number, montageName?: string, shareAfterExport?: boolean) => void;
 }
 
 const SKILL_LABELS: Record<VolleySkill, string> = {
@@ -258,13 +258,13 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
             </div>
             <div>
               <div className="text-[10px] uppercase tracking-widest font-black text-indigo-300">
-                Editor Deportivo Inteligente · V1
+                Editor Deportivo Inteligente · V2
               </div>
               <h2 className="text-xl sm:text-2xl font-black text-white mt-0.5">
                 Jugadas → Playlist → Montaje
               </h2>
               <p className="text-xs text-slate-400 mt-1 max-w-2xl">
-                Selecciona acciones reales del Scout por jugador, fundamento y resultado. OPEN VOLEY prepara los cortes temporales para revisión y para el futuro renderizador MP4.
+                Selecciona acciones reales del Scout por jugador, fundamento y resultado. Selecciona, ordena, guarda, reproduce y exporta montajes construidos con acciones reales del Scout.
               </p>
             </div>
           </div>
@@ -426,12 +426,21 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => onExportVideo(selectedPlaylist, preRoll, postRoll)}
+              onClick={() => onExportVideo(selectedPlaylist, preRoll, postRoll, montageName)}
               disabled={selectedPlaylist.length === 0}
               className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950 text-xs font-black flex items-center gap-1.5"
               title="Genera un archivo real usando las capacidades de grabación del navegador. Requiere video local."
             >
               <Film className="w-3.5 h-3.5" /> Exportar video
+            </button>
+            <button
+              type="button"
+              onClick={() => onExportVideo(selectedPlaylist, preRoll, postRoll, montageName, true)}
+              disabled={selectedPlaylist.length === 0}
+              className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-xs font-black"
+              title="Genera el video y, si el dispositivo lo permite, abre el panel nativo para compartir el archivo."
+            >
+              Compartir
             </button>
             <button
               type="button"
