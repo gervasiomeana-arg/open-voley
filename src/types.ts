@@ -227,7 +227,7 @@ export interface StandingEntry {
 
 export interface TrainingExercise {
   id: string;
-  block: 'Calentamiento' | 'Recepción' | 'Side-out' | 'Juego condicionado' | 'Cierre' | 'Bloqueo/Defensa' | 'Saque';
+  block: 'Calentamiento' | 'Recepción' | 'Side-out' | 'Juego condicionado' | 'Cierre' | 'Bloqueo/Defensa' | 'Saque' | 'Ataque';
   name: string;
   durationMin: number;
   description: string;
