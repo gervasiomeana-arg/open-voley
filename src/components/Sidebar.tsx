@@ -14,11 +14,12 @@ import {
   Plus,
   Search,
   Sliders,
-  Settings
+  Settings,
+  Inbox
 } from 'lucide-react';
 import { ClientUser, TrialInfo, UserRole } from '../types';
 
-export type GlobalTab = 'home' | 'team' | 'competition' | 'match' | 'analysis' | 'ai' | 'settings';
+export type GlobalTab = 'home' | 'team' | 'competition' | 'match' | 'analysis' | 'ai' | 'my-videos' | 'settings';
 export type TabType = GlobalTab;
 
 interface SidebarProps {
@@ -86,6 +87,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'OPEN AI',
       icon: Sparkles,
       badge: 'IA',
+    },
+    {
+      id: 'my-videos' as GlobalTab,
+      label: 'Mis Videos',
+      icon: Inbox,
     },
     {
       id: 'settings' as GlobalTab,

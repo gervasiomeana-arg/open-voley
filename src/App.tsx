@@ -28,6 +28,7 @@ import { CompetitionCenter } from './components/CompetitionCenter';
 import { TrainingCenter } from './components/TrainingCenter';
 import { OpenAiCenter } from './components/OpenAiCenter';
 import { Player360Modal } from './components/Player360Modal';
+import { PlayerVideoInbox } from './components/PlayerVideoInbox';
 import { GlobalQuickActionModal } from './components/GlobalQuickActionModal';
 import { GlobalCommandPalette } from './components/GlobalCommandPalette';
 import { sampleCompetitions } from './data/sampleCompetitionAndTraining';
@@ -68,7 +69,8 @@ import {
   ArrowLeft,
   Trophy,
   Dumbbell,
-  Activity
+  Activity,
+  Inbox
 } from 'lucide-react';
 
 export default function App() {
@@ -791,8 +793,14 @@ export default function App() {
       icon: Sparkles,
       color: 'text-purple-400',
     },
+    'my-videos': {
+      title: '7. Mis Videos',
+      subtitle: 'Montajes y devoluciones técnicas publicados específicamente para tu cuenta',
+      icon: Inbox,
+      color: 'text-cyan-400',
+    },
     settings: {
-      title: '7. Configuración',
+      title: '8. Configuración',
       subtitle: 'Preferencias de scouting, exportaciones oficiales .DVW, respaldos y cuenta',
       icon: Settings,
       color: 'text-slate-400',
@@ -1512,7 +1520,12 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB 7: CONFIGURACIÓN */}
+          {/* TAB 7: PORTAL DEL JUGADOR / MIS VIDEOS */}
+          {activeTab === 'my-videos' && (
+            <PlayerVideoInbox />
+          )}
+
+          {/* TAB 8: CONFIGURACIÓN */}
           {activeTab === 'settings' && (
             <SettingsHub
               match={match}

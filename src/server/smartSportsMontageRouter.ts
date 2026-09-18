@@ -18,7 +18,12 @@ function isMontage(value: unknown): value is SmartSportsMontage {
     typeof montage.preRoll === 'number' && montage.preRoll >= 0 && montage.preRoll <= 30 &&
     typeof montage.postRoll === 'number' && montage.postRoll >= 0 && montage.postRoll <= 30 &&
     Array.isArray(montage.actionIds) && montage.actionIds.length <= 500 &&
-    montage.actionIds.every((id) => typeof id === 'string' && id.length <= 120)
+    montage.actionIds.every((id) => typeof id === 'string' && id.length <= 120) &&
+    (montage.recipientEmail === undefined ||
+      (typeof montage.recipientEmail === 'string' &&
+       montage.recipientEmail.length <= 320 &&
+       /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(montage.recipientEmail))) &&
+    (montage.publishedAt === undefined || typeof montage.publishedAt === 'string')
   );
 }
 
@@ -26,12 +31,18 @@ router.use((req, res, next) => {
   const session = getSessionFromRequest(req);
   if (!session) return res.status(401).json({ error: 'Authentication required' });
   res.locals.sessionUserId = session.userId;
+  res.locals.sessionEmail = session.email;
   return next();
 });
 
 router.get('/', async (_req, res) => {
   const userId = String(res.locals.sessionUserId);
   return res.json({ montages: await getSmartSportsMontageRepository().list(userId) });
+});
+
+router.get('/inbox', async (_req, res) => {
+  const email = String(res.locals.sessionEmail || '').toLowerCase().trim();
+  return res.json({ montages: await getSmartSportsMontageRepository().listInbox(email) });
 });
 
 router.put('/:id', async (req, res) => {

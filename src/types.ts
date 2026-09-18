@@ -313,6 +313,8 @@ export interface SmartSportsMontage {
   coachNote?: string;
   shareTitle?: string;
   readyToShare?: boolean;
+  recipientEmail?: string;
+  publishedAt?: string;
 }
 
 export interface AiEvidenceInsight {

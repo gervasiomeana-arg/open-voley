@@ -5,6 +5,7 @@ import { SmartSportsMontage } from '../types';
 
 export interface SmartSportsMontageRepository {
   list(userId: string): Promise<SmartSportsMontage[]>;
+  listInbox(recipientEmail: string): Promise<SmartSportsMontage[]>;
   upsert(userId: string, montage: SmartSportsMontage): Promise<void>;
   delete(userId: string, montageId: string): Promise<void>;
 }
@@ -33,6 +34,17 @@ function saveJson(records: UserMontageRecord[]) {
 class JsonMontageRepository implements SmartSportsMontageRepository {
   async list(userId: string) {
     return loadJson().find((record) => record.userId === userId)?.montages || [];
+  }
+
+  async listInbox(recipientEmail: string) {
+    const target = recipientEmail.toLowerCase().trim();
+    return loadJson()
+      .flatMap((record) => record.montages)
+      .filter((montage) =>
+        Boolean(montage.publishedAt) &&
+        montage.recipientEmail?.toLowerCase().trim() === target
+      )
+      .sort((a, b) => String(b.publishedAt || b.updatedAt).localeCompare(String(a.publishedAt || a.updatedAt)));
   }
 
   async upsert(userId: string, montage: SmartSportsMontage) {
@@ -75,6 +87,15 @@ class SqliteMontageRepository implements SmartSportsMontageRepository {
       'CREATE INDEX IF NOT EXISTS idx_smart_sports_montages_user_updated',
       '  ON smart_sports_montages(user_id, updated_at DESC);',
     ].join('\n'));
+
+    const columns = this.db.prepare('PRAGMA table_info(smart_sports_montages)').all() as Array<{ name: string }>;
+    if (!columns.some((column) => column.name === 'recipient_email')) {
+      this.db.exec('ALTER TABLE smart_sports_montages ADD COLUMN recipient_email TEXT');
+    }
+    if (!columns.some((column) => column.name === 'published_at')) {
+      this.db.exec('ALTER TABLE smart_sports_montages ADD COLUMN published_at TEXT');
+    }
+    this.db.exec('CREATE INDEX IF NOT EXISTS idx_smart_sports_montages_recipient ON smart_sports_montages(recipient_email, published_at DESC);');
   }
 
   async list(userId: string) {
@@ -86,13 +107,31 @@ class SqliteMontageRepository implements SmartSportsMontageRepository {
     });
   }
 
+  async listInbox(recipientEmail: string) {
+    const rows = this.db.prepare(
+      'SELECT payload_json FROM smart_sports_montages WHERE recipient_email = ? AND published_at IS NOT NULL ORDER BY published_at DESC LIMIT 250',
+    ).all(recipientEmail.toLowerCase().trim()) as Array<{ payload_json: string }>;
+    return rows.flatMap((row) => {
+      try { return [JSON.parse(row.payload_json) as SmartSportsMontage]; } catch { return []; }
+    });
+  }
+
   async upsert(userId: string, montage: SmartSportsMontage) {
     this.db.prepare([
-      'INSERT INTO smart_sports_montages (user_id, montage_id, match_id, updated_at, payload_json)',
-      'VALUES (?, ?, ?, ?, ?)',
+      'INSERT INTO smart_sports_montages (user_id, montage_id, match_id, updated_at, payload_json, recipient_email, published_at)',
+      'VALUES (?, ?, ?, ?, ?, ?, ?)',
       'ON CONFLICT(user_id, montage_id) DO UPDATE SET',
-      'match_id = excluded.match_id, updated_at = excluded.updated_at, payload_json = excluded.payload_json',
-    ].join(' ')).run(userId, montage.id, montage.matchId, montage.updatedAt, JSON.stringify(montage));
+      'match_id = excluded.match_id, updated_at = excluded.updated_at, payload_json = excluded.payload_json,',
+      'recipient_email = excluded.recipient_email, published_at = excluded.published_at',
+    ].join(' ')).run(
+      userId,
+      montage.id,
+      montage.matchId,
+      montage.updatedAt,
+      JSON.stringify(montage),
+      montage.recipientEmail?.toLowerCase().trim() || null,
+      montage.publishedAt || null,
+    );
   }
 
   async delete(userId: string, montageId: string) {
