@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import fs from 'fs';
 import path from 'path';
-import jwt from 'jsonwebtoken';
+import { getSessionFromRequest } from './sessionSecurity';
 
 interface PaymentRecord {
   id: string;
@@ -34,13 +34,29 @@ interface ClientRecord {
   payments?: PaymentRecord[];
 }
 
-interface SessionPayload {
-  userId: string;
-  email: string;
-}
-
 const CLIENTS_FILE = path.join(process.cwd(), 'clients_db.json');
-const MP_CREDENTIALS_FILE = path.join(process.cwd(), 'mp_credentials.json');
+
+const PLAN_CATALOG = {
+  'plan-dt': {
+    name: 'Plan DT / Entrenador',
+    monthly: { ARS: 18000, USD: 19 },
+    annual: { ARS: 160000, USD: 169 },
+  },
+  'plan-club-pro': {
+    name: 'Plan Club Pro & Liga',
+    monthly: { ARS: 35000, USD: 35 },
+    annual: { ARS: 320000, USD: 315 },
+  },
+  'plan-federacion': {
+    name: 'Plan Federación / Torneo',
+    monthly: { ARS: 95000, USD: 99 },
+    annual: { ARS: 850000, USD: 890 },
+  },
+} as const;
+
+type PlanId = keyof typeof PLAN_CATALOG;
+type BillingCycle = 'monthly' | 'annual';
+type Currency = 'ARS' | 'USD';
 
 function loadClients(): ClientRecord[] {
   try {
@@ -57,57 +73,19 @@ function saveClients(clients: ClientRecord[]) {
   fs.writeFileSync(CLIENTS_FILE, JSON.stringify(clients, null, 2), 'utf-8');
 }
 
-function getMPAccessToken(): string {
-  const envToken = process.env.MERCADOPAGO_ACCESS_TOKEN?.trim();
-  if (envToken) return envToken;
-
-  try {
-    if (fs.existsSync(MP_CREDENTIALS_FILE)) {
-      const parsed = JSON.parse(fs.readFileSync(MP_CREDENTIALS_FILE, 'utf-8'));
-      if (typeof parsed?.accessToken === 'string' && parsed.accessToken.trim()) {
-        return parsed.accessToken.trim();
-      }
-    }
-  } catch (error) {
-    console.error('Error loading Mercado Pago credentials:', error);
-  }
-
-  return '';
+function parseReference(value: unknown): { userId: string; planId: PlanId; billing: BillingCycle } | null {
+  const raw = String(value || '');
+  const match = /^openvoley:([^:]+):(plan-dt|plan-club-pro|plan-federacion):(monthly|annual):[a-zA-Z0-9-]+$/.exec(raw);
+  if (!match) return null;
+  return {
+    userId: match[1],
+    planId: match[2] as PlanId,
+    billing: match[3] as BillingCycle,
+  };
 }
 
-function verifySession(req: Request): SessionPayload | null {
-  const secret = process.env.SESSION_SECRET;
-  const authorization = req.headers.authorization;
-  if (!secret || !authorization?.startsWith('Bearer ')) return null;
-
-  const token = authorization.slice('Bearer '.length).trim();
-  if (!token) return null;
-
-  try {
-    const decoded = jwt.verify(token, secret) as jwt.JwtPayload;
-    if (
-      !decoded ||
-      typeof decoded.userId !== 'string' ||
-      typeof decoded.email !== 'string'
-    ) {
-      return null;
-    }
-    return { userId: decoded.userId, email: decoded.email.toLowerCase().trim() };
-  } catch {
-    return null;
-  }
-}
-
-function derivePlan(paymentData: any) {
-  const item = paymentData?.additional_info?.items?.[0] || {};
-  const itemId = String(item.id || '').toLowerCase();
-  const title = String(item.title || '').toLowerCase();
-  const extRef = String(paymentData?.external_reference || '').toLowerCase();
-  const annual = /annual|anual|year/.test(`${itemId} ${title} ${extRef}`);
-
-  return annual
-    ? { days: 365, planId: 'anual', planName: 'Plan Anual OPEN VOLEY', plan: 'Anual Pro' }
-    : { days: 30, planId: 'mensual', planName: 'Plan Mensual OPEN VOLEY', plan: 'Mensual Pro' };
+function planName(planId: PlanId, billing: BillingCycle): string {
+  return `${PLAN_CATALOG[planId].name} (${billing === 'annual' ? 'Anual' : 'Mensual'})`;
 }
 
 export async function securePaymentConfirmation(req: Request, res: Response, next: NextFunction) {
@@ -115,25 +93,26 @@ export async function securePaymentConfirmation(req: Request, res: Response, nex
     return next();
   }
 
-  const session = verifySession(req);
+  const session = getSessionFromRequest(req);
   if (!session) {
     return res.status(401).json({ error: 'Authentication required' });
   }
 
   const paymentId = String(req.body?.paymentId || '').trim();
-  if (!paymentId) {
-    return res.status(400).json({ error: 'paymentId is required' });
+  if (!/^[0-9]+$/.test(paymentId)) {
+    return res.status(400).json({ error: 'A valid paymentId is required' });
   }
 
-  const accessToken = getMPAccessToken();
+  const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN?.trim() || '';
   if (!accessToken) {
     return res.status(503).json({ error: 'Mercado Pago is not configured' });
   }
 
   try {
-    const paymentResponse = await fetch(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(paymentId)}`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
+    const paymentResponse = await fetch(
+      `https://api.mercadopago.com/v1/payments/${encodeURIComponent(paymentId)}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+    );
 
     if (!paymentResponse.ok) {
       return res.status(502).json({ error: 'Could not verify payment with Mercado Pago' });
@@ -147,9 +126,25 @@ export async function securePaymentConfirmation(req: Request, res: Response, nex
       });
     }
 
+    const reference = parseReference(paymentData?.external_reference);
+    if (!reference || reference.userId !== session.userId) {
+      return res.status(403).json({ error: 'Payment reference does not match authenticated user' });
+    }
+
     const payerEmail = String(paymentData?.payer?.email || '').toLowerCase().trim();
     if (!payerEmail || payerEmail !== session.email) {
       return res.status(403).json({ error: 'Payment owner does not match authenticated user' });
+    }
+
+    const currency = String(paymentData?.currency_id || '') as Currency;
+    if (!['ARS', 'USD'].includes(currency)) {
+      return res.status(409).json({ error: 'Unexpected payment currency' });
+    }
+
+    const expectedAmount = PLAN_CATALOG[reference.planId][reference.billing][currency];
+    const paidAmount = Number(paymentData?.transaction_amount);
+    if (!Number.isFinite(paidAmount) || paidAmount !== expectedAmount) {
+      return res.status(409).json({ error: 'Payment amount does not match selected plan' });
     }
 
     const clients = loadClients();
@@ -159,13 +154,8 @@ export async function securePaymentConfirmation(req: Request, res: Response, nex
         candidate.email.toLowerCase().trim() === session.email,
     );
 
-    if (!client) {
-      return res.status(404).json({ error: 'Authenticated client not found' });
-    }
-
-    if (client.isBlocked) {
-      return res.status(403).json({ error: 'Account blocked' });
-    }
+    if (!client) return res.status(404).json({ error: 'Authenticated client not found' });
+    if (client.isBlocked) return res.status(403).json({ error: 'Account blocked' });
 
     if (!client.payments) client.payments = [];
     const existing = client.payments.find((payment) => String(payment.paymentId) === paymentId);
@@ -177,17 +167,17 @@ export async function securePaymentConfirmation(req: Request, res: Response, nex
       });
     }
 
-    const plan = derivePlan(paymentData);
-    client.customGrantedDays = (client.customGrantedDays || 0) + plan.days;
+    const days = reference.billing === 'annual' ? 365 : 30;
+    client.customGrantedDays = (client.customGrantedDays || 0) + days;
     client.isBlocked = false;
-    client.plan = plan.plan;
+    client.plan = reference.billing === 'annual' ? 'Anual Pro' : 'Mensual Pro';
     client.payments.unshift({
       id: `pay-${Date.now()}`,
       paymentId,
-      planId: plan.planId,
-      planName: plan.planName,
-      amount: Number(paymentData?.transaction_amount) || 0,
-      currency: String(paymentData?.currency_id || 'ARS'),
+      planId: reference.planId,
+      planName: planName(reference.planId, reference.billing),
+      amount: paidAmount,
+      currency,
       status: 'approved',
       date: new Date().toISOString(),
       paymentMethod: String(paymentData?.payment_method_id || 'mercadopago'),
@@ -199,7 +189,7 @@ export async function securePaymentConfirmation(req: Request, res: Response, nex
       success: true,
       alreadyProcessed: false,
       plan: client.plan,
-      grantedDays: plan.days,
+      grantedDays: days,
       paymentId,
     });
   } catch (error) {
