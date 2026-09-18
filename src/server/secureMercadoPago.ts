@@ -113,7 +113,13 @@ async function processApprovedPayment(paymentData: any) {
   if (!client || client.isBlocked) return;
 
   const payerEmail = String(paymentData?.payer?.email || '').toLowerCase().trim();
-  if (payerEmail && payerEmail !== client.email.toLowerCase().trim()) return;
+  if (!payerEmail || payerEmail !== client.email.toLowerCase().trim()) return;
+
+  const currency = String(paymentData?.currency_id || '') as Currency;
+  if (!['ARS', 'USD'].includes(currency)) return;
+  const expectedAmount = PLAN_CATALOG[ref.planId][ref.billing][currency];
+  const paidAmount = Number(paymentData?.transaction_amount);
+  if (!Number.isFinite(paidAmount) || paidAmount !== expectedAmount) return;
 
   if (!client.payments) client.payments = [];
   if (client.payments.some((payment) => String(payment.paymentId) === paymentId)) return;
@@ -127,8 +133,8 @@ async function processApprovedPayment(paymentData: any) {
     paymentId,
     planId: ref.planId,
     planName: paymentPlanName(ref.planId, ref.billing),
-    amount: Number(paymentData?.transaction_amount) || 0,
-    currency: String(paymentData?.currency_id || 'ARS'),
+    amount: paidAmount,
+    currency,
     status: 'approved',
     date: new Date().toISOString(),
     paymentMethod: String(paymentData?.payment_method_id || 'mercadopago'),
