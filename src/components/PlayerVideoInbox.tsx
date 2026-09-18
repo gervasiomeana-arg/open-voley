@@ -33,15 +33,15 @@ export const PlayerVideoInbox: React.FC = () => {
   useEffect(() => { void load(); }, []);
 
   return (
-    <div className="space-y-5">
-      <div className="bg-slate-900 border border-cyan-500/20 rounded-3xl p-6">
+    <div className="space-y-3 sm:space-y-5">
+      <div className="bg-slate-900 border border-cyan-500/20 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="text-[10px] uppercase tracking-widest font-black text-cyan-300 flex items-center gap-2">
               <Inbox className="w-4 h-4" /> Portal del Jugador
             </div>
-            <h1 className="text-2xl font-black text-white mt-1">Mis Videos</h1>
-            <p className="text-xs text-slate-400 mt-1 max-w-2xl">
+            <h1 className="text-xl sm:text-2xl font-black text-white mt-1">Mis Videos</h1>
+            <p className="text-[11px] sm:text-xs text-slate-400 mt-1 max-w-2xl">
               Análisis y montajes que tu entrenador publicó específicamente para tu cuenta OPEN VOLEY.
             </p>
           </div>
@@ -56,7 +56,7 @@ export const PlayerVideoInbox: React.FC = () => {
       ) : error ? (
         <div className="p-5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-sm">{error}</div>
       ) : montages.length === 0 ? (
-        <div className="bg-slate-900 border border-dashed border-slate-700 rounded-3xl p-12 text-center">
+        <div className="bg-slate-900 border border-dashed border-slate-700 rounded-2xl sm:rounded-3xl p-7 sm:p-12 text-center">
           <Film className="w-10 h-10 text-slate-600 mx-auto mb-3" />
           <div className="font-black text-white">Todavía no tienes videos publicados</div>
           <p className="text-xs text-slate-500 mt-1">Cuando tu entrenador publique un montaje para tu cuenta aparecerá aquí.</p>
@@ -64,7 +64,7 @@ export const PlayerVideoInbox: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           {montages.map((montage) => (
-            <article key={montage.id} className="bg-slate-900 border border-slate-800 rounded-3xl p-5">
+            <article key={montage.id} className="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-5">
               <div className="text-[10px] uppercase tracking-wider text-slate-500">{montage.matchTitle}</div>
               <h2 className="text-lg font-black text-white mt-1">{montage.shareTitle || montage.name}</h2>
               {montage.recipientLabel && <div className="text-xs text-cyan-300 mt-1">Para {montage.recipientLabel}</div>}

@@ -357,19 +357,19 @@ export const UnifiedTacticalHub: React.FC<UnifiedTacticalHubProps> = ({
   const currentSetData = match.sets[match.currentSet - 1] || { scoreHome: 0, scoreAway: 0 };
 
   return (
-    <div className="space-y-6 text-slate-100 max-w-[1600px] mx-auto">
+    <div className="space-y-3 sm:space-y-6 text-slate-100 max-w-[1600px] mx-auto">
 
       {/* QUICK WORKFLOW BAR: Return to Match Center + Context Metadata + Clean Secondary Actions */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 sm:p-3.5 shadow-lg flex flex-wrap items-center justify-between gap-3">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-2 sm:p-3.5 shadow-lg flex items-center justify-between gap-2 sm:gap-3">
         <div className="flex items-center gap-3 min-w-0">
           {onBackToMatchCenter && (
             <button
               onClick={onBackToMatchCenter}
-              className="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-xs px-3 py-1.5 rounded-xl flex items-center gap-1.5 border border-slate-700 transition cursor-pointer shrink-0"
+              className="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-xs px-2.5 sm:px-3 py-2 sm:py-1.5 rounded-xl flex items-center gap-1.5 border border-slate-700 transition cursor-pointer shrink-0"
               title="Volver al Centro del Partido"
             >
               <ArrowLeft className="w-3.5 h-3.5 text-amber-400" />
-              <span>← Centro del Partido</span>
+              <span className="hidden sm:inline">← Centro del Partido</span><span className="sm:hidden">Centro</span>
             </button>
           )}
 
@@ -387,7 +387,7 @@ export const UnifiedTacticalHub: React.FC<UnifiedTacticalHubProps> = ({
         </div>
 
         {/* Secondary controls with neutral styling */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="hidden sm:flex flex-wrap items-center gap-2">
           {onOpenTeamsManager && (
             <button
               onClick={onOpenTeamsManager}
@@ -435,10 +435,10 @@ export const UnifiedTacticalHub: React.FC<UnifiedTacticalHubProps> = ({
       </div>
       
       {/* 0. SCOUTING VIEW MODE SELECTOR (Segment control con jerarquía limpia) */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-900 border border-slate-800 p-2 sm:p-3 rounded-2xl shadow-md">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-3 bg-slate-900 border border-slate-800 p-2 sm:p-3 rounded-2xl shadow-md">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-amber-400" />
-          <span className="font-bold text-xs text-slate-300">Modo de Registro:</span>
+          <span className="font-bold text-xs text-slate-300">Registro</span>
           <span className="text-[11px] text-slate-400 hidden md:inline">
             {scoutViewMode === 'quick_touch' ? 'Panel de toques rápidos optimizado' : 'Consola completa con coordenadas espaciales'}
           </span>
@@ -486,7 +486,7 @@ export const UnifiedTacticalHub: React.FC<UnifiedTacticalHubProps> = ({
       ) : (
         <>
           {/* 1. SCOREBOARD & ROTATION STRIP */}
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-6 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-3 sm:p-6 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-3 sm:gap-6">
         
         {/* Local Team Box */}
         <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-start">
@@ -653,11 +653,11 @@ export const UnifiedTacticalHub: React.FC<UnifiedTacticalHubProps> = ({
       </div>
 
       {/* 2. UNIFIED TACTICAL ARENA: 2D COURT (CENTER) + EXPANDABLE ROSTERS & LIVE COMMAND CONSOLE */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-3 sm:gap-6 items-start">
         
         {/* LEFT / CENTER: THE 2D VOLLEYBALL COURT WITH BOTH TEAMS ON COURT */}
         <div className="xl:col-span-7 space-y-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-6 shadow-2xl space-y-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-3 sm:p-6 shadow-2xl space-y-3 sm:space-y-4">
             
             {/* Court Header & Quick Filters */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
