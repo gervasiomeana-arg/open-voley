@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Download,
   Film,
@@ -15,11 +15,12 @@ import {
   Square,
 } from 'lucide-react';
 import { EvaluationSymbol, MatchData, ScoutCodeAction, SmartSportsMontage, TeamSide, VolleySkill } from '../types';
+import { getSavedSmartSportsMontages } from '../services/smartSportsMontageStorage';
 import {
-  deleteSmartSportsMontage,
-  getSavedSmartSportsMontages,
-  saveSmartSportsMontage,
-} from '../services/smartSportsMontageStorage';
+  deleteMontageLocallyFirst,
+  saveMontageLocallyFirst,
+  syncSmartSportsMontages,
+} from '../services/smartSportsMontageSync';
 
 interface SmartSportsEditorProps {
   match: MatchData;
@@ -77,6 +78,14 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
     getSavedSmartSportsMontages().filter((item) => item.matchId === match.id),
   );
   const [activeMontageId, setActiveMontageId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void syncSmartSportsMontages().then((montages) => {
+      if (active) setSavedMontages(montages.filter((item) => item.matchId === match.id));
+    });
+    return () => { active = false; };
+  }, [match.id]);
 
   const sourceActions = useMemo(() => {
     const byId = new Map<string, ScoutCodeAction>();
@@ -168,7 +177,7 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
       postRoll,
       actionIds: selectedPlaylist.map((action) => action.id),
     };
-    const updated = saveSmartSportsMontage(montage).filter((item) => item.matchId === match.id);
+    const updated = saveMontageLocallyFirst(montage).filter((item) => item.matchId === match.id);
     setSavedMontages(updated);
     setActiveMontageId(montage.id);
     setMontageName(montage.name);
@@ -184,7 +193,7 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
   };
 
   const removeMontage = (id: string) => {
-    const updated = deleteSmartSportsMontage(id).filter((item) => item.matchId === match.id);
+    const updated = deleteMontageLocallyFirst(id).filter((item) => item.matchId === match.id);
     setSavedMontages(updated);
     if (activeMontageId === id) {
       setActiveMontageId(null);
