@@ -63,5 +63,8 @@ jobs:
       - name: Video render plan tests
         run: npm run test:video-render
 
+      - name: Player 360 real analytics tests
+        run: npm run test:player360
+
       - name: Production build
         run: npm run build
