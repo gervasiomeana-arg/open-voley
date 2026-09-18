@@ -303,6 +303,11 @@ export interface SmartSportsMontage {
   preRoll: number;
   postRoll: number;
   actionIds: string[];
+  /** Optional index metadata for library browsing; legacy montages remain valid. */
+  playerNums?: number[];
+  playerNames?: string[];
+  skills?: VolleySkill[];
+  teamSides?: TeamSide[];
 }
 
 export interface AiEvidenceInsight {
