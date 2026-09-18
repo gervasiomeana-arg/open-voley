@@ -73,6 +73,7 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
 }) => {
   const [activeSubModule, setActiveSubModule] = useState<AiSubModule>('vision');
   const [isVisionAnalyzing, setIsVisionAnalyzing] = useState(false);
+  const [visionNotice, setVisionNotice] = useState<string | null>(null);
   const [showAiOverlays, setShowAiOverlays] = useState(true);
 
   // Video playback states for AI vision player
@@ -116,6 +117,17 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
 
   const homeStats = useMemo(() => calculatePlayerStats(match.homePlayers, match.actions), [match]);
   const awayStats = useMemo(() => calculatePlayerStats(match.awayPlayers, match.actions), [match]);
+  const telemetrySummary = useMemo(() => {
+    const valid = detectedRallies.filter((rally) => rally.confidenceScore > 0);
+    const speeds = valid.map((rally) => rally.ballMaxSpeedKmh).filter((value) => value > 0);
+    const reaches = valid.map((rally) => rally.spikeReachM).filter((value) => value > 0);
+    return {
+      samples: valid.length,
+      maxSpeed: speeds.length ? Math.max(...speeds) : undefined,
+      avgSpeed: speeds.length ? speeds.reduce((sum, value) => sum + value, 0) / speeds.length : undefined,
+      maxReach: reaches.length ? Math.max(...reaches) : undefined,
+    };
+  }, [detectedRallies]);
 
   const formatTime = (secs: number) => {
     if (isNaN(secs) || secs < 0) return '00:00';
@@ -193,66 +205,42 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
     }
   };
 
-  // Run automated scan over video frames to detect rallies
+  // Vision analysis remains experimental until a validated computer-vision backend
+  // returns real detections. Never synthesize rallies or telemetry in the browser.
   const handleRunVisionAnalysis = () => {
+    if (!videoSrc) return;
     setIsVisionAnalyzing(true);
-    setTimeout(() => {
+    setVisionNotice(null);
+    window.setTimeout(() => {
       setIsVisionAnalyzing(false);
-      
-      const currentSec = Math.floor(currentTime);
-      const randomSpeed = (98 + Math.random() * 18).toFixed(1);
-      const randomReach = (3.35 + Math.random() * 0.25).toFixed(2);
-      const randomAttacker = match.homePlayers[Math.floor(Math.random() * match.homePlayers.length)]?.number || 1;
-      const isHomeWin = Math.random() > 0.4;
-
-      const newRally: RallyDetection = {
-        id: `rally-${Date.now()}`,
-        timestampStart: currentSec,
-        timestampEnd: currentSec + 7,
-        durationSec: 7.0,
-        servingTeam: isHomeWin ? 'home' : 'away',
-        serverNum: 9,
-        attackingTeam: 'home',
-        attackerNum: randomAttacker,
-        result: isHomeWin ? 'home_point' : 'away_point',
-        confidenceScore: 98.6,
-        ballMaxSpeedKmh: parseFloat(randomSpeed),
-        spikeReachM: parseFloat(randomReach),
-        detectedCode: `*${randomAttacker < 10 ? '0' + randomAttacker : randomAttacker}AH#15`,
-        phase: 'Punto',
-        notes: `Ataque punto detectado a ${randomSpeed} km/h (Alcance: ${randomReach}m)`
-      };
-
-      onAddRally(newRally);
-    }, 1200);
+      setVisionNotice('Auto-Scan experimental: todavía no hay un motor de visión validado conectado para generar detecciones automáticas reales. Usa el etiquetado manual o el scouting sincronizado.');
+    }, 500);
   };
 
-  // Manual detect single rally at current timestamp
+  // Manual marker at the current timestamp. This creates navigation evidence only;
+  // it deliberately does not invent speed, reach, confidence or outcome.
   const handleDetectCurrentSecond = () => {
     const sec = Math.floor(currentTime);
-    const randomSpeed = (102 + Math.random() * 14).toFixed(1);
-    const randomReach = (3.40 + Math.random() * 0.18).toFixed(2);
     const attackerNum = match.homePlayers[0]?.number || 1;
-
     const newRally: RallyDetection = {
-      id: `rally-${Date.now()}`,
+      id: `rally-manual-${Date.now()}`,
       timestampStart: sec,
       timestampEnd: sec + 6,
-      durationSec: 6.0,
+      durationSec: 6,
       servingTeam: 'home',
-      serverNum: 1,
+      serverNum: match.server?.playerNum || 0,
       attackingTeam: 'home',
-      attackerNum: attackerNum,
+      attackerNum,
       result: 'home_point',
-      confidenceScore: 97.4,
-      ballMaxSpeedKmh: parseFloat(randomSpeed),
-      spikeReachM: parseFloat(randomReach),
-      detectedCode: `*${attackerNum < 10 ? '0' + attackerNum : attackerNum}AH#`,
+      confidenceScore: 0,
+      ballMaxSpeedKmh: 0,
+      spikeReachM: 0,
+      detectedCode: 'MANUAL',
       phase: 'Punto',
-      notes: `Rally escaneado en ${formatTime(sec)}`
+      notes: `Marcador manual creado en ${formatTime(sec)}. Sin telemetría automática.`,
     };
-
     onAddRally(newRally);
+    setVisionNotice('Marcador manual agregado. No incluye velocidad, salto ni confianza porque esos datos no fueron medidos.');
   };
 
   const handleAskAI = async (customQuery?: string) => {
@@ -292,7 +280,7 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
           ...prev,
           {
             role: 'assistant',
-            text: 'Diagnóstico Táctico: El rival presenta un 68% de ataques dirigidos en diagonal profunda hacia Zona 5 cuando recibe en Zona 6. Se sugiere mover el bloqueo hacia la diagonal y liberar la paralela con defensa baja.',
+            text: 'No hay una respuesta táctica verificada disponible para esta consulta. OPEN VOLEY no completará el análisis con porcentajes o patrones inventados.',
           },
         ]);
       }
@@ -301,7 +289,7 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
         ...prev,
         {
           role: 'assistant',
-          text: 'Análisis IA Táctica OPEN VOLEY:\n- Patrón de saque rival: 80% flotante largo a zona 1/6.\n- Oportunidad: Atacar con el central en primer tiempo aprovechando el bloqueo simple del rival en rotación P4.',
+          text: 'El servicio de consulta táctica no está disponible en este momento. Los datos registrados del partido permanecen accesibles en Análisis y OPEN AI, sin generar conclusiones ficticias.',
         },
       ]);
     } finally {
@@ -323,7 +311,7 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
                 <Cpu className="w-3.5 h-3.5 text-amber-400" /> OPEN VOLEY AI Suite
               </span>
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-[11px] font-mono rounded-full font-bold">
-                <Activity className="w-3 h-3 text-emerald-400" /> Motor de Visión & Telemetría Activo
+                <Activity className="w-3 h-3 text-emerald-400" /> Visión & Telemetría Experimental
               </span>
             </div>
 
@@ -331,7 +319,7 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
               Inteligencia Artificial Táctica & Visión Computacional
             </h2>
             <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
-              Tecnología de última generación: detección automática de jugadas por visión artificial en video real, matriz predictiva de distribución del armador, mapas de calor y telemetría de velocidad/salto.
+              Espacio experimental para video, marcadores sincronizados y futuras mediciones de visión computacional. Las métricas sólo se muestran cuando provienen de detecciones validadas.
             </p>
           </div>
 
@@ -370,6 +358,12 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
             </button>
           </div>
         </div>
+
+        {visionNotice && (
+          <div className="mt-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs relative z-10">
+            {visionNotice}
+          </div>
+        )}
 
         {/* Submodule Navigation Pills */}
         <div className="flex flex-wrap items-center gap-2 pt-6 mt-6 border-t border-slate-800/80">
@@ -1030,33 +1024,33 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
             <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-2 text-center">
               <div className="text-xs font-bold text-slate-400 uppercase">Velocidad Máxima de Remate</div>
               <div className="text-3xl sm:text-4xl font-black text-amber-400 font-mono">
-                114.2 <span className="text-sm text-slate-400">km/h</span>
+                {telemetrySummary.maxSpeed !== undefined ? telemetrySummary.maxSpeed.toFixed(1) : '—'} <span className="text-sm text-slate-400">km/h</span>
               </div>
-              <div className="text-[11px] text-slate-400">Jugador #1 (Ataque Z4)</div>
+              <div className="text-[11px] text-slate-400">{telemetrySummary.samples ? 'Máximo validado' : 'Sin medición validada'}</div>
             </div>
 
             <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-2 text-center">
               <div className="text-xs font-bold text-slate-400 uppercase">Alcance Máximo de Remate</div>
               <div className="text-3xl sm:text-4xl font-black text-emerald-400 font-mono">
-                3.55 <span className="text-sm text-slate-400">m</span>
+                {telemetrySummary.maxReach !== undefined ? telemetrySummary.maxReach.toFixed(2) : '—'} <span className="text-sm text-slate-400">m</span>
               </div>
-              <div className="text-[11px] text-slate-400">Opuesto / Central</div>
+              <div className="text-[11px] text-slate-400">{telemetrySummary.samples ? 'Máximo validado' : 'Sin medición validada'}</div>
             </div>
 
             <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-2 text-center">
               <div className="text-xs font-bold text-slate-400 uppercase">Velocidad Media de Saque</div>
               <div className="text-3xl sm:text-4xl font-black text-blue-400 font-mono">
-                106.8 <span className="text-sm text-slate-400">km/h</span>
+                {telemetrySummary.avgSpeed !== undefined ? telemetrySummary.avgSpeed.toFixed(1) : '—'} <span className="text-sm text-slate-400">km/h</span>
               </div>
-              <div className="text-[11px] text-slate-400">Saque Potencia con Salto</div>
+              <div className="text-[11px] text-slate-400">{telemetrySummary.samples ? `Promedio sobre ${telemetrySummary.samples} detecciones` : 'Sin medición validada'}</div>
             </div>
 
             <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-2 text-center">
               <div className="text-xs font-bold text-slate-400 uppercase">Tiempo de Suspensión (Hang)</div>
               <div className="text-3xl sm:text-4xl font-black text-purple-400 font-mono">
-                0.78 <span className="text-sm text-slate-400">s</span>
+                — <span className="text-sm text-slate-400">s</span>
               </div>
-              <div className="text-[11px] text-slate-400">Media del Sexteto Inicial</div>
+              <div className="text-[11px] text-slate-400">No medido por el motor actual</div>
             </div>
           </div>
         </div>
