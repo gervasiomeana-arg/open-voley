@@ -36,5 +36,8 @@ jobs:
       - name: Training evidence tests
         run: npm run test:training-evidence
 
+      - name: Performance follow-up tests
+        run: npm run test:performance-followup
+
       - name: Production build
         run: npm run build
