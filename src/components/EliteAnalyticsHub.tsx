@@ -931,297 +931,172 @@ const ReportSetterDistribution: React.FC<ReportSetterDistributionProps> = ({
   passQualityFilter,
   setPassQualityFilter,
 }) => {
-  // Distribution calculation per zone: Pos 4, Pos 3 (Central), Pos 2, Pipe (Z6/Z8), Pos 1, Dump/2nd Touch
-  const setterData = useMemo(() => {
-    // Dynamic values based on rotation filter
-    const baseDist = rotationFilter === 1 
-      ? { p4: 48, p3: 14, p2: 24, pipe: 10, p1: 0, dump: 4 }
-      : rotationFilter === 6
-        ? { p4: 34, p3: 22, p2: 12, pipe: 28, p1: 0, dump: 4 }
-        : rotationFilter === 4
-          ? { p4: 28, p3: 20, p2: 46, pipe: 4, p1: 0, dump: 2 }
-          : { p4: 38, p3: 21, p2: 25, pipe: 12, p1: 2, dump: 2 };
+  const setter = players.find((player) => player.position === 'S' && player.starter)
+    ?? players.find((player) => player.position === 'S');
 
-    // Adjust for pass quality
-    if (passQualityFilter === 'negative') {
-      return {
-        p4: 64, // Out of system goes to high ball in 4
-        p3: 3,  // Middle is dead
-        p2: 25, // Opposite high ball
-        pipe: 6,
-        p1: 0,
-        dump: 2,
-        totalSets: 42,
-        killRateP4: 29,
-        killRateP3: 33,
-        killRateP2: 36,
-        killRatePipe: 25,
-      };
-    } else if (passQualityFilter === 'positive') {
-      return {
-        p4: 31,
-        p3: 32, // Middle blooms with #/+
-        p2: 20,
-        pipe: 14,
-        p1: 1,
-        dump: 2,
-        totalSets: 68,
-        killRateP4: 52,
-        killRateP3: 65,
-        killRateP2: 48,
-        killRatePipe: 55,
-      };
-    }
+  const rotationForAction = (action: ScoutCodeAction): number => {
+    if (!setter) return 0;
+    const rotation = teamSide === 'home' ? action.rotationHome : action.rotationAway;
+    if (!Array.isArray(rotation) || rotation.length < 6) return 0;
+    const index = rotation.indexOf(setter.number);
+    return index >= 0 ? index + 1 : 0;
+  };
+
+  const passQualityForSetting = (setting: ScoutCodeAction): 'positive' | 'negative' | 'unknown' => {
+    const previous = [...actions]
+      .filter((action) =>
+        action.team === teamSide &&
+        action.setNumber === setting.setNumber &&
+        action.timestamp <= setting.timestamp &&
+        setting.timestamp - action.timestamp <= 12 &&
+        action.skill === 'R',
+      )
+      .sort((a, b) => b.timestamp - a.timestamp)[0];
+
+    if (!previous) return 'unknown';
+    if (previous.evaluation === '#' || previous.evaluation === '+') return 'positive';
+    if (previous.evaluation === '!' || previous.evaluation === '-' || previous.evaluation === '/' || previous.evaluation === '=') return 'negative';
+    return 'unknown';
+  };
+
+  const setterData = useMemo(() => {
+    const settings = actions.filter((action) => {
+      if (action.team !== teamSide || action.skill !== 'E') return false;
+      if (setter && action.playerNum !== setter.number) return false;
+      if (rotationFilter > 0 && rotationForAction(action) !== rotationFilter) return false;
+      if (passQualityFilter !== 'all' && passQualityForSetting(action) !== passQualityFilter) return false;
+      return true;
+    });
+
+    const byZone = new Map<number, number>();
+    settings.forEach((action) => {
+      const zone = action.endZone;
+      if (zone && zone >= 1 && zone <= 9) {
+        byZone.set(zone, (byZone.get(zone) || 0) + 1);
+      }
+    });
+
+    const totalWithZone = [...byZone.values()].reduce((sum, value) => sum + value, 0);
+    const zonePct = (zone: number) => totalWithZone > 0
+      ? Math.round(((byZone.get(zone) || 0) / totalWithZone) * 100)
+      : 0;
 
     return {
-      ...baseDist,
-      totalSets: 110,
-      killRateP4: 44,
-      killRateP3: 56,
-      killRateP2: 42,
-      killRatePipe: 46,
+      totalSets: settings.length,
+      totalWithZone,
+      byZone,
+      p4: zonePct(4),
+      p3: zonePct(3),
+      p2: zonePct(2),
+      pipe: zonePct(6),
+      p1: zonePct(1),
+      unknown: settings.length - totalWithZone,
     };
-  }, [rotationFilter, passQualityFilter]);
+  }, [actions, teamSide, setter, rotationFilter, passQualityFilter]);
 
   return (
     <div className="space-y-6">
-      {/* Header & Sub-filters */}
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20">
-                Data Volley 4 Setter Module
+                Distribución real del armador
               </span>
               <span className="text-xs text-slate-400">Equipo: <strong>{teamName}</strong></span>
             </div>
-            <h3 className="text-xl font-black text-white mt-1">
-              Matriz de Distribución del Armador & Tendencias Tácticas
-            </h3>
+            <h3 className="text-xl font-black text-white mt-1">Matriz de Distribución por Rotación</h3>
             <p className="text-xs text-slate-400">
-              ¿Hacia dónde va la pelota rotación por rotación según la calidad de la recepción (# / + vs ! / -)?
+              Usa acciones de colocación (E) con zona destino. Si no se registra la zona del armado, no se estima.
             </p>
           </div>
 
-          {/* Controls: Rotation Buttons P1-P6 */}
           <div className="flex flex-wrap items-center gap-1.5 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
             <span className="text-[11px] font-bold text-slate-400 px-2">Rotación:</span>
-            {[
-              { id: 0, label: 'Todas' },
-              { id: 1, label: 'P1' },
-              { id: 6, label: 'P6' },
-              { id: 5, label: 'P5' },
-              { id: 4, label: 'P4' },
-              { id: 3, label: 'P3' },
-              { id: 2, label: 'P2' },
-            ].map((rot) => (
+            {[0, 1, 2, 3, 4, 5, 6].map((rot) => (
               <button
-                key={rot.id}
-                onClick={() => setRotationFilter(rot.id)}
+                key={rot}
+                onClick={() => setRotationFilter(rot)}
                 className={`px-2.5 py-1 rounded-xl text-xs font-mono font-bold transition cursor-pointer ${
-                  rotationFilter === rot.id
-                    ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                  rotationFilter === rot ? 'bg-purple-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'
                 }`}
               >
-                {rot.label}
+                {rot === 0 ? 'Todas' : `R${rot}`}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Quality of Reception Sub-filter */}
         <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-slate-800/80">
-          <span className="text-xs font-bold text-slate-300">Calidad de Pase / Recepción:</span>
-          <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
+          <span className="text-xs font-bold text-slate-300">Calidad de recepción previa:</span>
+          {[
+            { id: 'all' as const, label: 'Todas' },
+            { id: 'positive' as const, label: 'Positiva / Perfecta' },
+            { id: 'negative' as const, label: 'Fuera de sistema' },
+          ].map((item) => (
             <button
-              onClick={() => setPassQualityFilter('all')}
-              className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                passQualityFilter === 'all'
-                  ? 'bg-slate-800 text-white'
-                  : 'text-slate-400 hover:text-white'
+              key={item.id}
+              onClick={() => setPassQualityFilter(item.id)}
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
+                passQualityFilter === item.id ? 'bg-slate-700 text-white' : 'bg-slate-950 text-slate-400 border border-slate-800'
               }`}
             >
-              Todos los Pases
+              {item.label}
             </button>
-            <button
-              onClick={() => setPassQualityFilter('positive')}
-              className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                passQualityFilter === 'positive'
-                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                  : 'text-slate-400 hover:text-emerald-400'
-              }`}
-            >
-              Pase Perfecto / Positivo (# / +)
-            </button>
-            <button
-              onClick={() => setPassQualityFilter('negative')}
-              className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                passQualityFilter === 'negative'
-                  ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
-                  : 'text-slate-400 hover:text-rose-400'
-              }`}
-            >
-              Pase Roto / Fuera de 3m (! / -)
-            </button>
-          </div>
+          ))}
         </div>
       </div>
 
-      {/* Visual Setter Court & Breakdown */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Court Canvas Simulation (5 cols) */}
-        <div className="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-4">
-          <div className="flex items-center justify-between">
-            <h4 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <h4 className="text-sm font-black text-white flex items-center gap-2">
               <Compass className="w-4 h-4 text-purple-400" />
-              <span>Mapa Táctico de Salidas del Armador</span>
+              Salidas registradas
             </h4>
-            <span className="text-xs font-mono text-purple-300 font-bold">
-              {setterData.totalSets} armados registrados
+            <span className="text-xs font-mono text-purple-300">
+              {setterData.totalSets} armados • {setterData.totalWithZone} con zona
             </span>
           </div>
 
-          {/* Volleyball Court Top-down Grid with percentages */}
-          <div className="aspect-[4/3] bg-emerald-900/30 border-2 border-emerald-500/40 rounded-2xl relative p-4 overflow-hidden flex flex-col justify-between shadow-inner">
-            {/* Net indicator */}
-            <div className="absolute top-0 left-0 right-0 h-2 bg-slate-300/80 shadow-md flex items-center justify-center">
-              <span className="text-[9px] font-black text-slate-900 uppercase tracking-widest px-2 bg-white/90 rounded-full -mt-1">RED / NET</span>
-            </div>
-
-            {/* Attack Line (3m) */}
-            <div className="absolute top-[40%] left-0 right-0 border-b-2 border-dashed border-emerald-400/40" />
-
-            {/* Front Row (Zones 4, 3, 2) */}
-            <div className="grid grid-cols-3 gap-3 pt-4 z-10">
-              {/* Zone 4 */}
-              <div className="bg-slate-950/80 border border-amber-500/60 rounded-xl p-3 text-center shadow-lg hover:border-amber-400 transition">
-                <div className="text-[10px] font-mono text-amber-400 font-bold">ZONA 4 (Punta)</div>
-                <div className="text-2xl font-black text-white">{setterData.p4}%</div>
-                <div className="text-[10px] text-emerald-400 font-mono">Kill: {setterData.killRateP4}%</div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            {[
+              { zone: 4, label: 'Zona 4', pct: setterData.p4 },
+              { zone: 3, label: 'Zona 3', pct: setterData.p3 },
+              { zone: 2, label: 'Zona 2', pct: setterData.p2 },
+              { zone: 6, label: 'Pipe / Z6', pct: setterData.pipe },
+              { zone: 1, label: 'Zona 1', pct: setterData.p1 },
+            ].map((item) => (
+              <div key={item.zone} className="bg-slate-950 border border-slate-800 rounded-2xl p-4 text-center">
+                <div className="text-[10px] uppercase font-bold text-slate-500">{item.label}</div>
+                <div className="text-2xl font-black text-white mt-1">
+                  {setterData.totalWithZone ? `${item.pct}%` : '—'}
+                </div>
+                <div className="text-[10px] text-slate-500">
+                  {setterData.byZone.get(item.zone) || 0} armados
+                </div>
               </div>
-
-              {/* Zone 3 */}
-              <div className="bg-slate-950/80 border border-purple-500/60 rounded-xl p-3 text-center shadow-lg hover:border-purple-400 transition">
-                <div className="text-[10px] font-mono text-purple-400 font-bold">ZONA 3 (Central)</div>
-                <div className="text-2xl font-black text-white">{setterData.p3}%</div>
-                <div className="text-[10px] text-emerald-400 font-mono">Kill: {setterData.killRateP3}%</div>
-              </div>
-
-              {/* Zone 2 */}
-              <div className="bg-slate-950/80 border border-cyan-500/60 rounded-xl p-3 text-center shadow-lg hover:border-cyan-400 transition">
-                <div className="text-[10px] font-mono text-cyan-400 font-bold">ZONA 2 (Opuesto)</div>
-                <div className="text-2xl font-black text-white">{setterData.p2}%</div>
-                <div className="text-[10px] text-emerald-400 font-mono">Kill: {setterData.killRateP2}%</div>
-              </div>
-            </div>
-
-            {/* Back Row (Pipe Z6/Z8 & Back attacks) */}
-            <div className="grid grid-cols-3 gap-3 z-10">
-              <div className="text-center text-[10px] text-slate-500 font-mono">ZONA 5</div>
-              {/* Pipe */}
-              <div className="bg-slate-950/80 border border-indigo-500/60 rounded-xl p-2.5 text-center shadow-lg">
-                <div className="text-[10px] font-mono text-indigo-400 font-bold">PIPE (Z6/Z8)</div>
-                <div className="text-xl font-black text-white">{setterData.pipe}%</div>
-                <div className="text-[10px] text-emerald-400 font-mono">Kill: {setterData.killRatePipe}%</div>
-              </div>
-              <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-2.5 text-center">
-                <div className="text-[10px] font-mono text-slate-400 font-bold">ZONA 1</div>
-                <div className="text-lg font-black text-slate-300">{setterData.p1}%</div>
-              </div>
-            </div>
-
-            {/* Setter Position Marker */}
-            <div className="absolute top-[28%] right-[28%] w-8 h-8 rounded-full bg-purple-600 border-2 border-white shadow-xl flex items-center justify-center text-[10px] font-black text-white animate-pulse">
-              S
-            </div>
+            ))}
           </div>
+
+          {setterData.totalSets === 0 && (
+            <div className="mt-4 p-4 rounded-2xl bg-slate-950 border border-slate-800 text-xs text-slate-400">
+              Sin acciones de colocación suficientes para este filtro. No se muestran porcentajes simulados.
+            </div>
+          )}
         </div>
 
-        {/* Breakdown Stats & Clutch Analysis (7 cols) */}
-        <div className="lg:col-span-7 space-y-4">
-          {/* Detailed Progress Bars */}
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-3">
-            <h4 className="text-sm font-black text-white flex items-center justify-between">
-              <span>Volumen de Salidas & Tasa de Puntos Ganados (Kill Rate)</span>
-              <span className="text-xs text-slate-400 font-normal">Base: {setterData.totalSets} acciones</span>
-            </h4>
-
-            <div className="space-y-3 pt-2">
-              <div>
-                <div className="flex justify-between text-xs mb-1">
-                  <span className="font-bold text-amber-400">Posición 4 (Punta Receptor): {setterData.p4}% de volumen</span>
-                  <span className="font-mono text-emerald-400 font-bold">Kill Rate: {setterData.killRateP4}%</span>
-                </div>
-                <div className="w-full bg-slate-950 rounded-full h-3 overflow-hidden border border-slate-800">
-                  <div className="bg-amber-500 h-full rounded-full transition-all duration-500" style={{ width: `${setterData.p4}%` }} />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between text-xs mb-1">
-                  <span className="font-bold text-purple-400">Posición 3 (Central 1er Tiempo): {setterData.p3}% de volumen</span>
-                  <span className="font-mono text-emerald-400 font-bold">Kill Rate: {setterData.killRateP3}%</span>
-                </div>
-                <div className="w-full bg-slate-950 rounded-full h-3 overflow-hidden border border-slate-800">
-                  <div className="bg-purple-500 h-full rounded-full transition-all duration-500" style={{ width: `${setterData.p3}%` }} />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between text-xs mb-1">
-                  <span className="font-bold text-cyan-400">Posición 2 (Opuesto): {setterData.p2}% de volumen</span>
-                  <span className="font-mono text-emerald-400 font-bold">Kill Rate: {setterData.killRateP2}%</span>
-                </div>
-                <div className="w-full bg-slate-950 rounded-full h-3 overflow-hidden border border-slate-800">
-                  <div className="bg-cyan-500 h-full rounded-full transition-all duration-500" style={{ width: `${setterData.p2}%` }} />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between text-xs mb-1">
-                  <span className="font-bold text-indigo-400">Ataque Pipe (Zaguero Centro Z6): {setterData.pipe}% de volumen</span>
-                  <span className="font-mono text-emerald-400 font-bold">Kill Rate: {setterData.killRatePipe}%</span>
-                </div>
-                <div className="w-full bg-slate-950 rounded-full h-3 overflow-hidden border border-slate-800">
-                  <div className="bg-indigo-500 h-full rounded-full transition-all duration-500" style={{ width: `${setterData.pipe}%` }} />
-                </div>
-              </div>
-            </div>
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-3">
+          <h4 className="text-sm font-black text-white">Calidad de la muestra</h4>
+          <div className="space-y-2 text-xs">
+            <div className="flex justify-between"><span className="text-slate-400">Armador</span><span className="text-white font-bold">{setter ? `#${setter.number} ${setter.name}` : 'No identificado'}</span></div>
+            <div className="flex justify-between"><span className="text-slate-400">Armados</span><span className="text-white font-bold">{setterData.totalSets}</span></div>
+            <div className="flex justify-between"><span className="text-slate-400">Con zona destino</span><span className="text-white font-bold">{setterData.totalWithZone}</span></div>
+            <div className="flex justify-between"><span className="text-slate-400">Sin zona</span><span className="text-white font-bold">{setterData.unknown}</span></div>
           </div>
-
-          {/* Clutch Points Analysis (Puntos Calientes > 20) */}
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-black text-white flex items-center gap-2">
-                <Flame className="w-4 h-4 text-rose-500" />
-                <span>Comportamiento en Pelotas Calientes ("Clutch Time" &gt; 20 Puntos)</span>
-              </h4>
-              <span className="text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30 px-2 py-0.5 rounded">
-                Momentos Decisivos
-              </span>
-            </div>
-            <p className="text-xs text-slate-400">
-              A quién busca el armador cuando el marcador está igualado en 20-20 o en cierre de set.
-            </p>
-            <div className="grid grid-cols-3 gap-3 pt-1 text-center font-mono">
-              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
-                <div className="text-[10px] text-slate-400">Opuesto Z2</div>
-                <div className="text-xl font-black text-rose-400">58%</div>
-                <div className="text-[10px] text-slate-500">Balón de confianza</div>
-              </div>
-              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
-                <div className="text-[10px] text-slate-400">Punta Z4</div>
-                <div className="text-xl font-black text-amber-400">32%</div>
-                <div className="text-[10px] text-slate-500">Segunda opción</div>
-              </div>
-              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
-                <div className="text-[10px] text-slate-400">Central Z3</div>
-                <div className="text-xl font-black text-slate-400">10%</div>
-                <div className="text-[10px] text-slate-500">Solo con pase #</div>
-              </div>
-            </div>
-          </div>
+          <p className="text-[11px] text-slate-500 border-t border-slate-800 pt-3">
+            El kill rate por salida no se calcula aquí porque el modelo actual no enlaza de forma inequívoca cada armado con el ataque siguiente.
+          </p>
         </div>
       </div>
     </div>
@@ -1229,7 +1104,7 @@ const ReportSetterDistribution: React.FC<ReportSetterDistributionProps> = ({
 };
 
 // ============================================================================
-// INFORME 3: MATRIZ DE SAQUE VS RECEPCIÓN & SEAMS (VOLLEYMETRICS)
+// INFORME 3: MATRIZ DE SAQUE VS RECEPCIÓN & ZONAS
 // ============================================================================
 interface ReportServePassSeamsProps {
   match: MatchData;
@@ -1246,157 +1121,129 @@ const ReportServePassSeams: React.FC<ReportServePassSeamsProps> = ({
   players,
   actions,
 }) => {
-  // Zones target breakdown for serves: Zone 1, 6, 5, and short zones 2, 3, 4
-  const zonesBreakdown = [
-    { zone: 1, label: 'Zona 1 (Fondo Derecho)', pct: 24, aces: 3, brokenPass: 38, vulnerability: 'Media' },
-    { zone: 6, label: 'Zona 6 (Fondo Centro)', pct: 36, aces: 1, brokenPass: 18, vulnerability: 'Baja (Líbero)' },
-    { zone: 5, label: 'Zona 5 (Fondo Izquierdo)', pct: 30, aces: 5, brokenPass: 46, vulnerability: 'CRÍTICA' },
-    { zone: 4, label: 'Zona 4 Corta (Frente)', pct: 4, aces: 1, brokenPass: 50, vulnerability: 'Alta (Afloje)' },
-    { zone: 2, label: 'Zona 2 Corta (Frente)', pct: 6, aces: 0, brokenPass: 30, vulnerability: 'Media' },
-  ];
+  const zoneStats = useMemo(() => {
+    const receptions = actions.filter((action) => action.team === teamSide && action.skill === 'R');
+    return [1, 2, 3, 4, 5, 6].map((zone) => {
+      const subset = receptions.filter((action) => action.startZone === zone || action.endZone === zone);
+      const errors = subset.filter((action) => action.evaluation === '=').length;
+      const negative = subset.filter((action) => ['=', '/', '-', '!'].includes(action.evaluation)).length;
+      const positive = subset.filter((action) => action.evaluation === '+' || action.evaluation === '#').length;
+      const perfect = subset.filter((action) => action.evaluation === '#').length;
+      return {
+        zone,
+        total: subset.length,
+        errors,
+        negativePct: subset.length ? Math.round((negative / subset.length) * 100) : 0,
+        positivePct: subset.length ? Math.round((positive / subset.length) * 100) : 0,
+        perfectPct: subset.length ? Math.round((perfect / subset.length) * 100) : 0,
+      };
+    });
+  }, [actions, teamSide]);
+
+  const receptionsByPlayer = useMemo(() => {
+    return players.map((player) => {
+      const subset = actions.filter(
+        (action) => action.team === teamSide && action.skill === 'R' && action.playerNum === player.number,
+      );
+      const errors = subset.filter((action) => action.evaluation === '=').length;
+      const positive = subset.filter((action) => action.evaluation === '+' || action.evaluation === '#').length;
+      const perfect = subset.filter((action) => action.evaluation === '#').length;
+      return {
+        number: player.number,
+        name: player.name,
+        total: subset.length,
+        errors,
+        positivePct: subset.length ? Math.round((positive / subset.length) * 100) : 0,
+        perfectPct: subset.length ? Math.round((perfect / subset.length) * 100) : 0,
+      };
+    }).filter((row) => row.total > 0);
+  }, [actions, players, teamSide]);
+
+  const targetZone = [...zoneStats].filter((row) => row.total >= 2).sort((a, b) => b.negativePct - a.negativePct)[0];
 
   return (
     <div className="space-y-6">
-      {/* Header Info */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-2">
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl">
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
-            VolleyMetrics Target Matrix
+            Recepción por zona
           </span>
-          <span className="text-xs text-slate-400">Equipo Receptor Analizado: <strong>{teamName}</strong></span>
+          <span className="text-xs text-slate-400">Equipo receptor: <strong>{teamName}</strong></span>
         </div>
-        <h3 className="text-xl font-black text-white">
-          Matriz de Saque Táctico, Zonas de Costura (Seams) & Receptor Target
-        </h3>
-        <p className="text-xs text-slate-400">
-          Identificación de las fallas en el esquema de 3 receptores, costuras críticas entre punta y líbero, y recomendaciones de dirección para nuestros sacadores.
+        <h3 className="text-xl font-black text-white mt-2">Mapa real de Recepción & Zonas Target</h3>
+        <p className="text-xs text-slate-400 mt-1">
+          Se calcula desde la zona registrada en cada recepción. No se infieren costuras ni tipo de saque si esos datos no fueron capturados.
         </p>
       </div>
 
-      {/* Grid: 2D Target Court & Receptor Vulnerability */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Visual Seam Court Map (6 cols) */}
-        <div className="lg:col-span-6 bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-3">
           <div className="flex items-center justify-between">
-            <h4 className="text-sm font-black text-white flex items-center gap-2">
-              <Crosshair className="w-4 h-4 text-amber-400" />
-              <span>Mapa de Zonas de Conflicto en Cancha</span>
-            </h4>
-            <span className="text-[11px] font-bold text-rose-400 bg-rose-500/20 px-2 py-0.5 rounded border border-rose-500/30">
-              Zona Target: Zona 5
+            <h4 className="text-sm font-black text-white">Recepción por zona</h4>
+            <span className="text-[11px] text-slate-400">
+              {targetZone ? `Zona a revisar: Z${targetZone.zone}` : 'Sin muestra suficiente'}
             </span>
           </div>
-
-          <div className="aspect-[4/3] bg-slate-950 border-2 border-slate-700 rounded-2xl relative p-4 overflow-hidden flex flex-col justify-between shadow-2xl">
-            {/* 3m Attack Line */}
-            <div className="absolute top-[35%] left-0 right-0 border-b-2 border-dashed border-slate-700" />
-
-            {/* Red (Top) */}
-            <div className="text-center text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-800 pb-1">
-              RED / LÍNEA CENTRAL
-            </div>
-
-            {/* Front Short Zones (2, 3, 4) */}
-            <div className="grid grid-cols-3 gap-2 z-10">
-              <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800 text-center">
-                <div className="text-[10px] font-mono text-slate-400">ZONA 4</div>
-                <div className="text-xs font-bold text-slate-300">4% saques</div>
-              </div>
-              <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800 text-center">
-                <div className="text-[10px] font-mono text-slate-400">ZONA 3</div>
-                <div className="text-xs font-bold text-slate-300">0% saques</div>
-              </div>
-              <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800 text-center">
-                <div className="text-[10px] font-mono text-slate-400">ZONA 2</div>
-                <div className="text-xs font-bold text-slate-300">6% saques</div>
-              </div>
-            </div>
-
-            {/* Back Deep Zones with Heatmap Colors (5, 6, 1) */}
-            <div className="grid grid-cols-3 gap-2 z-10">
-              {/* Zone 5 - Critical target */}
-              <div className="p-3 rounded-xl bg-rose-950/60 border-2 border-rose-500 text-center relative shadow-lg shadow-rose-500/20 animate-pulse">
-                <div className="text-[10px] font-mono text-rose-300 font-bold">ZONA 5 (Target)</div>
-                <div className="text-xl font-black text-white">30%</div>
-                <div className="text-[10px] text-rose-300 font-bold">46% pases rotos</div>
-              </div>
-
-              {/* Zone 6 - Libero territory */}
-              <div className="p-3 rounded-xl bg-slate-900 border border-slate-700 text-center">
-                <div className="text-[10px] font-mono text-slate-400 font-bold">ZONA 6 (Líbero)</div>
-                <div className="text-xl font-black text-slate-200">36%</div>
-                <div className="text-[10px] text-emerald-400 font-bold">18% pases rotos</div>
-              </div>
-
-              {/* Zone 1 */}
-              <div className="p-3 rounded-xl bg-amber-950/40 border border-amber-500/60 text-center">
-                <div className="text-[10px] font-mono text-amber-400 font-bold">ZONA 1</div>
-                <div className="text-xl font-black text-slate-200">24%</div>
-                <div className="text-[10px] text-amber-300 font-bold">38% pases rotos</div>
-              </div>
-            </div>
-
-            {/* Seams (Conflict arrows) */}
-            <div className="absolute bottom-[22%] left-[30%] bg-amber-500 text-slate-950 text-[9px] font-black px-2 py-0.5 rounded-full shadow-lg">
-              Costura 5-6 (Duda)
-            </div>
-            <div className="absolute bottom-[22%] right-[30%] bg-slate-800 text-slate-300 text-[9px] font-black px-2 py-0.5 rounded-full border border-slate-700">
-              Costura 6-1
-            </div>
+          <div className="overflow-x-auto rounded-2xl border border-slate-800">
+            <table className="w-full text-xs">
+              <thead className="bg-slate-950 text-slate-400 text-[10px] uppercase">
+                <tr>
+                  <th className="px-3 py-2 text-left">Zona</th>
+                  <th className="px-3 py-2 text-center">Tot</th>
+                  <th className="px-3 py-2 text-center">Err</th>
+                  <th className="px-3 py-2 text-center">Neg %</th>
+                  <th className="px-3 py-2 text-center">Pos +%</th>
+                  <th className="px-3 py-2 text-center">Perf #%</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800">
+                {zoneStats.map((row) => (
+                  <tr key={row.zone}>
+                    <td className="px-3 py-2 font-black text-white">Z{row.zone}</td>
+                    <td className="px-3 py-2 text-center text-slate-300">{row.total}</td>
+                    <td className="px-3 py-2 text-center text-rose-400">{row.errors}</td>
+                    <td className="px-3 py-2 text-center text-amber-300">{row.total ? `${row.negativePct}%` : '—'}</td>
+                    <td className="px-3 py-2 text-center text-cyan-300">{row.total ? `${row.positivePct}%` : '—'}</td>
+                    <td className="px-3 py-2 text-center text-emerald-300">{row.total ? `${row.perfectPct}%` : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
 
-        {/* Zones Table & Player Vulnerability (6 cols) */}
-        <div className="lg:col-span-6 space-y-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-3">
-            <h4 className="text-sm font-black text-white">Desglose de Efectividad de Saques por Zona</h4>
-            <div className="overflow-x-auto rounded-2xl border border-slate-800">
-              <table className="w-full text-xs text-left border-collapse font-mono">
-                <thead>
-                  <tr className="bg-slate-950 text-slate-400 border-b border-slate-800 text-[10px]">
-                    <th className="py-2.5 px-3 font-sans font-bold text-slate-200">Zona</th>
-                    <th className="py-2.5 px-2 text-center text-slate-300">Volumen</th>
-                    <th className="py-2.5 px-2 text-center text-rose-400">Aces</th>
-                    <th className="py-2.5 px-2 text-center text-amber-400">% Pases Rotos</th>
-                    <th className="py-2.5 px-2 text-center text-slate-300">Vulnerabilidad</th>
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-3">
+          <h4 className="text-sm font-black text-white">Receptores</h4>
+          <div className="overflow-x-auto rounded-2xl border border-slate-800">
+            <table className="w-full text-xs">
+              <thead className="bg-slate-950 text-slate-400 text-[10px] uppercase">
+                <tr>
+                  <th className="px-3 py-2 text-left">Jugador</th>
+                  <th className="px-3 py-2 text-center">Tot</th>
+                  <th className="px-3 py-2 text-center">Err</th>
+                  <th className="px-3 py-2 text-center">Pos +%</th>
+                  <th className="px-3 py-2 text-center">Perf #%</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800">
+                {receptionsByPlayer.map((row) => (
+                  <tr key={row.number}>
+                    <td className="px-3 py-2 font-bold text-white">#{row.number} {row.name}</td>
+                    <td className="px-3 py-2 text-center text-slate-300">{row.total}</td>
+                    <td className="px-3 py-2 text-center text-rose-400">{row.errors}</td>
+                    <td className="px-3 py-2 text-center text-cyan-300">{row.positivePct}%</td>
+                    <td className="px-3 py-2 text-center text-emerald-300">{row.perfectPct}%</td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/60 text-[11px]">
-                  {zonesBreakdown.map((z) => (
-                    <tr key={z.zone} className="hover:bg-slate-800/40">
-                      <td className="py-2 px-3 font-sans font-bold text-slate-200">{z.label}</td>
-                      <td className="py-2 px-2 text-center font-bold text-slate-300">{z.pct}%</td>
-                      <td className="py-2 px-2 text-center font-black text-rose-400">{z.aces}</td>
-                      <td className="py-2 px-2 text-center font-bold text-amber-400">{z.brokenPass}%</td>
-                      <td className="py-2 px-2 text-center">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          z.vulnerability === 'CRÍTICA' 
-                            ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40' 
-                            : 'bg-slate-800 text-slate-400'
-                        }`}>
-                          {z.vulnerability}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+                {receptionsByPlayer.length === 0 && (
+                  <tr><td colSpan={5} className="px-4 py-6 text-center text-slate-500">Sin recepciones registradas.</td></tr>
+                )}
+              </tbody>
+            </table>
           </div>
-
-          {/* Tactical Recommendation for Servers */}
-          <div className="bg-gradient-to-r from-amber-950/40 to-slate-900 border border-amber-500/30 rounded-3xl p-4 shadow-lg space-y-2 text-xs">
-            <div className="font-bold text-amber-400 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-              <Zap className="w-4 h-4" />
-              Consigna para los Sacadores de Nuestro Equipo
-            </div>
-            <p className="text-slate-300 leading-relaxed">
-              <strong>1. Saque Flotante:</strong> Apuntar a la costura entre el receptor de Z5 y el líbero en Z6. Tienen desacuerdo en balones a media altura entre el hombro derecho del líbero y el izquierdo del punta.
-            </p>
-            <p className="text-slate-300 leading-relaxed">
-              <strong>2. Saque en Potencia:</strong> Buscar la línea lateral de Z1 para alejar el balón de la red y forzar al armador rival a correr 6 metros de espaldas.
-            </p>
-          </div>
+          <p className="text-[11px] text-slate-500">
+            “Costuras” entre receptores y saque flotante/potencia requieren campos adicionales en el scouting. OPEN VOLEY no los inventa.
+          </p>
         </div>
       </div>
     </div>
@@ -1404,7 +1251,7 @@ const ReportServePassSeams: React.FC<ReportServePassSeamsProps> = ({
 };
 
 // ============================================================================
-// INFORME 4: RENDIMIENTO DE FASES K1 (SIDEOUT) VS K2 (BREAK POINT) & RACHAS
+// INFORME 4: FASES K1 / K2 DESDE ACCIONES REALES
 // ============================================================================
 interface ReportK1K2PhasesProps {
   match: MatchData;
@@ -1418,155 +1265,97 @@ const ReportK1K2Phases: React.FC<ReportK1K2PhasesProps> = ({
   match,
   teamSide,
   teamName,
-  players,
   actions,
 }) => {
-  // Key metrics for high performance
-  const phasesMetrics = {
-    sideoutK1: {
-      efficiency: 63, // 63% sideout won
-      firstBallKill: 52, // 52% attack direct kill
-      rotations: [
-        { rot: 'R1 (Armador en 1)', eff: 68, status: 'Fuerte' },
-        { rot: 'R6 (Armador en 6)', eff: 59, status: 'Normal' },
-        { rot: 'R5 (Armador en 5)', eff: 72, status: 'Óptima' },
-        { rot: 'R4 (Armador en 4)', eff: 51, status: 'Alerta' },
-        { rot: 'R3 (Armador en 3)', eff: 64, status: 'Fuerte' },
-        { rot: 'R2 (Armador en 2)', eff: 61, status: 'Normal' },
-      ],
-    },
-    breakpointK2: {
-      efficiency: 41, // 41% points on own serve
-      killBlocks: 11,
-      softTouches: 19,
-      transitionKill: 34,
-    },
-    scoringDistribution: [
-      { type: 'Ataque Sideout (K1)', pts: 42, pct: 44, color: 'bg-cyan-500' },
-      { type: 'Contraataque (K2)', pts: 21, pct: 22, color: 'bg-emerald-500' },
-      { type: 'Bloqueo Punto', pts: 11, pct: 12, color: 'bg-purple-500' },
-      { type: 'Aces de Saque', pts: 6, pct: 6, color: 'bg-amber-500' },
-      { type: 'Errores del Rival', pts: 15, pct: 16, color: 'bg-slate-500' },
-    ],
-  };
+  const filteredMatch = useMemo<MatchData>(() => ({ ...match, actions }), [match, actions]);
+  const summary = useMemo(() => calculateTeamDataVolleySummary(filteredMatch, teamSide), [filteredMatch, teamSide]);
+
+  const sideoutTotals = summary.rotations.reduce(
+    (acc, row) => ({ won: acc.won + row.sideoutWon, opp: acc.opp + row.sideoutOpportunities }),
+    { won: 0, opp: 0 },
+  );
+  const breakpointTotals = summary.rotations.reduce(
+    (acc, row) => ({ won: acc.won + row.breakPointWon, opp: acc.opp + row.breakPointOpportunities }),
+    { won: 0, opp: 0 },
+  );
+
+  const sideoutPct = sideoutTotals.opp ? Math.round((sideoutTotals.won / sideoutTotals.opp) * 100) : 0;
+  const breakpointPct = breakpointTotals.opp ? Math.round((breakpointTotals.won / breakpointTotals.opp) * 100) : 0;
 
   return (
     <div className="space-y-6">
-      {/* Header Info */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-2">
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl">
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-            FIVB VIS / VolleyStation Elite Metric
+            K1 / K2 observado
           </span>
           <span className="text-xs text-slate-400">Equipo: <strong>{teamName}</strong></span>
         </div>
-        <h3 className="text-xl font-black text-white">
-          Rendimiento de Fases K1 (Complejo 1 Sideout) vs K2 (Complejo 2 Break Point)
-        </h3>
-        <p className="text-xs text-slate-400">
-          El indicador más puro del vóley de alto rendimiento: ¿Qué tan fácil rota el equipo cuando recibe y cuántos puntos corridos logra sumar cuando saca?
+        <h3 className="text-xl font-black text-white mt-2">Side-out y Break Point por Rotación</h3>
+        <p className="text-xs text-slate-400 mt-1">
+          Se detectan secuencias observadas a partir de recepción o saque y acciones posteriores. No se aplican benchmarks ni porcentajes prefijados.
         </p>
       </div>
 
-      {/* Main KPI Badges */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-1">
-          <div className="text-xs text-cyan-400 font-bold uppercase tracking-wider">Sideout K1 Global</div>
-          <div className="text-3xl font-black text-white">{phasesMetrics.sideoutK1.efficiency}%</div>
-          <div className="text-[11px] text-slate-400">Benchmark Élite FIVB: &gt; 62%</div>
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <div className="text-xs text-cyan-400 font-bold uppercase">Side-out K1</div>
+          <div className="text-3xl font-black text-white mt-1">{sideoutTotals.opp ? `${sideoutPct}%` : '—'}</div>
+          <div className="text-[11px] text-slate-400">{sideoutTotals.won}/{sideoutTotals.opp} oportunidades</div>
         </div>
-
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-1">
-          <div className="text-xs text-emerald-400 font-bold uppercase tracking-wider">Kill on 1st Ball (KOB)</div>
-          <div className="text-3xl font-black text-white">{phasesMetrics.sideoutK1.firstBallKill}%</div>
-          <div className="text-[11px] text-slate-400">Punto en el primer intento tras pase</div>
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <div className="text-xs text-purple-400 font-bold uppercase">Break Point K2</div>
+          <div className="text-3xl font-black text-white mt-1">{breakpointTotals.opp ? `${breakpointPct}%` : '—'}</div>
+          <div className="text-[11px] text-slate-400">{breakpointTotals.won}/{breakpointTotals.opp} oportunidades</div>
         </div>
-
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-1">
-          <div className="text-xs text-purple-400 font-bold uppercase tracking-wider">Break Point K2 Global</div>
-          <div className="text-3xl font-black text-white">{phasesMetrics.breakpointK2.efficiency}%</div>
-          <div className="text-[11px] text-slate-400">Puntos ganados con saque propio</div>
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <div className="text-xs text-amber-400 font-bold uppercase">Ataque E%</div>
+          <div className="text-3xl font-black text-white mt-1">{summary.attack.total ? `${summary.attack.efficiencyPct}%` : '—'}</div>
+          <div className="text-[11px] text-slate-400">{summary.attack.total} ataques</div>
         </div>
-
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-1">
-          <div className="text-xs text-amber-400 font-bold uppercase tracking-wider">Contraataque Kill %</div>
-          <div className="text-3xl font-black text-white">{phasesMetrics.breakpointK2.transitionKill}%</div>
-          <div className="text-[11px] text-slate-400">Eficacia tras levantar bola de defensa</div>
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <div className="text-xs text-emerald-400 font-bold uppercase">Balance directo</div>
+          <div className="text-3xl font-black text-white mt-1">{summary.sampleSize ? (summary.gainLoss > 0 ? `+${summary.gainLoss}` : summary.gainLoss) : '—'}</div>
+          <div className="text-[11px] text-slate-400">puntos directos - errores directos</div>
         </div>
       </div>
 
-      {/* K1 Rotations Table & Scoring Source Bar */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Table: Sideout by Rotation */}
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-3">
-          <div className="flex items-center justify-between">
-            <h4 className="text-base font-black text-white flex items-center gap-2">
-              <Layers className="w-4 h-4 text-cyan-400" />
-              <span>Eficacia de Sideout (K1) por Rotación</span>
-            </h4>
-            <span className="text-[11px] font-mono text-cyan-400">Rotaciones 1 a 6</span>
-          </div>
-          <p className="text-xs text-slate-400">
-            Identifica qué rotación sufre el equipo para rotar y dónde se producen los baches de puntos.
-          </p>
-
-          <div className="space-y-2.5 pt-2">
-            {phasesMetrics.sideoutK1.rotations.map((r) => (
-              <div key={r.rot} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950 border border-slate-800">
-                <span className="font-bold text-xs text-slate-200">{r.rot}</span>
-                <div className="flex items-center gap-3">
-                  <div className="w-32 bg-slate-900 rounded-full h-2.5 overflow-hidden border border-slate-800">
-                    <div className={`h-full rounded-full ${
-                      r.eff >= 65 ? 'bg-emerald-500' : r.eff >= 55 ? 'bg-cyan-500' : 'bg-rose-500'
-                    }`} style={{ width: `${r.eff}%` }} />
-                  </div>
-                  <span className="font-mono font-black text-xs text-white w-10 text-right">{r.eff}%</span>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded w-16 text-center ${
-                    r.status === 'Óptima' ? 'bg-emerald-500/20 text-emerald-400' :
-                    r.status === 'Fuerte' ? 'bg-cyan-500/20 text-cyan-400' :
-                    r.status === 'Normal' ? 'bg-slate-800 text-slate-300' :
-                    'bg-rose-500/20 text-rose-400 border border-rose-500/40'
-                  }`}>
-                    {r.status}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl">
+        <h4 className="text-base font-black text-white flex items-center gap-2 mb-3">
+          <Layers className="w-4 h-4 text-cyan-400" />
+          Rotaciones R1–R6
+        </h4>
+        <div className="overflow-x-auto rounded-2xl border border-slate-800">
+          <table className="w-full text-xs">
+            <thead className="bg-slate-950 text-slate-400 text-[10px] uppercase">
+              <tr>
+                <th className="px-3 py-2 text-left">Rotación</th>
+                <th className="px-3 py-2 text-center">Rec</th>
+                <th className="px-3 py-2 text-center">K1 ganado</th>
+                <th className="px-3 py-2 text-center">Side-out %</th>
+                <th className="px-3 py-2 text-center">Saque</th>
+                <th className="px-3 py-2 text-center">K2 ganado</th>
+                <th className="px-3 py-2 text-center">Break Point %</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800">
+              {summary.rotations.map((row) => (
+                <tr key={row.rotation}>
+                  <td className="px-3 py-2 font-black text-white">R{row.rotation}</td>
+                  <td className="px-3 py-2 text-center text-slate-300">{row.sideoutOpportunities}</td>
+                  <td className="px-3 py-2 text-center text-emerald-300">{row.sideoutWon}</td>
+                  <td className="px-3 py-2 text-center text-cyan-300">{row.sideoutOpportunities ? `${row.sideoutPct}%` : '—'}</td>
+                  <td className="px-3 py-2 text-center text-slate-300">{row.breakPointOpportunities}</td>
+                  <td className="px-3 py-2 text-center text-emerald-300">{row.breakPointWon}</td>
+                  <td className="px-3 py-2 text-center text-purple-300">{row.breakPointOpportunities ? `${row.breakPointPct}%` : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-
-        {/* Scoring Distribution Breakdown */}
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-4">
-          <div className="flex items-center justify-between">
-            <h4 className="text-base font-black text-white flex items-center gap-2">
-              <BarChart2 className="w-4 h-4 text-emerald-400" />
-              <span>Origen de los Puntos del Equipo</span>
-            </h4>
-            <span className="text-[11px] font-mono text-slate-400">Total: 95 Puntos</span>
-          </div>
-          <p className="text-xs text-slate-400">
-            ¿Cómo se compone el marcador total? Reparto entre ataque de sideout, contraataque, bloqueo, saque y errores no forzados del oponente.
-          </p>
-
-          <div className="space-y-3 pt-2">
-            {phasesMetrics.scoringDistribution.map((s) => (
-              <div key={s.type}>
-                <div className="flex justify-between text-xs mb-1 font-mono">
-                  <span className="font-bold text-slate-200">{s.type}</span>
-                  <span className="text-slate-400">{s.pts} pts ({s.pct}%)</span>
-                </div>
-                <div className="w-full bg-slate-950 rounded-full h-2.5 overflow-hidden border border-slate-850">
-                  <div className={`${s.color} h-full rounded-full transition-all duration-500`} style={{ width: `${s.pct}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800 text-xs text-slate-300 space-y-1">
-            <div className="font-bold text-emerald-400">Regla de Oro de Alto Rendimiento:</div>
-            <div>Para ganar partidos contra rivales de nivel similar, la eficiencia en Sideout (K1) debe superar el 60%, y el equipo debe convertir al menos 1 de cada 3 balones defendidos en contraataque (K2 &gt; 33%).</div>
-          </div>
-        </div>
+        <p className="text-[11px] text-slate-500 mt-3">
+          Estas métricas son observacionales. Para una clasificación táctica más precisa del rally completo será conveniente incorporar un identificador de rally en el modelo de scouting.
+        </p>
       </div>
     </div>
   );
