@@ -6,6 +6,7 @@ import { secureMercadoPago } from './src/server/secureMercadoPago';
 import { securePaymentConfirmation } from './src/server/securePaymentConfirmation';
 import { trainingSessionsRouter } from './src/server/trainingSessionsRouter';
 import { storageHealthRouter } from './src/server/storageHealthRouter';
+import { smartSportsMontageRouter } from './src/server/smartSportsMontageRouter';
 
 const expressApplication = express.application as any;
 const originalInit = expressApplication.init;
@@ -20,6 +21,7 @@ expressApplication.init = function patchedInit(this: any) {
   this.use(securePaymentConfirmation);
   this.use('/api/auth', authMeRouter);
   this.use('/api/training-sessions', trainingSessionsRouter);
+  this.use('/api/smart-sports-montages', smartSportsMontageRouter);
   this.use('/api/storage-health', storageHealthRouter);
 };
 
