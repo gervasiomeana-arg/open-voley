@@ -38,6 +38,21 @@ export function buildEvidenceInsights(match: MatchData, analyzedTeam: TeamSide):
       actionLabel: 'Ver análisis',
       actionType: 'view_analysis',
       rotationRef: weakest.rotation,
+      rallyIds: [...new Set((match.actions || [])
+        .filter((action) => {
+          if (action.team !== analyzedTeam || action.skill !== 'R' || !action.rallyId) return false;
+          const rotation = action.rotationHome;
+          const setter = match.homePlayers.find((player) => player.position === 'S' && player.starter)
+            ?? match.homePlayers.find((player) => player.position === 'S');
+          return analyzedTeam === 'home'
+            ? Boolean(setter && Array.isArray(rotation) && rotation.indexOf(setter.number) + 1 === weakest.rotation)
+            : Boolean((() => {
+                const awaySetter = match.awayPlayers.find((player) => player.position === 'S' && player.starter)
+                  ?? match.awayPlayers.find((player) => player.position === 'S');
+                return awaySetter && Array.isArray(action.rotationAway) && action.rotationAway.indexOf(awaySetter.number) + 1 === weakest.rotation;
+              })());
+        })
+        .map((action) => action.rallyId!))],
     });
 
     if (strongest.rotation !== weakest.rotation) {
@@ -121,6 +136,15 @@ export function buildEvidenceInsights(match: MatchData, analyzedTeam: TeamSide):
       evidenceCount: topTarget.total,
       actionLabel: 'Ver evidencia',
       actionType: 'view_video',
+      rallyIds: [...new Set((match.actions || [])
+        .filter((action) =>
+          action.team === opponent &&
+          action.skill === 'S' &&
+          action.rallyId &&
+          action.serveType === topTarget.serveType &&
+          action.endZone === topTarget.zone
+        )
+        .map((action) => action.rallyId!))],
     });
   }
 

@@ -103,6 +103,7 @@ export default function App() {
     return active || sampleMatchData;
   });
   const [selectedActionId, setSelectedActionId] = useState<string | null>(null);
+  const [evidenceRallyIds, setEvidenceRallyIds] = useState<string[]>([]);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isPlansModalOpen, setIsPlansModalOpen] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -1412,6 +1413,7 @@ export default function App() {
                   onDeleteCut={handleDeleteUserCut}
                   onClearCuts={handleClearUserCuts}
                   match={match}
+                  focusRallyIds={evidenceRallyIds}
                 />
               )}
             </div>
@@ -1461,7 +1463,8 @@ export default function App() {
                     setActiveTab('team');
                     setTeamsSubTab('training');
                   }}
-                  onOpenVideoClips={() => {
+                  onOpenVideoClips={(rallyIds) => {
+                    setEvidenceRallyIds(rallyIds || []);
                     setActiveTab('analysis');
                     setAnalysisSubTab('video');
                   }}
