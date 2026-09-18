@@ -112,6 +112,10 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
   // Staged player & skill for the rapid 2-step flow
   const [stagedPlayerId, setStagedPlayerId] = useState<string | null>(null);
   const [stagedSkill, setStagedSkill] = useState<VolleySkill>('A');
+
+  // Optional context: one tap when the analyst has the information, never required.
+  const [selectedTargetZone, setSelectedTargetZone] = useState<number | null>(null);
+  const [selectedServeType, setSelectedServeType] = useState<ScoutCodeAction['serveType'] | null>(null);
   
   // Visual quick confirmation toast (ephemeral, disappears in 1200ms)
   const [quickConfirmation, setQuickConfirmation] = useState<string | null>(null);
@@ -219,8 +223,18 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
       playerName: selectedPlayer.name,
       skill: stagedSkill,
       evaluation: evalSymbol,
+      // Capture only context that is known at tap time. Never invent a destination zone.
       startZone: inferredZone,
-      endZone: isPoint ? (activeTeam === 'home' ? 5 : 1) : undefined,
+      endZone: selectedTargetZone ?? undefined,
+      serveType: stagedSkill === 'S' ? (selectedServeType ?? undefined) : undefined,
+      receptionContext:
+        stagedSkill === 'R'
+          ? (evalSymbol === '#' || evalSymbol === '+'
+              ? 'positive'
+              : (evalSymbol === '!' || evalSymbol === '-' || evalSymbol === '/' || evalSymbol === '='
+                  ? 'negative'
+                  : 'unknown'))
+          : undefined,
       timestamp: Date.now() / 1000,
       setNumber: match.currentSet,
       scoreHome: homeScore,
@@ -252,9 +266,10 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
       triggerConfirmation(`✓ #${selectedPlayer.number} ${skillObj?.short} — ${outcomeObj?.label || evalSymbol}`);
     }
 
-    // 3. Autosiguiente: ready immediately for next play
-    // No popup, no extra clicks
-  }, [selectedPlayer, stagedSkill, activeTeam, match, homeScore, awayScore, activePlayers, onAddAction, onScoreChange]);
+    // 3. Autosiguiente: context is cleared so it can never leak into the next action.
+    setSelectedTargetZone(null);
+    if (stagedSkill === 'S') setSelectedServeType(null);
+  }, [selectedPlayer, stagedSkill, activeTeam, match, homeScore, awayScore, activePlayers, onAddAction, onScoreChange, selectedTargetZone, selectedServeType]);
 
   // Immediate Undo without modal
   const handleUndo = useCallback(() => {
@@ -818,6 +833,76 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
                 );
               })}
             </div>
+          </div>
+
+          {/* OPTIONAL CONTEXT: fast, one-tap and never blocks registration */}
+          <div className="space-y-3 pt-2 border-t border-slate-800">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="font-black text-xs text-white uppercase tracking-wider flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-cyan-400" />
+                Contexto opcional
+              </span>
+              <span className="text-[11px] text-slate-500">
+                Si no lo sabes, no marques nada. OPEN VOLEY no completa datos por su cuenta.
+              </span>
+            </div>
+
+            {stagedSkill === 'S' && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-bold text-slate-400 mr-1">Tipo de saque:</span>
+                {[
+                  { id: 'float' as const, label: 'Flotante' },
+                  { id: 'jump_float' as const, label: 'Jump Float' },
+                  { id: 'jump_spin' as const, label: 'Potencia' },
+                  { id: 'standing' as const, label: 'De pie' },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setSelectedServeType((prev) => prev === item.id ? null : item.id)}
+                    className={`px-3 py-1.5 rounded-xl text-[11px] font-bold border transition ${
+                      selectedServeType === item.id
+                        ? 'bg-cyan-500 text-slate-950 border-cyan-300'
+                        : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {['S', 'A', 'E', 'D', 'F'].includes(stagedSkill) && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-bold text-slate-400 mr-1">
+                  Zona destino:
+                </span>
+                {[1, 2, 3, 4, 5, 6].map((zone) => (
+                  <button
+                    key={zone}
+                    type="button"
+                    onClick={() => setSelectedTargetZone((prev) => prev === zone ? null : zone)}
+                    className={`w-9 h-9 rounded-xl text-xs font-black border transition ${
+                      selectedTargetZone === zone
+                        ? 'bg-amber-400 text-slate-950 border-amber-200'
+                        : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white'
+                    }`}
+                    title={`Zona destino ${zone}`}
+                  >
+                    Z{zone}
+                  </button>
+                ))}
+                {selectedTargetZone && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTargetZone(null)}
+                    className="px-2 py-1 text-[10px] text-slate-500 hover:text-white"
+                  >
+                    Limpiar
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* STEP 2: OUTCOME / QUALITY (1 CLICK = REGISTRADO) */}
