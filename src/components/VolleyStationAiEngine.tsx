@@ -105,6 +105,38 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
   // Video Auto-Clips Filter
   const [clipFilter, setClipFilter] = useState<'all' | 'attacks' | 'aces' | 'blocks' | 'errors'>('all');
 
+  const playlistCuts = useMemo(() => {
+    const tagged = userCuts.map((cut) => ({
+      id: cut.id,
+      timestamp: cut.timestamp,
+      durationSec: 6,
+      label: cut.description || cut.rawCode || 'Jugada etiquetada',
+      detail: cut.rawCode,
+      skill: cut.skill,
+      evaluation: cut.evaluation,
+      source: 'tag' as const,
+    }));
+    const detected = detectedRallies.map((rally) => ({
+      id: rally.id,
+      timestamp: rally.timestampStart,
+      durationSec: rally.durationSec,
+      label: rally.phase,
+      detail: rally.detectedCode,
+      skill: undefined,
+      evaluation: rally.result === 'home_point' ? '#' as const : undefined,
+      source: 'rally' as const,
+    }));
+    const combined = [...tagged, ...detected].sort((a, b) => a.timestamp - b.timestamp);
+    return combined.filter((clip) => {
+      if (clipFilter === 'all') return true;
+      if (clipFilter === 'attacks') return clip.skill === 'A' && clip.evaluation === '#';
+      if (clipFilter === 'aces') return clip.skill === 'S' && clip.evaluation === '#';
+      if (clipFilter === 'blocks') return clip.skill === 'B' && clip.evaluation === '#';
+      if (clipFilter === 'errors') return clip.evaluation === '=' || clip.evaluation === '/';
+      return true;
+    });
+  }, [userCuts, detectedRallies, clipFilter]);
+
   // AI Chat Assistant State
   const [chatPrompt, setChatPrompt] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
@@ -1067,7 +1099,7 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
               <div>
                 <h3 className="font-black text-base text-white">Playlists Inteligentes & Filtros de Video (1-Clic)</h3>
                 <p className="text-xs text-slate-400">
-                  Generación instantánea de clips para mostrar en la charla técnica o tiempo muerto.
+                  Reúne y filtra jugadas etiquetadas del partido para revisarlas como una playlist sincronizada.
                 </p>
               </div>
             </div>
@@ -1109,19 +1141,19 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {detectedRallies.length === 0 && userCuts.length === 0 ? (
+            {playlistCuts.length === 0 ? (
               <div className="col-span-full bg-slate-900 border border-slate-800 rounded-3xl p-12 text-center text-slate-500 space-y-3">
                 <Film className="w-12 h-12 text-slate-600 mx-auto opacity-50" />
                 <div className="text-sm font-bold text-slate-400">No hay clips generados aún</div>
                 <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                  Etiqueta jugadas en "3. Sincronización" o ejecuta "Auto-Scan Video" en Visión Artificial para poblar automáticamente los clips aquí.
+                  Etiqueta jugadas en Video o registra acciones durante el Scout. Las jugadas compatibles aparecerán aquí para revisión.
                 </p>
               </div>
             ) : (
-              detectedRallies.map((rally, i) => (
+              playlistCuts.map((clip, i) => (
                 <div
-                  key={rally.id}
-                  onClick={() => handleJumpToRally(rally.timestampStart)}
+                  key={clip.id}
+                  onClick={() => handleJumpToRally(clip.timestamp)}
                   className="bg-slate-900 border border-slate-800 hover:border-indigo-500/50 rounded-3xl p-5 shadow-xl transition cursor-pointer group space-y-3"
                 >
                   <div className="flex items-center justify-between text-xs">
@@ -1129,17 +1161,17 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
                       <Play className="w-3.5 h-3.5 text-amber-400" /> Clip #{i + 1}
                     </span>
                     <span className="font-mono text-slate-400 text-[11px] bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
-                      {formatTime(rally.timestampStart)} ({rally.durationSec}s)
+                      {formatTime(clip.timestamp)} ({clip.durationSec}s)
                     </span>
                   </div>
 
                   <div className="text-xs text-slate-300">
-                    {rally.phase}: <strong className="text-white">{rally.detectedCode}</strong>
+                    {clip.label}{clip.detail ? <>: <strong className="text-white">{clip.detail}</strong></> : null}
                   </div>
 
                   <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-800">
-                    <span>Velocidad: <strong className="text-emerald-400">{rally.ballMaxSpeedKmh} km/h</strong></span>
-                    <span>Salto: <strong className="text-indigo-300">{rally.spikeReachM}m</strong></span>
+                    <span>{clip.source === 'tag' ? 'Etiqueta manual / Scout' : 'Rally registrado'}</span>
+                    <span className="text-indigo-300">{clip.skill ? `Fundamento: ${clip.skill}` : 'Sin fundamento etiquetado'}</span>
                   </div>
                 </div>
               ))
