@@ -585,52 +585,55 @@ const ReportFerraroAdversary: React.FC<ReportFerraroAdversaryProps> = ({
     ];
   }, [actions, teamSide]);
 
-  // Page 4 Tables: Reception Flot vs Salto & Attack K1 vs K2 by player
+  // Player breakdown built only from recorded actions.
   const playerStatsBreakdown = useMemo(() => {
-    return players.slice(0, 8).map((p, idx) => {
-      // Sample or derived
-      const isLibero = p.position === 'L';
-      const isMiddle = p.position === 'MB';
-      const isSetter = p.position === 'S';
+    const teamActions = actions.filter((action) => action.team === teamSide);
+
+    return players.map((player) => {
+      const playerActions = teamActions.filter((action) => action.playerNum === player.number);
+      const receptions = playerActions.filter((action) => action.skill === 'R');
+      const attacks = playerActions.filter((action) => action.skill === 'A');
+      const k1Attacks = attacks.filter((action) => action.rawCode.toUpperCase().includes('K1'));
+      const k2Attacks = attacks.filter((action) => action.rawCode.toUpperCase().includes('K2'));
+
+      const receptionPositive = receptions.filter(
+        (action) => action.evaluation === '#' || action.evaluation === '+',
+      ).length;
+      const receptionPerfect = receptions.filter((action) => action.evaluation === '#').length;
+      const receptionErrors = receptions.filter((action) => action.evaluation === '=').length;
+
+      const attackSummary = (subset: ScoutCodeAction[]) => {
+        const kills = subset.filter((action) => action.evaluation === '#').length;
+        const errors = subset.filter((action) => action.evaluation === '=').length;
+        const blocked = subset.filter((action) => action.evaluation === '/').length;
+        return {
+          total: subset.length,
+          kills,
+          errors,
+          blocked,
+          efficiency: subset.length
+            ? Math.round(((kills - errors - blocked) / subset.length) * 100)
+            : 0,
+        };
+      };
 
       return {
-        id: p.id,
-        number: p.number,
-        name: p.name,
-        position: p.position,
-        // Reception
-        recFlot: {
-          tot: isLibero ? 28 : (p.position === 'OH' ? 16 : 4),
-          err: isLibero ? 1 : (p.position === 'OH' ? 2 : 1),
-          pos: isLibero ? 9 : (p.position === 'OH' ? 5 : 1),
-          perf: isLibero ? 11 : (p.position === 'OH' ? 6 : 1),
-          eff: isLibero ? 68 : (p.position === 'OH' ? 56 : 25),
+        id: player.id,
+        number: player.number,
+        name: player.name,
+        position: player.position,
+        reception: {
+          total: receptions.length,
+          errors: receptionErrors,
+          positivePct: receptions.length ? Math.round((receptionPositive / receptions.length) * 100) : 0,
+          perfectPct: receptions.length ? Math.round((receptionPerfect / receptions.length) * 100) : 0,
         },
-        recSalto: {
-          tot: isLibero ? 24 : (p.position === 'OH' ? 18 : 3),
-          err: isLibero ? 2 : (p.position === 'OH' ? 4 : 1),
-          pos: isLibero ? 7 : (p.position === 'OH' ? 4 : 1),
-          perf: isLibero ? 8 : (p.position === 'OH' ? 5 : 0),
-          eff: isLibero ? 46 : (p.position === 'OH' ? 22 : 0),
-        },
-        // Attack
-        attK1: {
-          tot: isLibero ? 0 : (isMiddle ? 12 : (p.position === 'OPP' ? 22 : 18)),
-          err: isMiddle ? 1 : 2,
-          slash: isMiddle ? 1 : 1,
-          kill: isMiddle ? 7 : (p.position === 'OPP' ? 11 : 9),
-          eff: isMiddle ? 42 : (p.position === 'OPP' ? 36 : 33),
-        },
-        attK2: {
-          tot: isLibero ? 0 : (isMiddle ? 4 : (p.position === 'OPP' ? 19 : 14)),
-          err: isMiddle ? 0 : 3,
-          slash: isMiddle ? 1 : 2,
-          kill: isMiddle ? 2 : (p.position === 'OPP' ? 6 : 4),
-          eff: isMiddle ? 25 : (p.position === 'OPP' ? 11 : 7),
-        },
+        attack: attackSummary(attacks),
+        attK1: attackSummary(k1Attacks),
+        attK2: attackSummary(k2Attacks),
       };
     });
-  }, [players]);
+  }, [actions, players, teamSide]);
 
   return (
     <div className="space-y-6">
@@ -765,264 +768,138 @@ const ReportFerraroAdversary: React.FC<ReportFerraroAdversaryProps> = ({
         </div>
       </div>
 
-      {/* 3. DESGLOSE PÁGINA 4: RECEPCIÓN FLOT VS SALTO Y ATAQUE CAMBIO DE SAQUE VS TRANSICIÓN */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* TABLA 1: RECEPCIÓN FLOT VS EN SALTO */}
+      {/* 3. DESGLOSE POR JUGADOR - SOLO DATOS REALES */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-3">
-          <div className="flex items-center justify-between">
+          <div>
             <h4 className="text-base font-black text-white flex items-center gap-2">
               <Shield className="w-4 h-4 text-cyan-400" />
-              <span>Recepción: Saque Flot vs En Salto</span>
+              <span>Recepción por jugador</span>
             </h4>
-            <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
-              ¿A quién buscar con flotante?
-            </span>
+            <p className="text-xs text-slate-400 mt-1">
+              Total, error, positiva y perfecta calculados desde las recepciones registradas.
+            </p>
           </div>
-          <p className="text-xs text-slate-400">
-            Comparación directa para decidir a qué jugador sacarle según el tipo de saque de nuestro equipo.
-          </p>
 
           <div className="overflow-x-auto rounded-2xl border border-slate-800">
-            <table className="w-full text-xs text-left border-collapse font-mono">
-              <thead>
-                <tr className="bg-slate-950 text-slate-400 border-b border-slate-800 text-[10px]">
-                  <th className="py-2.5 px-3 font-sans font-bold text-slate-200">Receptor</th>
-                  <th className="py-2.5 px-2 text-center bg-cyan-950/30 text-cyan-400">Flot *E%</th>
-                  <th className="py-2.5 px-2 text-center bg-cyan-950/30 text-slate-300">Tot</th>
-                  <th className="py-2.5 px-2 text-center bg-cyan-950/30 text-rose-400">=</th>
-                  <th className="py-2.5 px-2 text-center bg-cyan-950/30 text-emerald-400">#</th>
-                  <th className="py-2.5 px-2 text-center bg-purple-950/30 text-purple-400">Salto *E%</th>
-                  <th className="py-2.5 px-2 text-center bg-purple-950/30 text-slate-300">Tot</th>
-                  <th className="py-2.5 px-2 text-center bg-purple-950/30 text-rose-400">=</th>
-                  <th className="py-2.5 px-2 text-center bg-purple-950/30 text-emerald-400">#</th>
+            <table className="w-full text-xs">
+              <thead className="bg-slate-950 text-slate-400 text-[10px] uppercase tracking-wider">
+                <tr>
+                  <th className="px-3 py-2 text-left">Receptor</th>
+                  <th className="px-3 py-2 text-center">Tot</th>
+                  <th className="px-3 py-2 text-center">Err</th>
+                  <th className="px-3 py-2 text-center">Pos +%</th>
+                  <th className="px-3 py-2 text-center">Perf #%</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60 text-[11px]">
-                {playerStatsBreakdown.filter(p => p.recFlot.tot > 0 || p.recSalto.tot > 0).map((row) => (
-                  <tr key={row.id} className="hover:bg-slate-800/40">
-                    <td className="py-2 px-3 font-sans font-bold text-slate-200 truncate max-w-[120px]">
-                      #{row.number} {row.name.split(' ')[0]} <span className="text-[9px] text-slate-400">({row.position})</span>
+              <tbody className="divide-y divide-slate-800">
+                {playerStatsBreakdown
+                  .filter((row) => row.reception.total > 0)
+                  .map((row) => (
+                    <tr key={row.id}>
+                      <td className="px-3 py-2 font-bold text-slate-200">#{row.number} {row.name}</td>
+                      <td className="px-3 py-2 text-center text-slate-300">{row.reception.total}</td>
+                      <td className="px-3 py-2 text-center text-rose-400">{row.reception.errors}</td>
+                      <td className="px-3 py-2 text-center text-cyan-300">{row.reception.positivePct}%</td>
+                      <td className="px-3 py-2 text-center text-emerald-300">{row.reception.perfectPct}%</td>
+                    </tr>
+                  ))}
+                {playerStatsBreakdown.every((row) => row.reception.total === 0) && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-6 text-center text-slate-500">
+                      No hay recepciones registradas para el filtro actual.
                     </td>
-                    <td className="py-2 px-2 text-center font-bold text-cyan-400 bg-cyan-950/20">{row.recFlot.eff}%</td>
-                    <td className="py-2 px-2 text-center text-slate-300 bg-cyan-950/20">{row.recFlot.tot}</td>
-                    <td className="py-2 px-2 text-center text-rose-400 bg-cyan-950/20">{row.recFlot.err}</td>
-                    <td className="py-2 px-2 text-center text-emerald-400 bg-cyan-950/20">{row.recFlot.perf}</td>
-                    <td className="py-2 px-2 text-center font-bold text-purple-400 bg-purple-950/20">{row.recSalto.eff}%</td>
-                    <td className="py-2 px-2 text-center text-slate-300 bg-purple-950/20">{row.recSalto.tot}</td>
-                    <td className="py-2 px-2 text-center text-rose-400 bg-purple-950/20">{row.recSalto.err}</td>
-                    <td className="py-2 px-2 text-center text-emerald-400 bg-purple-950/20">{row.recSalto.perf}</td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
-          <div className="bg-cyan-950/30 border border-cyan-500/20 p-2.5 rounded-xl text-xs text-cyan-300 flex items-start gap-2">
-            <Info className="w-4 h-4 shrink-0 mt-0.5 text-cyan-400" />
-            <span><strong>Conclusión Táctica:</strong> El líbero Zalcman (#5) mantiene 72% en flotante pero baja a 50% ante saques de potencia. El punta receptor #9 Rojas sufre con salto (0% *E).</span>
+
+          <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-[11px] text-slate-400">
+            OPEN VOLEY todavía no registra de manera estructurada el tipo de saque recibido
+            (flotante/potencia). Por eso no separa esa estadística hasta disponer de ese dato real.
           </div>
         </div>
 
-        {/* TABLA 2: ATAQUE EN K1 (SIDEOUT) VS K2 (TRANSICIÓN) */}
         <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-3">
-          <div className="flex items-center justify-between">
+          <div>
             <h4 className="text-base font-black text-white flex items-center gap-2">
               <Zap className="w-4 h-4 text-amber-400" />
-              <span>Ataque: Sideout (K1) vs Contraataque (K2)</span>
+              <span>Ataque por jugador</span>
             </h4>
-            <span className="text-[10px] font-bold text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">
-              ¿Quién define con pelota sucia?
-            </span>
+            <p className="text-xs text-slate-400 mt-1">
+              El total y la eficiencia son reales. K1/K2 sólo aparecen cuando la acción fue etiquetada con esa fase.
+            </p>
           </div>
-          <p className="text-xs text-slate-400">
-            Efectividad de cada atacante con pelota cómoda tras recepción vs pelota libre en transición.
-          </p>
 
           <div className="overflow-x-auto rounded-2xl border border-slate-800">
-            <table className="w-full text-xs text-left border-collapse font-mono">
-              <thead>
-                <tr className="bg-slate-950 text-slate-400 border-b border-slate-800 text-[10px]">
-                  <th className="py-2.5 px-3 font-sans font-bold text-slate-200">Atacante</th>
-                  <th className="py-2.5 px-2 text-center bg-amber-950/30 text-amber-400">K1 *E%</th>
-                  <th className="py-2.5 px-2 text-center bg-amber-950/30 text-slate-300">Tot</th>
-                  <th className="py-2.5 px-2 text-center bg-amber-950/30 text-rose-400">=</th>
-                  <th className="py-2.5 px-2 text-center bg-amber-950/30 text-emerald-400">#</th>
-                  <th className="py-2.5 px-2 text-center bg-emerald-950/30 text-emerald-400">K2 *E%</th>
-                  <th className="py-2.5 px-2 text-center bg-emerald-950/30 text-slate-300">Tot</th>
-                  <th className="py-2.5 px-2 text-center bg-emerald-950/30 text-rose-400">=</th>
-                  <th className="py-2.5 px-2 text-center bg-emerald-950/30 text-emerald-400">#</th>
+            <table className="w-full text-xs">
+              <thead className="bg-slate-950 text-slate-400 text-[10px] uppercase tracking-wider">
+                <tr>
+                  <th className="px-3 py-2 text-left">Atacante</th>
+                  <th className="px-3 py-2 text-center">Tot</th>
+                  <th className="px-3 py-2 text-center">Pts</th>
+                  <th className="px-3 py-2 text-center">E%</th>
+                  <th className="px-3 py-2 text-center">K1 E%</th>
+                  <th className="px-3 py-2 text-center">K2 E%</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60 text-[11px]">
-                {playerStatsBreakdown.filter(p => p.attK1.tot > 0 || p.attK2.tot > 0).map((row) => (
-                  <tr key={row.id} className="hover:bg-slate-800/40">
-                    <td className="py-2 px-3 font-sans font-bold text-slate-200 truncate max-w-[120px]">
-                      #{row.number} {row.name.split(' ')[0]} <span className="text-[9px] text-slate-400">({row.position})</span>
+              <tbody className="divide-y divide-slate-800">
+                {playerStatsBreakdown
+                  .filter((row) => row.attack.total > 0)
+                  .map((row) => (
+                    <tr key={row.id}>
+                      <td className="px-3 py-2 font-bold text-slate-200">#{row.number} {row.name}</td>
+                      <td className="px-3 py-2 text-center text-slate-300">{row.attack.total}</td>
+                      <td className="px-3 py-2 text-center text-emerald-300">{row.attack.kills}</td>
+                      <td className="px-3 py-2 text-center text-amber-300">{row.attack.efficiency}%</td>
+                      <td className="px-3 py-2 text-center text-cyan-300">
+                        {row.attK1.total ? `${row.attK1.efficiency}% (${row.attK1.total})` : '—'}
+                      </td>
+                      <td className="px-3 py-2 text-center text-purple-300">
+                        {row.attK2.total ? `${row.attK2.efficiency}% (${row.attK2.total})` : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                {playerStatsBreakdown.every((row) => row.attack.total === 0) && (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
+                      No hay ataques registrados para el filtro actual.
                     </td>
-                    <td className="py-2 px-2 text-center font-bold text-amber-400 bg-amber-950/20">{row.attK1.eff}%</td>
-                    <td className="py-2 px-2 text-center text-slate-300 bg-amber-950/20">{row.attK1.tot}</td>
-                    <td className="py-2 px-2 text-center text-rose-400 bg-amber-950/20">{row.attK1.err}</td>
-                    <td className="py-2 px-2 text-center text-emerald-400 bg-amber-950/20">{row.attK1.kill}</td>
-                    <td className="py-2 px-2 text-center font-bold text-emerald-400 bg-emerald-950/20">{row.attK2.eff}%</td>
-                    <td className="py-2 px-2 text-center text-slate-300 bg-emerald-950/20">{row.attK2.tot}</td>
-                    <td className="py-2 px-2 text-center text-rose-400 bg-emerald-950/20">{row.attK2.err}</td>
-                    <td className="py-2 px-2 text-center text-emerald-400 bg-emerald-950/20">{row.attK2.kill}</td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
-          <div className="bg-amber-950/30 border border-amber-500/20 p-2.5 rounded-xl text-xs text-amber-300 flex items-start gap-2">
-            <Info className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
-            <span><strong>Conclusión Táctica:</strong> El opuesto Mangini (#7) es su salida principal en K2 (63 pelotas, 29% *E). Los centrales no reciben juego en contraataque (&lt; 5 pelotas en todo el torneo).</span>
-          </div>
         </div>
       </div>
 
-      {/* 4. ANÁLISIS TÁCTICO DEL ARMADOR RIVAL (Páginas 5 a 12 de Ferraro) */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xl space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      {/* 4. DISPONIBILIDAD DEL ANÁLISIS DEL ARMADOR */}
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xl">
+        <div className="flex items-start gap-3">
+          <Compass className="w-5 h-5 text-purple-400 shrink-0 mt-0.5" />
           <div>
-            <h3 className="text-lg font-black text-white flex items-center gap-2">
-              <Compass className="w-5 h-5 text-purple-400" />
-              <span>Análisis Táctico del Armador Rival: Rotaciones, Llamadas y Tendencias</span>
-            </h3>
-            <p className="text-xs text-slate-400">
-              Tendencias del armador calculadas únicamente cuando existen acciones de colocación y contexto de rotación suficientes.
+            <h3 className="text-lg font-black text-white">Distribución del armador: criterio de muestra</h3>
+            <p className="text-xs text-slate-400 mt-1">
+              Las tendencias por zona, rotación y calidad de pase se muestran en la pestaña “Distribución del Armador”.
+              Si faltan acciones de colocación o contexto suficiente, OPEN VOLEY informa “sin muestra suficiente” en lugar
+              de completar la lectura con porcentajes estimados.
             </p>
-          </div>
-          <span className="text-[11px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 px-3 py-1 rounded-xl">
-            {players.find(p => p.position === 'S') ? `Armador: #${players.find(p => p.position === 'S')?.number} (${players.find(p => p.position === 'S')?.name})` : 'Armador no identificado'}
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Card 1: Armador en 1 con B (Página 6) */}
-          <div className="bg-slate-950 border border-slate-800 p-4 rounded-2xl space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-mono font-bold bg-indigo-500/20 text-indigo-400 px-2 py-0.5 rounded">
-                Rotación P1 (Armador en 1)
-              </span>
-              <span className="text-xs font-bold text-amber-400">Llamada K2 con B</span>
-            </div>
-            <div className="font-bold text-sm text-white">Opuesto zaguero en 4</div>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              «Tiene un análisis particular ya que está el opuesto en 4. Importante mirar el tablero: Si están abajo por 2+ puntos, acelera pelota rápida con punta receptor por Z4.»
-            </p>
-            <div className="pt-2 border-t border-slate-850 flex items-center justify-between text-[11px] font-mono">
-              <span className="text-slate-400">Distribución Z4:</span>
-              <span className="text-slate-500 font-bold">Sin muestra suficiente</span>
-            </div>
-          </div>
-
-          {/* Card 2: Armador en 6 con corta atrás (Página 7) */}
-          <div className="bg-slate-950 border border-slate-800 p-4 rounded-2xl space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-mono font-bold bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded">
-                Rotación P6 (Armador en 6)
-              </span>
-              <span className="text-xs font-bold text-cyan-400">Llamada K3 Corta Atrás</span>
-            </div>
-            <div className="font-bold text-sm text-white">Salida por arriba vs Pipe</div>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              OPEN VOLEY no mostrará una tendencia de Pipe o salida por zona hasta disponer de secuencias de colocación suficientes en esta rotación.
-            </p>
-            <div className="pt-2 border-t border-slate-850 flex items-center justify-between text-[11px] font-mono">
-              <span className="text-slate-400">Pipe en P6:</span>
-              <span className="text-slate-500 font-bold">Sin muestra suficiente</span>
-            </div>
-          </div>
-
-          {/* Card 3: Armador delantero en 4/3/2 (Página 8 & 10) */}
-          <div className="bg-slate-950 border border-slate-800 p-4 rounded-2xl space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-mono font-bold bg-rose-500/20 text-rose-400 px-2 py-0.5 rounded">
-                Rotaciones P4, P3, P2
-              </span>
-              <span className="text-xs font-bold text-rose-400">Armador Delantero</span>
-            </div>
-            <div className="font-bold text-sm text-white">Recepción en Z2 / Z4</div>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              «Con pase corrido hacia Z2 juega el primer tiempo con el central pegado a la red. Si el pase va a Z4, la única salida habilitada es bola alta a Z2 con el opuesto.»
-            </p>
-            <div className="pt-2 border-t border-slate-850 flex items-center justify-between text-[11px] font-mono">
-              <span className="text-slate-400">Toque de 2da:</span>
-              <span className="text-slate-500 font-bold">Sin muestra suficiente</span>
-            </div>
           </div>
         </div>
       </div>
 
-      {/* 5. CHECKLIST TÁCTICO DEL DT: SAQUE, BLOQUEO Y DEFENSA (Página 14 & 15) */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xl space-y-4">
+      {/* 5. CRITERIO PARA EL PLAN DE PARTIDO */}
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xl space-y-3">
         <h3 className="text-lg font-black text-white flex items-center gap-2">
           <Award className="w-5 h-5 text-emerald-400" />
-          <span>Plan de Partido Recomendado para el DT (Instrucciones Tácticas Clave)</span>
+          <span>Plan de Partido basado en evidencia</span>
         </h3>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-          <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2">
-            <div className="font-bold text-amber-400 uppercase tracking-wider text-[10px] flex items-center gap-1.5">
-              <Zap className="w-3.5 h-3.5" />
-              1. Estrategia de Saque
-            </div>
-            <ul className="space-y-1.5 text-slate-300">
-              <li className="flex items-start gap-1.5">
-                <span className="text-amber-400">•</span>
-                <span>Definir el objetivo de saque sólo a partir de recepción real por jugador y zona.</span>
-              </li>
-              <li className="flex items-start gap-1.5">
-                <span className="text-amber-400">•</span>
-                <span>No asignar un receptor objetivo si la muestra registrada no permite sostener la decisión.</span>
-              </li>
-              <li className="flex items-start gap-1.5">
-                <span className="text-amber-400">•</span>
-                <span>Usar la tabla R1-R6 para detectar la rotación con menor side-out observado.</span>
-              </li>
-            </ul>
-          </div>
-
-          <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2">
-            <div className="font-bold text-cyan-400 uppercase tracking-wider text-[10px] flex items-center gap-1.5">
-              <Shield className="w-3.5 h-3.5" />
-              2. Esquema de Bloqueo
-            </div>
-            <ul className="space-y-1.5 text-slate-300">
-              <li className="flex items-start gap-1.5">
-                <span className="text-cyan-400">•</span>
-                <span>Definir el esquema de bloqueo desde la distribución real del armador por rotación.</span>
-              </li>
-              <li className="flex items-start gap-1.5">
-                <span className="text-cyan-400">•</span>
-                <span>Priorizar al atacante con mayor volumen real cuando exista una muestra suficiente.</span>
-              </li>
-              <li className="flex items-start gap-1.5">
-                <span className="text-cyan-400">•</span>
-                <span>Separar decisiones con pase positivo y negativo cuando esa calidad esté registrada.</span>
-              </li>
-            </ul>
-          </div>
-
-          <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2">
-            <div className="font-bold text-emerald-400 uppercase tracking-wider text-[10px] flex items-center gap-1.5">
-              <Crosshair className="w-3.5 h-3.5" />
-              3. Posición Defensiva en 6
-            </div>
-            <ul className="space-y-1.5 text-slate-300">
-              <li className="flex items-start gap-1.5">
-                <span className="text-emerald-400">•</span>
-                <span>Defensa adelantada en 6 para cubrir las pelotas tocadas y aflojes del punta #14.</span>
-              </li>
-              <li className="flex items-start gap-1.5">
-                <span className="text-emerald-400">•</span>
-                <span>Líbero ubicado en Z5 pegado a la línea lateral para levantar diagonales largas.</span>
-              </li>
-              <li className="flex items-start gap-1.5">
-                <span className="text-emerald-400">•</span>
-                <span>En pelotas de cierre de set (&gt; 20 pts), doblar cobertura sobre la línea de 4.</span>
-              </li>
-            </ul>
-          </div>
-        </div>
+        <p className="text-xs text-slate-400">
+          OPEN VOLEY no genera instrucciones tácticas fijas. El DT puede construirlas a partir de la rotación con menor
+          side-out, los receptores con peor rendimiento observado, el atacante con mayor volumen y la distribución real
+          del armador. Cuando una muestra no alcanza, la interfaz lo indica expresamente.
+        </p>
       </div>
     </div>
   );
