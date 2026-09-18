@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MatchData, Player, ScoutCodeAction, TeamSide, ClientUser, TrialInfo, RallyDetection, UserRole } from './types';
+import { MatchData, Player, ScoutCodeAction, TeamSide, ClientUser, TrialInfo, RallyDetection, UserRole, TrainingEvidenceContext } from './types';
 import { sampleMatchData } from './data/sampleMatch';
 import { ResearchTab } from './components/ResearchTab';
 import { UnifiedTacticalHub } from './components/UnifiedTacticalHub';
@@ -93,6 +93,7 @@ export default function App() {
 
   // Training Focus problem transferred from AI Coach to Training Center
   const [trainingFocusProblem, setTrainingFocusProblem] = useState<string | undefined>(undefined);
+  const [trainingEvidenceContext, setTrainingEvidenceContext] = useState<TrainingEvidenceContext | undefined>(undefined);
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
@@ -1337,6 +1338,7 @@ export default function App() {
                 <TrainingCenter
                   match={match}
                   initialFocusProblem={trainingFocusProblem}
+                  evidenceContext={trainingEvidenceContext}
                   onNavigateToMatch={() => {
                     setActiveTab('match');
                     setMatchesSubTab('scout');
@@ -1458,8 +1460,9 @@ export default function App() {
                 <OpenAiCenter
                   match={match}
                   currentMatch={match}
-                  onGenerateTraining={(problem) => {
-                    setTrainingFocusProblem(problem);
+                  onGenerateTraining={(context) => {
+                    setTrainingEvidenceContext(context);
+                    setTrainingFocusProblem(context.description);
                     setActiveTab('team');
                     setTeamsSubTab('training');
                   }}

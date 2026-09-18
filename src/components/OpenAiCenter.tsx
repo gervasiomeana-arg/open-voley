@@ -15,7 +15,7 @@ import {
   BarChart2,
   Users
 } from 'lucide-react';
-import { MatchData } from '../types';
+import { MatchData, TrainingEvidenceContext } from '../types';
 import { getCurrentMatch } from '../services/teamStorage';
 import { buildEvidenceInsights } from '../utils/evidenceInsights';
 
@@ -181,7 +181,7 @@ const ISSUE_TRANSLATIONS: Record<PerformanceIssueResult, string> = {
 interface OpenAiCenterProps {
   match?: MatchData;
   currentMatch?: MatchData;
-  onGenerateTraining?: (problem: string) => void;
+  onGenerateTraining?: (context: TrainingEvidenceContext) => void;
   onOpenVideoClips?: (rallyIds?: string[]) => void;
   onOpenTactics?: () => void;
   onOpenPlayer360?: (playerNumber: number) => void;
@@ -455,7 +455,13 @@ interface ActionInsightItem {
                   <button
                     onClick={() => {
                       if (item.actionType === 'generate_training' && onGenerateTraining) {
-                        onGenerateTraining(item.actionTarget);
+                        onGenerateTraining({
+                          title: item.title,
+                          description: item.actionTarget || item.description,
+                          evidenceSource: item.sourceEvidence,
+                          rallyIds: item.rallyIds,
+                          category: item.id.includes('attack') ? 'attack' : item.id.includes('serve') ? 'serve' : item.id.includes('reception') ? 'reception' : 'generic',
+                        });
                       } else if (item.actionType === 'view_clips' && onOpenVideoClips) {
                         onOpenVideoClips(item.rallyIds);
                       } else if (item.actionType === 'view_tactics' && onOpenTactics) {

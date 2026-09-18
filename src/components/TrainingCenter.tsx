@@ -17,18 +17,21 @@ import {
   Layers,
   Volleyball
 } from 'lucide-react';
-import { TrainingSession, TrainingExercise, MatchData } from '../types';
+import { TrainingSession, TrainingExercise, MatchData, TrainingEvidenceContext } from '../types';
 import { sampleTrainingSessions } from '../data/sampleCompetitionAndTraining';
+import { buildEvidenceExercises, buildTrainingEvidenceNote } from '../utils/trainingEvidence';
 
 interface TrainingCenterProps {
   match?: MatchData;
   initialFocusProblem?: string;
+  evidenceContext?: TrainingEvidenceContext;
   onNavigateToMatch?: () => void;
 }
 
 export const TrainingCenter: React.FC<TrainingCenterProps> = ({
   match,
   initialFocusProblem,
+  evidenceContext,
   onNavigateToMatch,
 }) => {
   const [sessions, setSessions] = useState<TrainingSession[]>(sampleTrainingSessions);
@@ -38,7 +41,7 @@ export const TrainingCenter: React.FC<TrainingCenterProps> = ({
   const [isGeneratorOpen, setIsGeneratorOpen] = useState(Boolean(initialFocusProblem));
   const [genDuration, setGenDuration] = useState<number>(90);
   const [genPlayers, setGenPlayers] = useState<number>(14);
-  const [genProblem, setGenProblem] = useState<string>(initialFocusProblem || 'Recepción en zona 5 frente a saque flotado');
+  const [genProblem, setGenProblem] = useState<string>(initialFocusProblem || 'Definir problema táctico a trabajar');
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
 
   const activeSession = sessions.find((s) => s.id === selectedSessionId) || sessions[0];
@@ -46,6 +49,8 @@ export const TrainingCenter: React.FC<TrainingCenterProps> = ({
   const handleGenerateWithAi = () => {
     setIsGenerating(true);
     setTimeout(() => {
+      const evidenceNote = buildTrainingEvidenceNote(evidenceContext);
+
       const newSession: TrainingSession = {
         id: `train_${Date.now()}`,
         title: `Sesión Táctica: ${genProblem.substring(0, 38)}`,
@@ -57,54 +62,8 @@ export const TrainingCenter: React.FC<TrainingCenterProps> = ({
         linkedMatchId: match?.id,
         status: 'planned',
         completed: false,
-        notes: `Generado por OPEN AI para resolver déficit detectado en ${match?.homeTeamName || 'el equipo'}.`,
-        exercises: [
-          {
-            id: `ex_${Date.now()}_1`,
-            block: 'Calentamiento',
-            name: 'Activación neuromuscular y sombras de desplazamiento',
-            durationMin: 15,
-            description: 'Movilidad dinámica, activación de hombros con bandas y simulación de lectura de saque en 3 posiciones.',
-            courtFocus: 'Línea de fondo completa',
-            keyObjective: 'Preparación fisiológica y lectura visual rápida'
-          },
-          {
-            id: `ex_${Date.now()}_2`,
-            block: 'Recepción',
-            name: `Entrenamiento analítico: ${genProblem}`,
-            durationMin: 25,
-            description: 'Dos sacadores desde zona 1 rival alternan balones flotados profundos y cortos. Exigencia de plataforma fija hacia zona 3.',
-            courtFocus: 'Zona 5 y 6 con conos de delimitación',
-            keyObjective: 'Fijar el ángulo de entrega y estabilidad postural'
-          },
-          {
-            id: `ex_${Date.now()}_3`,
-            block: 'Side-out',
-            name: 'Transición de Side-Out bajo presión con ataque de primer tiempo',
-            durationMin: 25,
-            description: 'Recepción obligada bajo saque competitivo. Salida inmediata con central en primer tiempo o punta por zona 4.',
-            courtFocus: 'Media cancha con bloqueo rival estructurado',
-            keyObjective: 'Transferencia directa al juego de salida de recepción'
-          },
-          {
-            id: `ex_${Date.now()}_4`,
-            block: 'Juego condicionado',
-            name: '6 vs 6 con bonificación por resolución de problema',
-            durationMin: 20,
-            description: 'Sets a 15 puntos. Cada punto anotado tras recepción positiva en zona 5 suma 2 puntos.',
-            courtFocus: 'Cancha completa',
-            keyObjective: 'Estimular la toma de decisiones en situación competitiva'
-          },
-          {
-            id: `ex_${Date.now()}_5`,
-            block: 'Cierre',
-            name: 'Saques tácticos bajo fatiga y estiramientos',
-            durationMin: 5,
-            description: 'Serie de 10 saques por atleta con objetivo marcado. Vuelta a la calma.',
-            courtFocus: 'Zona de saque',
-            keyObjective: 'Consolidación técnica final y recuperación'
-          }
-        ]
+        notes: `${evidenceNote} Objetivo: generar una nueva muestra comparable en el próximo control.`,
+        exercises: buildEvidenceExercises(genProblem, genDuration, evidenceContext),
       };
 
       setSessions([newSession, ...sessions]);
@@ -358,7 +317,7 @@ export const TrainingCenter: React.FC<TrainingCenterProps> = ({
               <div className="p-3.5 bg-purple-950/20 border border-purple-800/30 rounded-xl text-slate-300 space-y-1">
                 <span className="font-bold text-purple-400 block text-[11px]">Estructura que generará la IA:</span>
                 <p className="text-[11px] text-slate-400 leading-relaxed">
-                  1. Calentamiento específico (15m) • 2. Recepción analítica (25m) • 3. Side-out R4 (25m) • 4. Juego condicionado con puntuación doble (20m) • 5. Cierre y saque táctico (5m).
+                  La estructura se adapta al tipo de evidencia recibida. Si faltan datos de zona, rotación o tipo de saque, OPEN VOLEY no los completa: deja ese detalle para el cuerpo técnico.
                 </p>
               </div>
             </div>

@@ -227,12 +227,23 @@ export interface StandingEntry {
 
 export interface TrainingExercise {
   id: string;
-  block: 'Calentamiento' | 'Recepción' | 'Side-out' | 'Juego condicionado' | 'Cierre' | 'Bloqueo/Defensa' | 'Saque';
+  block: 'Calentamiento' | 'Recepción' | 'Side-out' | 'Juego condicionado' | 'Cierre' | 'Bloqueo/Defensa' | 'Saque' | 'Ataque';
   name: string;
   durationMin: number;
   description: string;
   courtFocus: string;
   keyObjective: string;
+}
+
+export interface TrainingEvidenceContext {
+  insightId?: string;
+  title: string;
+  description: string;
+  evidenceSource?: string;
+  evidenceCount?: number;
+  rallyIds?: string[];
+  rotationRef?: number;
+  category?: 'rotation_sideout' | 'serve_reception' | 'attack' | 'serve' | 'reception' | 'generic';
 }
 
 export interface TrainingSession {

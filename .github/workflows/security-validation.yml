@@ -33,5 +33,8 @@ jobs:
       - name: Evidence insight tests
         run: npm run test:evidence
 
+      - name: Training evidence tests
+        run: npm run test:training-evidence
+
       - name: Production build
         run: npm run build
