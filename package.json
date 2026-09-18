@@ -21,7 +21,8 @@
     "test:montage-sqlite": "tsx src/server/smartSportsMontageRepository.test.ts",
     "test:montage-sync": "tsx src/services/smartSportsMontageSync.test.ts",
     "test:video-render": "tsx src/server/videoRenderPlan.test.ts",
-    "test:player360": "tsx src/utils/player360Analytics.test.ts"
+    "test:player360": "tsx src/utils/player360Analytics.test.ts",
+    "test:open-ai-context": "tsx src/utils/openAiConversationContext.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
