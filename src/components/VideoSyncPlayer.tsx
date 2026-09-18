@@ -94,6 +94,10 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
   const [customYtInput, setCustomYtInput] = useState<string>('');
   const [showYtInputModal, setShowYtInputModal] = useState<boolean>(false);
   const [isAutoScoutCvActive, setIsAutoScoutCvActive] = useState<boolean>(false);
+  const [playlistQueue, setPlaylistQueue] = useState<ScoutCodeAction[]>([]);
+  const [playlistIndex, setPlaylistIndex] = useState<number>(-1);
+  const [playlistPreRoll, setPlaylistPreRoll] = useState<number>(3);
+  const [playlistPostRoll, setPlaylistPostRoll] = useState<number>(3);
 
   // New Tag Form state
   const [tagPlayerName, setTagPlayerName] = useState<string>('Jugador');
@@ -288,6 +292,54 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
     }
   };
 
+  const startPlaylistPlayback = (queue: ScoutCodeAction[], preRoll: number, postRoll: number) => {
+    if (youtubeId) {
+      setVideoError('La reproducción secuencial automática requiere un archivo de video local. En YouTube puedes abrir cada clip individualmente.');
+      return;
+    }
+    if (!videoRef.current || queue.length === 0) {
+      setVideoError('Carga un archivo de video local antes de reproducir el montaje.');
+      return;
+    }
+    setPlaylistQueue(queue);
+    setPlaylistPreRoll(preRoll);
+    setPlaylistPostRoll(postRoll);
+    setPlaylistIndex(0);
+    setActiveMediaTab('video_cuts');
+    const first = queue[0];
+    const start = Math.max(0, first.timestamp - preRoll);
+    setSelectedAction(first);
+    setCurrentTime(start);
+    videoRef.current.currentTime = start;
+    videoRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+  };
+
+  useEffect(() => {
+    if (playlistIndex < 0 || playlistIndex >= playlistQueue.length || youtubeId) return;
+    const action = playlistQueue[playlistIndex];
+    const end = action.timestamp + playlistPostRoll;
+    if (currentTime < end) return;
+
+    const nextIndex = playlistIndex + 1;
+    if (nextIndex >= playlistQueue.length) {
+      if (videoRef.current) videoRef.current.pause();
+      setIsPlaying(false);
+      setPlaylistIndex(-1);
+      setPlaylistQueue([]);
+      return;
+    }
+
+    const next = playlistQueue[nextIndex];
+    const start = Math.max(0, next.timestamp - playlistPreRoll);
+    setPlaylistIndex(nextIndex);
+    setSelectedAction(next);
+    setCurrentTime(start);
+    if (videoRef.current) {
+      videoRef.current.currentTime = start;
+      videoRef.current.play().catch(() => {});
+    }
+  }, [currentTime, playlistIndex, playlistQueue, playlistPostRoll, playlistPreRoll, youtubeId]);
+
   // Process uploaded video file (e.g. phone recording .mp4/.mov)
   const processFile = (file: File) => {
     const sizeMb = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
@@ -445,6 +497,7 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
             setActiveMediaTab('video_cuts');
             handleSelectClip(action);
           }}
+          onPlayPlaylist={startPlaylistPlayback}
         />
       ) : (
         <div className="bg-slate-900 text-white p-4 sm:p-6 rounded-3xl shadow-xl border border-slate-800 space-y-6 animate-fadeIn">
