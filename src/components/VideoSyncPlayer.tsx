@@ -112,6 +112,8 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
   const montageRecorderRef = useRef<MediaRecorder | null>(null);
   const montageChunksRef = useRef<Blob[]>([]);
   const montageExtensionRef = useRef<'mp4' | 'webm'>('webm');
+  const montageNameRef = useRef<string>('');
+  const shareAfterExportRef = useRef<boolean>(false);
 
   // Check if current source is YouTube
   const youtubeId = extractYouTubeId(videoSrc);
@@ -313,7 +315,7 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
     }
   };
 
-  const exportPlaylistVideo = (queue: ScoutCodeAction[], preRoll: number, postRoll: number) => {
+  const exportPlaylistVideo = (queue: ScoutCodeAction[], preRoll: number, postRoll: number, montageName?: string, shareAfterExport = false) => {
     if (youtubeId) {
       setVideoError('La exportación de montaje requiere un archivo de video local. YouTube no permite capturar el stream del iframe para generar un archivo.');
       return;
@@ -338,6 +340,8 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
       const stream = video.captureStream();
       montageChunksRef.current = [];
       montageExtensionRef.current = format.ext;
+      montageNameRef.current = montageName?.trim() || '';
+      shareAfterExportRef.current = shareAfterExport;
       const recorder = new MediaRecorder(stream, {
         mimeType: format.mime,
         videoBitsPerSecond: 6_000_000,
@@ -351,7 +355,7 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
       recorder.onerror = () => {
         setVideoError('No se pudo completar la exportación del montaje en este navegador.');
       };
-      recorder.onstop = () => {
+      recorder.onstop = async () => {
         const chunks = montageChunksRef.current;
         if (chunks.length === 0) {
           setVideoError('La exportación terminó sin datos de video.');
@@ -360,11 +364,31 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
         const extension = montageExtensionRef.current;
         const mimeType = extension === 'mp4' ? 'video/mp4' : 'video/webm';
         const blob = new Blob(chunks, { type: mimeType });
+        const rawName = montageNameRef.current || match.title || 'montaje';
+        const safeName = rawName.replace(/[^a-zA-Z0-9-_]+/g, '-').replace(/^-+|-+$/g, '') || 'montaje';
+        const fileName = `open-voley-${safeName}.${extension}`;
+        const file = new File([blob], fileName, { type: mimeType });
+
+        if (shareAfterExportRef.current && typeof navigator.share === 'function') {
+          try {
+            const canShareFile = typeof navigator.canShare !== 'function' || navigator.canShare({ files: [file] });
+            if (canShareFile) {
+              await navigator.share({
+                files: [file],
+                title: montageNameRef.current || 'Montaje OPEN VOLEY',
+                text: 'Montaje deportivo generado con OPEN VOLEY',
+              });
+              return;
+            }
+          } catch (error) {
+            if (error instanceof DOMException && error.name === 'AbortError') return;
+          }
+        }
+
         const url = URL.createObjectURL(blob);
         const anchor = document.createElement('a');
-        const safeTitle = match.title.replace(/[^a-zA-Z0-9-_]+/g, '-').replace(/^-+|-+$/g, '') || 'partido';
         anchor.href = url;
-        anchor.download = `open-voley-${safeTitle}-montaje.${extension}`;
+        anchor.download = fileName;
         document.body.appendChild(anchor);
         anchor.click();
         anchor.remove();
