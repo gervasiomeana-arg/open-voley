@@ -42,6 +42,7 @@ import {
   saveCurrentMatch
 } from './services/teamStorage';
 import { getAuthenticatedSession, logoutAuthenticatedSession } from './services/authSession';
+import { enrichActionsWithRallyContext } from './utils/rallyContext';
 import { 
   Menu, 
   Download, 
@@ -295,8 +296,9 @@ export default function App() {
 
   // Handlers for scouting actions
   const handleAddAction = (action: ScoutCodeAction | ScoutCodeAction[]) => {
-    const newActions = Array.isArray(action) ? action : [action];
+    const incomingActions = Array.isArray(action) ? action : [action];
     setMatch((prev) => {
+      const newActions = enrichActionsWithRallyContext(prev.actions || [], incomingActions);
       const updatedActions = [...(prev.actions || []), ...newActions];
       const curSet = Math.max(1, prev.currentSet || 1);
       const setIdx = curSet - 1;
