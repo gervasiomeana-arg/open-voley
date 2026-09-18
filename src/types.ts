@@ -235,6 +235,17 @@ export interface TrainingExercise {
   keyObjective: string;
 }
 
+export interface TrainingEvidenceContext {
+  insightId?: string;
+  title: string;
+  description: string;
+  evidenceSource?: string;
+  evidenceCount?: number;
+  rallyIds?: string[];
+  rotationRef?: number;
+  category?: 'rotation_sideout' | 'serve_reception' | 'attack' | 'serve' | 'reception' | 'generic';
+}
+
 export interface TrainingSession {
   id: string;
   title: string;
