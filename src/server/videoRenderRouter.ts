@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
 import fs from 'fs';
 import path from 'path';
 import { spawn, spawnSync } from 'child_process';
@@ -61,22 +61,16 @@ router.get('/capabilities', (_req, res) => {
 
 router.put(
   '/source/:matchId',
-  Router().use(requireRawVideo()).handle,
-);
-
-function requireRawVideo() {
-  const raw = Router();
-  raw.use(require('express').raw({ type: ['video/*', 'application/octet-stream'], limit: MAX_SOURCE_BYTES }));
-  raw.use((req: any, res: any) => {
+  express.raw({ type: ['video/*', 'application/octet-stream'], limit: MAX_SOURCE_BYTES }),
+  (req, res) => {
     const userId = String(res.locals.sessionUserId);
     const matchId = safePart(req.params.matchId, 'match');
     if (!Buffer.isBuffer(req.body) || req.body.length === 0) return res.status(400).json({ error: 'Video source required' });
     const target = sourcePath(userId, matchId);
     fs.writeFileSync(target, req.body);
     return res.json({ success: true, matchId, bytes: req.body.length });
-  });
-  return raw;
-}
+  },
+);
 
 router.post('/render', async (req, res) => {
   const userId = String(res.locals.sessionUserId);
