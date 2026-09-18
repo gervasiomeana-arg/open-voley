@@ -308,6 +308,11 @@ export interface SmartSportsMontage {
   playerNames?: string[];
   skills?: VolleySkill[];
   teamSides?: TeamSide[];
+  recipientType?: 'player' | 'team' | 'staff';
+  recipientLabel?: string;
+  coachNote?: string;
+  shareTitle?: string;
+  readyToShare?: boolean;
 }
 
 export interface AiEvidenceInsight {
