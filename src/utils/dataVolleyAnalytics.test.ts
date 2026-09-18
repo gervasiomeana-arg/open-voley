@@ -131,4 +131,22 @@ assert.equal(empty.weakestRotation, undefined);
 assert.equal(empty.reception.positivePct, 0);
 assert.equal(empty.attack.efficiencyPct, 0);
 
+const rallyActions: ScoutCodeAction[] = [
+  { ...actions[0], id: 'rr', rallyId: 'rally-receive', rallySequence: 1, phase: 'K1', timestamp: 100 },
+  // Deliberately far outside the legacy 25-second window: exact rallyId must still connect it.
+  { ...actions[1], id: 'ra', rallyId: 'rally-receive', rallySequence: 2, phase: 'K1', timestamp: 140 },
+  { ...actions[2], id: 'rs', rallyId: 'rally-serve', rallySequence: 1, phase: 'K2', timestamp: 200 },
+  { ...actions[3], id: 'rb', rallyId: 'rally-serve', rallySequence: 2, phase: 'K2', timestamp: 240 },
+];
+
+const rallySummary = calculateTeamDataVolleySummary({ ...match, actions: rallyActions }, 'home');
+const rallyR1 = rallySummary.rotations.find((row) => row.rotation === 1);
+assert.ok(rallyR1);
+assert.equal(rallyR1.sideoutOpportunities, 1);
+assert.equal(rallyR1.sideoutWon, 1);
+assert.equal(rallyR1.sideoutPct, 100);
+assert.equal(rallyR1.breakPointOpportunities, 1);
+assert.equal(rallyR1.breakPointWon, 1);
+assert.equal(rallyR1.breakPointPct, 100);
+
 console.log('DataVolley analytics tests passed');
