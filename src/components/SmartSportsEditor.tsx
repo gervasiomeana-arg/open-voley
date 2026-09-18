@@ -86,6 +86,8 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
   const [recipientLabel, setRecipientLabel] = useState('');
   const [coachNote, setCoachNote] = useState('');
   const [shareTitle, setShareTitle] = useState('');
+  const [recipientEmail, setRecipientEmail] = useState('');
+  const [publishStatus, setPublishStatus] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -121,6 +123,7 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
       setRecipientLabel(montage.recipientLabel || '');
       setCoachNote(montage.coachNote || '');
       setShareTitle(montage.shareTitle || montage.name);
+      setRecipientEmail(montage.recipientEmail || '');
     });
   }, [initialMontageId, match.id, sourceActions]);
 
@@ -212,6 +215,8 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
       coachNote: coachNote.trim() || undefined,
       shareTitle: shareTitle.trim() || montageName.trim() || undefined,
       readyToShare: Boolean(recipientLabel.trim() || coachNote.trim()),
+      recipientEmail: recipientEmail.trim().toLowerCase() || undefined,
+      publishedAt: existing?.publishedAt,
     };
     const updated = saveMontageLocallyFirst(montage).filter((item) => item.matchId === match.id);
     setSavedMontages(updated);
@@ -230,6 +235,48 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
     setRecipientLabel(montage.recipientLabel || '');
     setCoachNote(montage.coachNote || '');
     setShareTitle(montage.shareTitle || montage.name);
+    setRecipientEmail(montage.recipientEmail || '');
+  };
+
+  const publishMontage = () => {
+    if (selectedPlaylist.length === 0) {
+      setPublishStatus('El montaje no tiene clips.');
+      return;
+    }
+    const email = recipientEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setPublishStatus('Ingresa el email exacto de la cuenta OPEN VOLEY del jugador.');
+      return;
+    }
+    const now = new Date().toISOString();
+    const existing = activeMontageId ? savedMontages.find((item) => item.id === activeMontageId) : undefined;
+    const montage: SmartSportsMontage = {
+      id: existing?.id || `montage-${Date.now()}`,
+      name: montageName.trim() || `Montaje ${match.homeTeamName} vs ${match.awayTeamName}`,
+      matchId: match.id,
+      matchTitle: match.title,
+      createdAt: existing?.createdAt || now,
+      updatedAt: now,
+      preRoll,
+      postRoll,
+      actionIds: selectedPlaylist.map((action) => action.id),
+      playerNums: Array.from(new Set<number>(selectedPlaylist.map((action) => action.playerNum))).sort((a, b) => a - b),
+      playerNames: Array.from(new Set<string>(selectedPlaylist.map((action) => action.playerName).filter((name): name is string => Boolean(name)))),
+      skills: Array.from(new Set<VolleySkill>(selectedPlaylist.map((action) => action.skill))),
+      teamSides: Array.from(new Set<TeamSide>(selectedPlaylist.map((action) => action.team))),
+      recipientType,
+      recipientLabel: recipientLabel.trim() || undefined,
+      coachNote: coachNote.trim() || undefined,
+      shareTitle: shareTitle.trim() || montageName.trim() || undefined,
+      readyToShare: true,
+      recipientEmail: email,
+      publishedAt: now,
+    };
+    const updated = saveMontageLocallyFirst(montage).filter((item) => item.matchId === match.id);
+    setSavedMontages(updated);
+    setActiveMontageId(montage.id);
+    setMontageName(montage.name);
+    setPublishStatus(`Publicado para ${email}`);
   };
 
   const removeMontage = (id: string) => {
@@ -460,6 +507,19 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
             />
           </label>
           <label className="space-y-1 lg:col-span-3">
+            <span className="text-[11px] font-bold text-slate-400">Email de la cuenta OPEN VOLEY destinataria</span>
+            <input
+              value={recipientEmail}
+              onChange={(e) => {
+                setRecipientEmail(e.target.value);
+                setPublishStatus(null);
+              }}
+              type="email"
+              placeholder="jugador@club.com"
+              className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white"
+            />
+          </label>
+          <label className="space-y-1 lg:col-span-3">
             <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
               <MessageSquare className="w-3 h-3" /> Nota del entrenador
             </span>
@@ -472,6 +532,12 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
             />
           </label>
         </div>
+
+        {publishStatus && (
+          <div className="text-xs rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 px-3 py-2">
+            {publishStatus}
+          </div>
+        )}
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-800">
           <div className="flex flex-wrap items-center gap-2">
@@ -529,12 +595,21 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
             </button>
             <button
               type="button"
+              onClick={publishMontage}
+              disabled={selectedPlaylist.length === 0}
+              className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 text-white text-xs font-black flex items-center gap-1.5"
+              title="Publica el montaje dentro de OPEN VOLEY para la cuenta destinataria."
+            >
+              <Send className="w-3.5 h-3.5" /> Publicar en OPEN VOLEY
+            </button>
+            <button
+              type="button"
               onClick={() => onExportVideo(selectedPlaylist, preRoll, postRoll, shareTitle.trim() || montageName, true)}
               disabled={selectedPlaylist.length === 0}
               className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-xs font-black flex items-center gap-1.5"
               title="Genera el video y, si el dispositivo lo permite, abre el panel nativo para compartir el archivo."
             >
-              <Send className="w-3.5 h-3.5" /> Compartir con {recipientType === 'player' ? 'jugador' : recipientType === 'team' ? 'equipo' : 'staff'}
+              <Send className="w-3.5 h-3.5" /> Compartir archivo
             </button>
             <button
               type="button"
