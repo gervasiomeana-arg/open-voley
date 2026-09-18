@@ -340,19 +340,23 @@ async function startServer() {
       if (!apiKey) return res.status(503).json({ error: 'AI service is not configured' });
 
       const query = cleanText(req.body?.query, 2000);
-      const summary = req.body?.matchSummary || {};
       if (!query) return res.status(400).json({ error: 'Query is required' });
 
+      const contextJson = JSON.stringify(req.body?.context || {}).slice(0, 60000);
+      const conversationJson = JSON.stringify(Array.isArray(req.body?.conversation) ? req.body.conversation.slice(-6) : []).slice(0, 12000);
       const ai = new GoogleGenAI({ apiKey });
       const prompt = [
-        'Escribe en español. Eres un analista táctico profesional de voleibol.',
-        'Usa únicamente los datos proporcionados. Si los datos no alcanzan, indícalo claramente.',
-        `Consulta: ${query}`,
-        `Partido: ${cleanText(summary.title, 200)}`,
-        `Set actual: ${Number(summary.currentSet) || 0}`,
-        `Local: ${cleanText(summary.homeTeam, 150)}`,
-        `Visitante: ${cleanText(summary.awayTeam, 150)}`,
-        `Acciones registradas: ${Number(summary.actionsCount) || 0}`,
+        'Escribe en español. Eres OPEN AI, analista táctico profesional de voleibol de OPEN VOLEY.',
+        'Responde la consulta de forma concreta y útil para un cuerpo técnico.',
+        'REGLA CRÍTICA: usa exclusivamente CONTEXTO_OPEN_VOLEY. No inventes estadísticas, partidos, jugadores, lesiones, causas ni tendencias.',
+        'Si una conclusión requiere datos que no existen en el contexto, di exactamente qué dato falta.',
+        'Diferencia dato observado de interpretación. Incluye muestras (n) o cantidades cuando sean relevantes.',
+        'Puedes comparar el partido actual con HISTORY sólo si allí hay partidos comparables registrados.',
+        'EVIDENCE contiene hallazgos ya calculados por OPEN VOLEY con umbrales mínimos; puedes explicarlos, no exagerarlos.',
+        'No afirmes significancia estadística.',
+        `CONSULTA: ${query}`,
+        `CONVERSACION_RECIENTE: ${conversationJson}`,
+        `CONTEXTO_OPEN_VOLEY: ${contextJson}`,
       ].join('\n');
 
       const response = await ai.models.generateContent({

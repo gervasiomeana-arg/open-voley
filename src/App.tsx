@@ -1475,6 +1475,7 @@ export default function App() {
                 <OpenAiCenter
                   match={match}
                   currentMatch={match}
+                  historicalMatches={savedMatches.map((record) => record.matchData)}
                   onGenerateTraining={(context) => {
                     setTrainingEvidenceContext(context);
                     setTrainingFocusProblem(context.description);
