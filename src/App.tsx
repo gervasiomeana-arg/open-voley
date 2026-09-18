@@ -1718,6 +1718,7 @@ export default function App() {
             setSelectedPlayerFor360(null);
           }}
           match={match}
+          historicalMatches={savedMatches.map((record) => record.matchData)}
           onPlayClip={() => {
             setIsPlayer360Open(false);
             setActiveTab('analysis');
