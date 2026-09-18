@@ -246,6 +246,31 @@ export interface TrainingEvidenceContext {
   category?: 'rotation_sideout' | 'serve_reception' | 'attack' | 'serve' | 'reception' | 'generic';
 }
 
+export interface TrainingPerformanceTarget {
+  metric: 'sideout_pct' | 'reception_negative_pct' | 'attack_efficiency_pct' | 'serve_efficiency_pct' | 'manual';
+  label: string;
+  teamSide: TeamSide;
+  baselineValue?: number;
+  baselineSample?: number;
+  rotationRef?: number;
+  serveType?: ScoutCodeAction['serveType'];
+  zoneRef?: number;
+  sourceMatchId?: string;
+  sourceInsightId?: string;
+  sourceRallyIds?: string[];
+}
+
+export interface PerformanceFollowUpResult {
+  status: 'improved' | 'declined' | 'stable' | 'insufficient_data' | 'not_comparable';
+  label: string;
+  baselineValue?: number;
+  currentValue?: number;
+  delta?: number;
+  baselineSample?: number;
+  currentSample?: number;
+  message: string;
+}
+
 export interface TrainingSession {
   id: string;
   title: string;
@@ -255,6 +280,7 @@ export interface TrainingSession {
   playersCount: number;
   focusProblem: string;
   linkedMatchId?: string;
+  performanceTarget?: TrainingPerformanceTarget;
   exercises: TrainingExercise[];
   notes?: string;
   status: 'planned' | 'completed';
