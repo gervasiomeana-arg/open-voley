@@ -39,6 +39,15 @@ export interface ScoutCodeAction {
   rotationHome: number[]; // e.g. [1, 6, 5, 4, 3, 2]
   rotationAway: number[];
   description: string;
+  /**
+   * Optional structured rally context. New scouting can populate these fields
+   * progressively; legacy matches remain compatible because every field is optional.
+   */
+  rallyId?: string;
+  rallySequence?: number;
+  phase?: 'K1' | 'K2' | 'K3' | 'transition' | 'unknown';
+  serveType?: 'float' | 'jump_float' | 'jump_spin' | 'standing' | 'unknown';
+  receptionContext?: 'positive' | 'negative' | 'freeball' | 'unknown';
 }
 
 export type UserRole = 'Entrenador' | 'Jugador' | 'Analista' | 'Organizador' | 'Club' | 'Asistente' | 'Administrador';
