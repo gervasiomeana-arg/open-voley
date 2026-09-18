@@ -21,6 +21,7 @@ import { TrainingSession, TrainingExercise, MatchData, TrainingEvidenceContext }
 import { sampleTrainingSessions } from '../data/sampleCompetitionAndTraining';
 import { buildEvidenceExercises, buildTrainingEvidenceNote } from '../utils/trainingEvidence';
 import { buildPerformanceTargetFromMatch, evaluatePerformanceFollowUp } from '../utils/performanceFollowUp';
+import { getSavedTrainingSessions, saveTrainingSession } from '../services/trainingStorage';
 
 interface TrainingCenterProps {
   match?: MatchData;
@@ -35,8 +36,14 @@ export const TrainingCenter: React.FC<TrainingCenterProps> = ({
   evidenceContext,
   onNavigateToMatch,
 }) => {
-  const [sessions, setSessions] = useState<TrainingSession[]>(sampleTrainingSessions);
-  const [selectedSessionId, setSelectedSessionId] = useState<string>(sampleTrainingSessions[0].id);
+  const [sessions, setSessions] = useState<TrainingSession[]>(() => {
+    const saved = getSavedTrainingSessions();
+    return saved.length ? saved : sampleTrainingSessions;
+  });
+  const [selectedSessionId, setSelectedSessionId] = useState<string>(() => {
+    const saved = getSavedTrainingSessions();
+    return saved[0]?.id || sampleTrainingSessions[0]?.id || '';
+  });
 
   // Generator modal state
   const [isGeneratorOpen, setIsGeneratorOpen] = useState(Boolean(initialFocusProblem));
@@ -86,7 +93,7 @@ export const TrainingCenter: React.FC<TrainingCenterProps> = ({
         exercises: buildEvidenceExercises(genProblem, genDuration, evidenceContext),
       };
 
-      setSessions([newSession, ...sessions]);
+      setSessions(saveTrainingSession(newSession));
       setSelectedSessionId(newSession.id);
       setIsGenerating(false);
       setIsGeneratorOpen(false);
