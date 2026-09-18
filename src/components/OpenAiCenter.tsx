@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { MatchData } from '../types';
 import { getCurrentMatch } from '../services/teamStorage';
+import { buildEvidenceInsights } from '../utils/evidenceInsights';
 
 export interface AttackCounts {
   totalAttacks: number;
@@ -207,6 +208,7 @@ export const OpenAiCenter: React.FC<OpenAiCenterProps> = ({
   const currentMatchReceptions = countMatchReceptions(currentMatch);
   void currentMatchReceptions;
   const primaryPerformanceIssue = getPrimaryPerformanceIssue(currentMatch);
+  const evidenceInsights = buildEvidenceInsights(currentMatch, 'home');
   const trainingRecommendation =
     primaryPerformanceIssue === 'ATTACK'
       ? 'Trabajar definición de ataque y reducción de errores.'
@@ -262,10 +264,36 @@ interface ActionInsightItem {
       : []),
   ];
 
+  const evidenceActions: ActionInsightItem[] = evidenceInsights.map((insight) => ({
+    id: insight.id,
+    category: insight.category === 'JUGADOR' ? 'player' : insight.category === 'RIVAL' ? 'scouting' : 'tactical',
+    severity: insight.type === 'HECHO' ? 'medium' : 'low',
+    title: insight.title,
+    description: insight.description,
+    sourceEvidence: `${insight.evidenceSource} • n=${insight.evidenceCount}`,
+    actionType:
+      insight.actionType === 'view_video'
+        ? 'view_clips'
+        : insight.actionType === 'view_analysis'
+          ? 'view_tactics'
+          : insight.actionType === 'view_players'
+            ? 'player_profile'
+            : 'view_tactics',
+    actionTarget: insight.rotationRef ? `R${insight.rotationRef}` : undefined,
+    actionCta:
+      insight.actionType === 'view_video'
+        ? 'Ver rallies / clips'
+        : insight.actionType === 'view_players'
+          ? 'Ver jugador'
+          : 'Ver análisis táctico',
+  }));
+
+  const allInsights = [...evidenceActions, ...trainingActions];
+
   const filteredInsights =
     activeCategory === 'all'
-      ? trainingActions
-      : trainingActions.filter((i) => i.category === activeCategory);
+      ? allInsights
+      : allInsights.filter((i) => i.category === activeCategory);
 
   const handleSendQuestion = (e: React.FormEvent) => {
     e.preventDefault();
@@ -349,10 +377,10 @@ interface ActionInsightItem {
           <div>
             <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
               <ShieldAlert className="w-4 h-4 text-amber-400" />
-              <span>Detección de Problemas y Acciones Inmediatas (AI Actions)</span>
+              <span>Hallazgos con Evidencia y Acciones Inmediatas</span>
             </h3>
             <p className="text-xs text-slate-400">
-              Cada alerta incluye una acción directa para resolverla sin pasos manuales
+              Los hallazgos tácticos sólo aparecen cuando la muestra real supera el umbral mínimo definido
             </p>
           </div>
 
