@@ -182,7 +182,7 @@ interface OpenAiCenterProps {
   match?: MatchData;
   currentMatch?: MatchData;
   onGenerateTraining?: (problem: string) => void;
-  onOpenVideoClips?: () => void;
+  onOpenVideoClips?: (rallyIds?: string[]) => void;
   onOpenTactics?: () => void;
   onOpenPlayer360?: (playerNumber: number) => void;
 }
@@ -228,6 +228,7 @@ interface ActionInsightItem {
   sourceEvidence: string;
   actionType: 'generate_training' | 'view_clips' | 'view_tactics' | 'player_profile';
   actionTarget?: string;
+  rallyIds?: string[];
   actionCta: string;
 }
 
@@ -280,6 +281,7 @@ interface ActionInsightItem {
             ? 'player_profile'
             : 'view_tactics',
     actionTarget: insight.rotationRef ? `R${insight.rotationRef}` : undefined,
+    rallyIds: insight.rallyIds,
     actionCta:
       insight.actionType === 'view_video'
         ? 'Ver rallies / clips'
@@ -455,7 +457,7 @@ interface ActionInsightItem {
                       if (item.actionType === 'generate_training' && onGenerateTraining) {
                         onGenerateTraining(item.actionTarget);
                       } else if (item.actionType === 'view_clips' && onOpenVideoClips) {
-                        onOpenVideoClips();
+                        onOpenVideoClips(item.rallyIds);
                       } else if (item.actionType === 'view_tactics' && onOpenTactics) {
                         onOpenTactics();
                       } else if (item.actionType === 'player_profile' && onOpenPlayer360) {
