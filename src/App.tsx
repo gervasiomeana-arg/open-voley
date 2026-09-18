@@ -1344,6 +1344,10 @@ export default function App() {
                     setActiveTab('match');
                     setMatchesSubTab('scout');
                   }}
+                  onEvidenceConsumed={() => {
+                    setTrainingEvidenceContext(undefined);
+                    setTrainingFocusProblem(undefined);
+                  }}
                 />
               )}
             </div>
