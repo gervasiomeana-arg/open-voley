@@ -55,9 +55,12 @@ interface VideoSyncPlayerProps {
   onDeleteCut: (id: string) => void;
   onClearCuts: () => void;
   match?: MatchData;
+  focusRallyIds?: string[];
+
 }
 
 export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
+  actions,
   videoSrc,
   onSetVideoSrc,
   uploadedFileName,
@@ -67,6 +70,7 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
   onDeleteCut,
   onClearCuts,
   match = sampleMatchData,
+  focusRallyIds = [],
 }) => {
   // Video Sub-Tab: Video Player vs Volleyball Scout Media Studio
   const [activeMediaTab, setActiveMediaTab] = useState<'video_cuts' | 'media_studio'>('video_cuts');
@@ -102,11 +106,36 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
   // Check if current source is YouTube
   const youtubeId = extractYouTubeId(videoSrc);
 
-  // Filter user tags
-  const filteredActions = userCuts.filter((act) => {
+  // When OPEN AI opens evidence, show the exact actions from those rallies.
+  const evidenceActions = focusRallyIds.length > 0
+    ? actions.filter((act) => Boolean(act.rallyId && focusRallyIds.includes(act.rallyId)))
+    : userCuts;
+
+  const filteredActions = evidenceActions.filter((act) => {
     if (filterSkill === 'ALL') return true;
     return act.skill === filterSkill;
   });
+
+  useEffect(() => {
+    if (focusRallyIds.length === 0) return;
+    const first = actions
+      .filter((act) => Boolean(act.rallyId && focusRallyIds.includes(act.rallyId)))
+      .sort((a, b) => a.timestamp - b.timestamp)[0];
+    if (!first) return;
+
+    setActiveMediaTab('video_cuts');
+    setSelectedAction(first);
+    setCurrentTime(first.timestamp);
+    setVideoError(null);
+
+    if (videoRef.current) {
+      try {
+        videoRef.current.currentTime = first.timestamp;
+      } catch {
+        // Safe evidence seek.
+      }
+    }
+  }, [actions, focusRallyIds]);
 
   // Reload video element on source change (if not YouTube)
   useEffect(() => {
