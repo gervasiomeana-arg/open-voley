@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, ChangeEvent } from 'react';
 import { ScoutCodeAction, VolleySkill, EvaluationSymbol, MatchData } from '../types';
 import { VolleyballMediaStudio } from './VolleyballMediaStudio';
+import { SmartSportsEditor } from './SmartSportsEditor';
 import { ComputerVisionOverlay } from './ComputerVisionOverlay';
 import { sampleMatchData, defaultYouTubeMatchUrl, defaultYouTubeMatchTitle } from '../data/sampleMatch';
 import { 
@@ -75,7 +76,7 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
   focusTimestamp = null,
 }) => {
   // Video Sub-Tab: Video Player vs Volleyball Scout Media Studio
-  const [activeMediaTab, setActiveMediaTab] = useState<'video_cuts' | 'media_studio'>('video_cuts');
+  const [activeMediaTab, setActiveMediaTab] = useState<'video_cuts' | 'smart_editor' | 'media_studio'>('video_cuts');
 
   // Video playback states
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -93,6 +94,10 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
   const [customYtInput, setCustomYtInput] = useState<string>('');
   const [showYtInputModal, setShowYtInputModal] = useState<boolean>(false);
   const [isAutoScoutCvActive, setIsAutoScoutCvActive] = useState<boolean>(false);
+  const [playlistQueue, setPlaylistQueue] = useState<ScoutCodeAction[]>([]);
+  const [playlistIndex, setPlaylistIndex] = useState<number>(-1);
+  const [playlistPreRoll, setPlaylistPreRoll] = useState<number>(3);
+  const [playlistPostRoll, setPlaylistPostRoll] = useState<number>(3);
 
   // New Tag Form state
   const [tagPlayerName, setTagPlayerName] = useState<string>('Jugador');
@@ -104,6 +109,9 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const montageRecorderRef = useRef<MediaRecorder | null>(null);
+  const montageChunksRef = useRef<Blob[]>([]);
+  const montageExtensionRef = useRef<'mp4' | 'webm'>('webm');
 
   // Check if current source is YouTube
   const youtubeId = extractYouTubeId(videoSrc);
@@ -287,6 +295,140 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
     }
   };
 
+  const chooseMontageMimeType = () => {
+    const candidates = [
+      { mime: 'video/mp4;codecs=avc1.42E01E,mp4a.40.2', ext: 'mp4' as const },
+      { mime: 'video/mp4', ext: 'mp4' as const },
+      { mime: 'video/webm;codecs=vp9,opus', ext: 'webm' as const },
+      { mime: 'video/webm;codecs=vp8,opus', ext: 'webm' as const },
+      { mime: 'video/webm', ext: 'webm' as const },
+    ];
+    return candidates.find((candidate) => MediaRecorder.isTypeSupported(candidate.mime));
+  };
+
+  const finishMontageRecording = () => {
+    const recorder = montageRecorderRef.current;
+    if (recorder && recorder.state === 'recording') {
+      recorder.stop();
+    }
+  };
+
+  const exportPlaylistVideo = (queue: ScoutCodeAction[], preRoll: number, postRoll: number) => {
+    if (youtubeId) {
+      setVideoError('La exportación de montaje requiere un archivo de video local. YouTube no permite capturar el stream del iframe para generar un archivo.');
+      return;
+    }
+    const video = videoRef.current as (HTMLVideoElement & { captureStream?: () => MediaStream }) | null;
+    if (!video || queue.length === 0) {
+      setVideoError('Carga un archivo de video local antes de exportar el montaje.');
+      return;
+    }
+    if (typeof MediaRecorder === 'undefined' || typeof video.captureStream !== 'function') {
+      setVideoError('Este navegador no permite exportar el montaje directamente. Puedes reproducirlo y exportar la lista de cortes.');
+      return;
+    }
+
+    const format = chooseMontageMimeType();
+    if (!format) {
+      setVideoError('Este navegador no ofrece un formato de grabación compatible para exportar el montaje.');
+      return;
+    }
+
+    try {
+      const stream = video.captureStream();
+      montageChunksRef.current = [];
+      montageExtensionRef.current = format.ext;
+      const recorder = new MediaRecorder(stream, {
+        mimeType: format.mime,
+        videoBitsPerSecond: 6_000_000,
+        audioBitsPerSecond: 128_000,
+      });
+      montageRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) montageChunksRef.current.push(event.data);
+      };
+      recorder.onerror = () => {
+        setVideoError('No se pudo completar la exportación del montaje en este navegador.');
+      };
+      recorder.onstop = () => {
+        const chunks = montageChunksRef.current;
+        if (chunks.length === 0) {
+          setVideoError('La exportación terminó sin datos de video.');
+          return;
+        }
+        const extension = montageExtensionRef.current;
+        const mimeType = extension === 'mp4' ? 'video/mp4' : 'video/webm';
+        const blob = new Blob(chunks, { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        const safeTitle = match.title.replace(/[^a-zA-Z0-9-_]+/g, '-').replace(/^-+|-+$/g, '') || 'partido';
+        anchor.href = url;
+        anchor.download = `open-voley-${safeTitle}-montaje.${extension}`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      };
+
+      recorder.start(1000);
+      setVideoError(null);
+      startPlaylistPlayback(queue, preRoll, postRoll);
+    } catch {
+      setVideoError('No fue posible iniciar la exportación de video en este navegador.');
+      montageRecorderRef.current = null;
+    }
+  };
+
+  const startPlaylistPlayback = (queue: ScoutCodeAction[], preRoll: number, postRoll: number) => {
+    if (youtubeId) {
+      setVideoError('La reproducción secuencial automática requiere un archivo de video local. En YouTube puedes abrir cada clip individualmente.');
+      return;
+    }
+    if (!videoRef.current || queue.length === 0) {
+      setVideoError('Carga un archivo de video local antes de reproducir el montaje.');
+      return;
+    }
+    setPlaylistQueue(queue);
+    setPlaylistPreRoll(preRoll);
+    setPlaylistPostRoll(postRoll);
+    setPlaylistIndex(0);
+    setActiveMediaTab('video_cuts');
+    const first = queue[0];
+    const start = Math.max(0, first.timestamp - preRoll);
+    setSelectedAction(first);
+    setCurrentTime(start);
+    videoRef.current.currentTime = start;
+    videoRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+  };
+
+  useEffect(() => {
+    if (playlistIndex < 0 || playlistIndex >= playlistQueue.length || youtubeId) return;
+    const action = playlistQueue[playlistIndex];
+    const end = action.timestamp + playlistPostRoll;
+    if (currentTime < end) return;
+
+    const nextIndex = playlistIndex + 1;
+    if (nextIndex >= playlistQueue.length) {
+      if (videoRef.current) videoRef.current.pause();
+      setIsPlaying(false);
+      setPlaylistIndex(-1);
+      setPlaylistQueue([]);
+      finishMontageRecording();
+      return;
+    }
+
+    const next = playlistQueue[nextIndex];
+    const start = Math.max(0, next.timestamp - playlistPreRoll);
+    setPlaylistIndex(nextIndex);
+    setSelectedAction(next);
+    setCurrentTime(start);
+    if (videoRef.current) {
+      videoRef.current.currentTime = start;
+      videoRef.current.play().catch(() => {});
+    }
+  }, [currentTime, playlistIndex, playlistQueue, playlistPostRoll, playlistPreRoll, youtubeId]);
+
   // Process uploaded video file (e.g. phone recording .mp4/.mov)
   const processFile = (file: File) => {
     const sizeMb = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
@@ -407,6 +549,18 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
           </button>
 
           <button
+            onClick={() => setActiveMediaTab('smart_editor')}
+            className={`flex-1 sm:flex-none px-4 py-2.5 rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition ${
+              activeMediaTab === 'smart_editor'
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 scale-[1.02]'
+                : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700'
+            }`}
+          >
+            <Scissors className="w-4 h-4" />
+            <span>Editor Deportivo Inteligente</span>
+          </button>
+
+          <button
             onClick={() => setActiveMediaTab('media_studio')}
             className={`flex-1 sm:flex-none px-4 py-2.5 rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition ${
               activeMediaTab === 'media_studio'
@@ -423,6 +577,18 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
       {/* RENDER MEDIA STUDIO IF SELECTED */}
       {activeMediaTab === 'media_studio' ? (
         <VolleyballMediaStudio match={match} videoSrc={videoSrc} />
+      ) : activeMediaTab === 'smart_editor' ? (
+        <SmartSportsEditor
+          match={match}
+          actions={actions}
+          userCuts={userCuts}
+          onPreviewAction={(action) => {
+            setActiveMediaTab('video_cuts');
+            handleSelectClip(action);
+          }}
+          onPlayPlaylist={startPlaylistPlayback}
+          onExportVideo={exportPlaylistVideo}
+        />
       ) : (
         <div className="bg-slate-900 text-white p-4 sm:p-6 rounded-3xl shadow-xl border border-slate-800 space-y-6 animate-fadeIn">
           
