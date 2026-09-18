@@ -143,6 +143,7 @@ export default function App() {
   const [videoSrc, setVideoSrc] = useState<string>('');
   const [videoFileName, setVideoFileName] = useState<string | null>(null);
   const [videoFileSize, setVideoFileSize] = useState<string | null>(null);
+  const [videoFocusTimestamp, setVideoFocusTimestamp] = useState<number | null>(null);
   
   const [userCuts, setUserCuts] = useState<ScoutCodeAction[]>(() => {
     try {
@@ -1416,6 +1417,7 @@ export default function App() {
                   onClearCuts={handleClearUserCuts}
                   match={match}
                   focusRallyIds={evidenceRallyIds}
+                  focusTimestamp={videoFocusTimestamp}
                 />
               )}
             </div>
@@ -1467,6 +1469,7 @@ export default function App() {
                     setTeamsSubTab('training');
                   }}
                   onOpenVideoClips={(rallyIds) => {
+                    setVideoFocusTimestamp(null);
                     setEvidenceRallyIds(rallyIds || []);
                     setActiveTab('analysis');
                     setAnalysisSubTab('video');
@@ -1492,6 +1495,8 @@ export default function App() {
                   onClearRallies={handleClearAiRallies}
                   userCuts={userCuts}
                   onJumpToTimestamp={(sec) => {
+                    setEvidenceRallyIds([]);
+                    setVideoFocusTimestamp(sec);
                     setActiveTab('analysis');
                     setAnalysisSubTab('video');
                   }}
