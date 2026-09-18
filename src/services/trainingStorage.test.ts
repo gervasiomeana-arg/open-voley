@@ -8,8 +8,16 @@ import {
   STORAGE_TRAINING_SESSIONS_KEY,
 } from './trainingStorage';
 
-class MemoryStorage {
+class MemoryStorage implements Storage {
   private data = new Map<string, string>();
+
+  get length(): number {
+    return this.data.size;
+  }
+
+  key(index: number): string | null {
+    return Array.from(this.data.keys())[index] ?? null;
+  }
 
   getItem(key: string): string | null {
     return this.data.get(key) ?? null;
@@ -28,8 +36,10 @@ class MemoryStorage {
   }
 }
 
-(globalThis as typeof globalThis & { localStorage: MemoryStorage }).localStorage =
-  new MemoryStorage();
+Object.defineProperty(globalThis, 'localStorage', {
+  value: new MemoryStorage(),
+  configurable: true,
+});
 
 const session: TrainingSession = {
   id: 'training-persist-1',
