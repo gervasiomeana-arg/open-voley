@@ -812,12 +812,10 @@ export default function App() {
 
   const mobileNavItems: Array<{ id: TabType; label: string; icon: any }> = [
     { id: 'home', label: 'Inicio', icon: Home },
-    { id: 'team', label: 'Equipo', icon: Users },
-    { id: 'competition', label: 'Torneos', icon: Trophy },
     { id: 'match', label: 'Partido', icon: Volleyball },
     { id: 'analysis', label: 'Análisis', icon: TrendingUp },
     { id: 'ai', label: 'OPEN AI', icon: Sparkles },
-    { id: 'settings', label: 'Ajustes', icon: Settings },
+    { id: 'my-videos', label: 'Videos', icon: Inbox },
   ];
 
   // ==========================================
@@ -971,17 +969,17 @@ export default function App() {
               {/* Botón Principal: + Nuevo Partido */}
               <button
                 onClick={() => setIsNewMatchModalOpen(true)}
-                className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl flex items-center gap-1.5 shadow-md shadow-amber-500/20 transition cursor-pointer"
+                className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs w-10 h-10 sm:w-auto sm:h-auto sm:px-3 sm:py-2 rounded-xl flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/20 transition cursor-pointer"
                 title="Configurar y arrancar un nuevo partido"
               >
                 <PlusCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <span>+ Nuevo Partido</span>
+                <span className="hidden sm:inline">+ Nuevo Partido</span>
               </button>
 
               {/* Botón de Ayuda */}
               <button
                 onClick={() => setIsQuickGuideOpen(true)}
-                className="bg-indigo-600/30 hover:bg-indigo-600 text-indigo-200 hover:text-white font-black text-xs px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl flex items-center gap-1.5 border border-indigo-500/50 shadow-sm transition cursor-pointer"
+                className="hidden sm:flex bg-indigo-600/30 hover:bg-indigo-600 text-indigo-200 hover:text-white font-black text-xs px-3 py-2 rounded-xl items-center gap-1.5 border border-indigo-500/50 shadow-sm transition cursor-pointer"
                 title="¿Cómo funciona? Guía y ayuda interactiva"
               >
                 <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-300" />
@@ -993,7 +991,7 @@ export default function App() {
 
         {/* Barra Superior Contextual del Partido: Discreta, informativa, con retorno rápido [ ← Centro del Partido ] */}
         {!(activeTab === 'match' && matchesSubTab === 'center') && (
-          <div className="bg-slate-900 border-b border-amber-500/30 px-3 sm:px-6 py-2 flex items-center justify-between gap-3 shadow-md sticky top-[53px] sm:top-[57px] z-20 backdrop-blur-md">
+          <div className="bg-slate-900/95 border-b border-amber-500/30 px-3 sm:px-6 py-1.5 sm:py-2 flex items-center justify-between gap-2 sm:gap-3 shadow-md sticky top-[57px] z-20 backdrop-blur-md">
             <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
               <div className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
               <div className="flex items-center gap-2 text-xs sm:text-sm font-black text-white truncate">
@@ -1018,7 +1016,7 @@ export default function App() {
                 title="Volver a la pantalla principal del Centro del Partido"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
-                <span>← Centro del Partido</span>
+                <span className="hidden sm:inline">← Centro del Partido</span><span className="sm:hidden">Centro</span>
               </button>
 
               {!(activeTab === 'match' && matchesSubTab === 'scout') && (
@@ -1038,7 +1036,7 @@ export default function App() {
         )}
 
         {/* Tab Main Content */}
-        <main className="flex-1 px-3 sm:px-6 lg:px-8 py-4 sm:py-6 w-full max-w-[1600px] mx-auto pb-24 lg:pb-8">
+        <main className="flex-1 px-2.5 sm:px-6 lg:px-8 py-3 sm:py-6 w-full max-w-[1600px] mx-auto pb-24 lg:pb-8">
           
           {/* TAB 1: INICIO */}
           {activeTab === 'home' && (
@@ -1098,7 +1096,7 @@ export default function App() {
                     }`}
                   >
                     <Volleyball className="w-4 h-4" />
-                    <span>Centro del Partido</span>
+                    <span className="hidden sm:inline">Centro del Partido</span><span className="sm:hidden">Centro</span>
                   </button>
 
                   <button
@@ -1110,7 +1108,7 @@ export default function App() {
                     }`}
                   >
                     <Terminal className="w-4 h-4" />
-                    <span>Cancha 2D & Scouting en Vivo</span>
+                    <span className="hidden sm:inline">Cancha 2D & Scouting en Vivo</span><span className="sm:hidden">Scout</span>
                   </button>
 
                   <button
@@ -1122,7 +1120,7 @@ export default function App() {
                     }`}
                   >
                     <BarChart2 className="w-4 h-4" />
-                    <span>Planilla Oficial FIVB P2</span>
+                    <span className="hidden sm:inline">Planilla Oficial FIVB P2</span><span className="sm:hidden">Planilla</span>
                   </button>
 
                   <button
@@ -1134,11 +1132,11 @@ export default function App() {
                     }`}
                   >
                     <FolderKanban className="w-4 h-4" />
-                    <span>Información & Historial</span>
+                    <span className="hidden sm:inline">Información & Historial</span><span className="sm:hidden">Historial</span>
                   </button>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="hidden sm:flex items-center gap-2 shrink-0">
                   <button
                     onClick={handleSaveCurrentMatch}
                     className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-bold rounded-xl border border-slate-700 transition flex items-center gap-1.5"
@@ -1320,7 +1318,7 @@ export default function App() {
                     }`}
                   >
                     <Users className="w-3.5 h-3.5" />
-                    <span>Planteles & Jugadores</span>
+                    <span className="hidden sm:inline">Planteles & Jugadores</span><span className="sm:hidden">Plantel</span>
                   </button>
                   <button
                     onClick={() => setTeamsSubTab('training')}
@@ -1331,7 +1329,7 @@ export default function App() {
                     }`}
                   >
                     <Dumbbell className="w-3.5 h-3.5" />
-                    <span>Entrenamientos & Ejercicios</span>
+                    <span className="hidden sm:inline">Entrenamientos & Ejercicios</span><span className="sm:hidden">Entrenar</span>
                     {trainingFocusProblem && (
                       <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
                     )}
@@ -1392,7 +1390,7 @@ export default function App() {
                     }`}
                   >
                     <TrendingUp className="w-3.5 h-3.5" />
-                    <span>Informes Tácticos de Élite</span>
+                    <span className="hidden sm:inline">Informes Tácticos de Élite</span><span className="sm:hidden">Informes</span>
                   </button>
                   <button
                     onClick={() => setAnalysisSubTab('video')}
@@ -1403,7 +1401,7 @@ export default function App() {
                     }`}
                   >
                     <Video className="w-3.5 h-3.5" />
-                    <span>Video Sincronizado & Cortes</span>
+                    <span className="hidden sm:inline">Video Sincronizado & Cortes</span><span className="sm:hidden">Video</span>
                     {userCuts.length > 0 && (
                       <span className="px-1.5 py-0.2 bg-emerald-950/70 text-emerald-300 rounded text-[10px] font-mono">
                         {userCuts.length}
@@ -1452,7 +1450,7 @@ export default function App() {
                     }`}
                   >
                     <Sparkles className="w-3.5 h-3.5" />
-                    <span>OPEN AI Coach & Asistente</span>
+                    <span className="hidden sm:inline">OPEN AI Coach & Asistente</span><span className="sm:hidden">Coach</span>
                   </button>
                   <button
                     onClick={() => setAiSubTab('telemetry')}
@@ -1463,7 +1461,7 @@ export default function App() {
                     }`}
                   >
                     <Activity className="w-3.5 h-3.5" />
-                    <span>Visión Artificial & Telemetría</span>
+                    <span className="hidden sm:inline">Visión Artificial & Telemetría</span><span className="sm:hidden">Telemetría</span>
                     {aiRallies.length > 0 && (
                       <span className="px-1.5 py-0.2 bg-purple-950 text-purple-300 rounded text-[10px] font-mono">
                         {aiRallies.length} rallies
@@ -1543,7 +1541,7 @@ export default function App() {
         </main>
 
         {/* Mobile Fixed Bottom Navigation Bar (Thumb friendly for mobile devices) */}
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-lg border-t border-slate-800 px-2 py-1.5 flex items-center justify-around shadow-2xl safe-area-bottom">
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-lg border-t border-slate-800 px-1.5 pt-1.5 pb-[max(.375rem,env(safe-area-inset-bottom))] grid grid-cols-5 items-center shadow-2xl">
           {mobileNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -1551,7 +1549,7 @@ export default function App() {
               <button
                 key={item.id}
                 onClick={() => handleSelectTab(item.id)}
-                className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all min-w-[58px] min-h-[46px] ${
+                className={`flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all min-h-[48px] ${
                   isActive
                     ? item.id === 'ai'
                       ? 'text-purple-400 font-black'
