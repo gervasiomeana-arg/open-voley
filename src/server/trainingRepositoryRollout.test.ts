@@ -4,7 +4,16 @@ import {
   JsonTrainingRepository,
   TrainingRepository,
   createTrainingRepositoryForDriver,
+  resolveTrainingStorageDriver,
 } from './trainingRepository';
+
+assert.equal(resolveTrainingStorageDriver(undefined), 'sqlite');
+assert.equal(resolveTrainingStorageDriver(''), 'sqlite');
+assert.equal(resolveTrainingStorageDriver('sqlite'), 'sqlite');
+assert.equal(resolveTrainingStorageDriver('SQLITE'), 'sqlite');
+assert.equal(resolveTrainingStorageDriver('json'), 'json');
+assert.equal(resolveTrainingStorageDriver(' JSON '), 'json');
+assert.equal(resolveTrainingStorageDriver('unexpected'), 'sqlite');
 
 class FakeSqliteRepository implements TrainingRepository {
   async list(_userId: string): Promise<TrainingSession[]> {
