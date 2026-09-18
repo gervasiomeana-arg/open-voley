@@ -50,7 +50,15 @@ export class JsonTrainingRepository implements TrainingRepository {
   }
 }
 
-let repository: TrainingRepository = new JsonTrainingRepository();
+function createTrainingRepository(): TrainingRepository {
+  const driver = process.env.OPENVOLEY_STORAGE_DRIVER?.trim().toLowerCase();
+  if (driver === 'sqlite') {
+    return new SqliteTrainingRepository();
+  }
+  return new JsonTrainingRepository();
+}
+
+let repository: TrainingRepository = createTrainingRepository();
 
 export function getTrainingRepository(): TrainingRepository {
   return repository;
