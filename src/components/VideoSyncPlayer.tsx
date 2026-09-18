@@ -109,6 +109,9 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const montageRecorderRef = useRef<MediaRecorder | null>(null);
+  const montageChunksRef = useRef<Blob[]>([]);
+  const montageExtensionRef = useRef<'mp4' | 'webm'>('webm');
 
   // Check if current source is YouTube
   const youtubeId = extractYouTubeId(videoSrc);
@@ -292,6 +295,91 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
     }
   };
 
+  const chooseMontageMimeType = () => {
+    const candidates = [
+      { mime: 'video/mp4;codecs=avc1.42E01E,mp4a.40.2', ext: 'mp4' as const },
+      { mime: 'video/mp4', ext: 'mp4' as const },
+      { mime: 'video/webm;codecs=vp9,opus', ext: 'webm' as const },
+      { mime: 'video/webm;codecs=vp8,opus', ext: 'webm' as const },
+      { mime: 'video/webm', ext: 'webm' as const },
+    ];
+    return candidates.find((candidate) => MediaRecorder.isTypeSupported(candidate.mime));
+  };
+
+  const finishMontageRecording = () => {
+    const recorder = montageRecorderRef.current;
+    if (recorder && recorder.state === 'recording') {
+      recorder.stop();
+    }
+  };
+
+  const exportPlaylistVideo = (queue: ScoutCodeAction[], preRoll: number, postRoll: number) => {
+    if (youtubeId) {
+      setVideoError('La exportación de montaje requiere un archivo de video local. YouTube no permite capturar el stream del iframe para generar un archivo.');
+      return;
+    }
+    const video = videoRef.current as (HTMLVideoElement & { captureStream?: () => MediaStream }) | null;
+    if (!video || queue.length === 0) {
+      setVideoError('Carga un archivo de video local antes de exportar el montaje.');
+      return;
+    }
+    if (typeof MediaRecorder === 'undefined' || typeof video.captureStream !== 'function') {
+      setVideoError('Este navegador no permite exportar el montaje directamente. Puedes reproducirlo y exportar la lista de cortes.');
+      return;
+    }
+
+    const format = chooseMontageMimeType();
+    if (!format) {
+      setVideoError('Este navegador no ofrece un formato de grabación compatible para exportar el montaje.');
+      return;
+    }
+
+    try {
+      const stream = video.captureStream();
+      montageChunksRef.current = [];
+      montageExtensionRef.current = format.ext;
+      const recorder = new MediaRecorder(stream, {
+        mimeType: format.mime,
+        videoBitsPerSecond: 6_000_000,
+        audioBitsPerSecond: 128_000,
+      });
+      montageRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) montageChunksRef.current.push(event.data);
+      };
+      recorder.onerror = () => {
+        setVideoError('No se pudo completar la exportación del montaje en este navegador.');
+      };
+      recorder.onstop = () => {
+        const chunks = montageChunksRef.current;
+        if (chunks.length === 0) {
+          setVideoError('La exportación terminó sin datos de video.');
+          return;
+        }
+        const extension = montageExtensionRef.current;
+        const mimeType = extension === 'mp4' ? 'video/mp4' : 'video/webm';
+        const blob = new Blob(chunks, { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        const safeTitle = match.title.replace(/[^a-zA-Z0-9-_]+/g, '-').replace(/^-+|-+$/g, '') || 'partido';
+        anchor.href = url;
+        anchor.download = `open-voley-${safeTitle}-montaje.${extension}`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      };
+
+      recorder.start(1000);
+      setVideoError(null);
+      startPlaylistPlayback(queue, preRoll, postRoll);
+    } catch {
+      setVideoError('No fue posible iniciar la exportación de video en este navegador.');
+      montageRecorderRef.current = null;
+    }
+  };
+
   const startPlaylistPlayback = (queue: ScoutCodeAction[], preRoll: number, postRoll: number) => {
     if (youtubeId) {
       setVideoError('La reproducción secuencial automática requiere un archivo de video local. En YouTube puedes abrir cada clip individualmente.');
@@ -326,6 +414,7 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
       setIsPlaying(false);
       setPlaylistIndex(-1);
       setPlaylistQueue([]);
+      finishMontageRecording();
       return;
     }
 
@@ -498,6 +587,7 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
             handleSelectClip(action);
           }}
           onPlayPlaylist={startPlaylistPlayback}
+          onExportVideo={exportPlaylistVideo}
         />
       ) : (
         <div className="bg-slate-900 text-white p-4 sm:p-6 rounded-3xl shadow-xl border border-slate-800 space-y-6 animate-fadeIn">
