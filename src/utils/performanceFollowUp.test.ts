@@ -163,6 +163,21 @@ const sameMatchResult = evaluatePerformanceFollowUp(sideoutTarget, sourceSideout
 assert.equal(sameMatchResult.status, 'not_comparable');
 assert.match(sameMatchResult.message, /partido de origen/i);
 
+const olderMatch = { ...nextSideout, id: 'older-sideout', date: '2026-09-17' };
+const olderMatchResult = evaluatePerformanceFollowUp(sideoutTarget, olderMatch);
+assert.equal(olderMatchResult.status, 'not_comparable');
+assert.match(olderMatchResult.message, /no es posterior/i);
+
+const otherTeamMatch = {
+  ...nextSideout,
+  id: 'other-team-sideout',
+  date: '2026-09-19',
+  homeTeamName: 'Another Team',
+};
+const otherTeamResult = evaluatePerformanceFollowUp(sideoutTarget, otherTeamMatch);
+assert.equal(otherTeamResult.status, 'not_comparable');
+assert.match(otherTeamResult.message, /este objetivo pertenece/i);
+
 const manualTarget: TrainingPerformanceTarget = {
   metric: 'manual',
   label: 'Objetivo manual',
