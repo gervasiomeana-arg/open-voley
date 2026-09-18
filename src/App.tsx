@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MatchData, Player, ScoutCodeAction, TeamSide, ClientUser, TrialInfo, RallyDetection, UserRole } from './types';
+import { MatchData, Player, ScoutCodeAction, TeamSide, ClientUser, TrialInfo, RallyDetection, UserRole, TrainingEvidenceContext } from './types';
 import { sampleMatchData } from './data/sampleMatch';
 import { ResearchTab } from './components/ResearchTab';
 import { UnifiedTacticalHub } from './components/UnifiedTacticalHub';
