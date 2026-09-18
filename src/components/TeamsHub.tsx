@@ -192,17 +192,17 @@ export const TeamsHub: React.FC<TeamsHubProps> = ({
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-200">
+    <div className="space-y-3 sm:space-y-6 animate-in fade-in duration-200">
       
       {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xl">
+      <div className="flex items-center justify-between gap-3 bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-3 sm:p-6 shadow-xl">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-cyan-500/20 text-cyan-400 rounded-2xl border border-cyan-500/30">
+          <div className="hidden sm:block p-3 bg-cyan-500/20 text-cyan-400 rounded-2xl border border-cyan-500/30">
             <Users className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-xl sm:text-2xl font-black text-white">Gestión de Equipos & Planteles</h2>
-            <p className="text-xs sm:text-sm text-slate-400">
+            <h2 className="text-base sm:text-2xl font-black text-white">Equipos & Planteles</h2>
+            <p className="hidden sm:block text-sm text-slate-400">
               Administra tus equipos propios, clubes rivales y listas completas de jugadores
             </p>
           </div>
@@ -216,12 +216,12 @@ export const TeamsHub: React.FC<TeamsHubProps> = ({
           className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs sm:text-sm px-4 py-2.5 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition cursor-pointer self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" />
-          <span>Crear Nuevo Equipo</span>
+          <span className="hidden sm:inline">Crear Nuevo Equipo</span><span className="sm:hidden">Equipo</span>
         </button>
       </div>
 
       {/* Main Grid: Left List + Right Detail */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-6">
 
         {/* LEFT COLUMN: TEAM SELECTOR (4 COLS) */}
         <div className="lg:col-span-4 space-y-4">
@@ -262,7 +262,7 @@ export const TeamsHub: React.FC<TeamsHubProps> = ({
           </div>
 
           {/* List of Teams in Active Tab */}
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-3 sm:p-4 space-y-2 max-h-[600px] overflow-y-auto custom-scrollbar">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-2 sm:p-4 space-y-2 max-h-[240px] sm:max-h-[600px] overflow-y-auto custom-scrollbar">
             {filteredTeams.length > 0 ? (
               filteredTeams.map((team) => {
                 const isSelected = team.id === (currentTeam?.id || selectedTeamId);
@@ -320,7 +320,7 @@ export const TeamsHub: React.FC<TeamsHubProps> = ({
         {/* RIGHT COLUMN: TEAM DETAILS & PLAYERS (8 COLS) */}
         <div className="lg:col-span-8 space-y-4">
           {currentTeam ? (
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 space-y-6 shadow-xl">
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-3 sm:p-6 space-y-4 sm:space-y-6 shadow-xl">
               
               {/* Team Header & Actions */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-800">
@@ -431,7 +431,7 @@ export const TeamsHub: React.FC<TeamsHubProps> = ({
                       title="Pegar lista de jugadores desde Excel, WhatsApp o texto"
                     >
                       <ClipboardPaste className="w-3.5 h-3.5 text-cyan-400" />
-                      <span>Pegar Roster</span>
+                      <span className="hidden sm:inline">Pegar Roster</span><span className="sm:hidden">Pegar</span>
                     </button>
 
                     <button
@@ -448,7 +448,7 @@ export const TeamsHub: React.FC<TeamsHubProps> = ({
                       className="px-3 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black rounded-xl flex items-center gap-1.5 shadow-md shadow-amber-500/20 transition"
                     >
                       <UserPlus className="w-3.5 h-3.5" />
-                      <span>+ Agregar Jugador</span>
+                      <span className="hidden sm:inline">+ Agregar Jugador</span><span className="sm:hidden">+ Jugador</span>
                     </button>
                   </div>
                 </div>
