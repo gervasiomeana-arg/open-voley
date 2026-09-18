@@ -69,5 +69,8 @@ jobs:
       - name: OPEN AI conversation context tests
         run: npm run test:open-ai-context
 
+      - name: End-to-end real match flow
+        run: npm run test:e2e-real-match
+
       - name: Production build
         run: npm run build
