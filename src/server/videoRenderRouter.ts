@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { spawn, spawnSync } from 'child_process';
 import { getSessionFromRequest } from './sessionSecurity';
+import { normalizeVideoRenderClips } from './videoRenderPlan';
 
 type RenderStatus = 'queued' | 'rendering' | 'ready' | 'failed';
 interface RenderJob {
@@ -75,16 +76,9 @@ router.put(
 router.post('/render', async (req, res) => {
   const userId = String(res.locals.sessionUserId);
   const matchId = safePart(req.body?.matchId, 'match');
-  const clips = Array.isArray(req.body?.clips) ? req.body.clips : [];
   if (!ffmpegAvailable()) return res.status(503).json({ error: 'FFmpeg is not available on this server' });
-  if (clips.length < 1 || clips.length > 500) return res.status(400).json({ error: 'Invalid clip list' });
-  const normalized = clips.map((clip: any) => ({
-    startSec: Math.max(0, Number(clip?.startSec)),
-    endSec: Math.max(0, Number(clip?.endSec)),
-  }));
-  if (normalized.some((clip) => !Number.isFinite(clip.startSec) || !Number.isFinite(clip.endSec) || clip.endSec <= clip.startSec || clip.endSec - clip.startSec > 120)) {
-    return res.status(400).json({ error: 'Invalid clip timing' });
-  }
+  const normalized = normalizeVideoRenderClips(req.body?.clips);
+  if (!normalized) return res.status(400).json({ error: 'Invalid clip list or timing' });
   const source = sourcePath(userId, matchId);
   if (!fs.existsSync(source)) return res.status(409).json({ error: 'Upload the local match video before rendering' });
 
