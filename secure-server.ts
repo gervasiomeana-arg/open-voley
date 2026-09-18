@@ -4,6 +4,7 @@ import { requestProtection } from './src/server/requestProtection';
 import { securityMiddleware } from './src/server/securityMiddleware';
 import { secureMercadoPago } from './src/server/secureMercadoPago';
 import { securePaymentConfirmation } from './src/server/securePaymentConfirmation';
+import { trainingSessionsRouter } from './src/server/trainingSessionsRouter';
 
 const expressApplication = express.application as any;
 const originalInit = expressApplication.init;
@@ -17,6 +18,7 @@ expressApplication.init = function patchedInit(this: any) {
   this.use(secureMercadoPago);
   this.use(securePaymentConfirmation);
   this.use('/api/auth', authMeRouter);
+  this.use('/api/training-sessions', trainingSessionsRouter);
 };
 
 import('./server.ts').catch((error) => {
