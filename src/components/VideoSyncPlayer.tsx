@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, ChangeEvent } from 'react';
 import { ScoutCodeAction, VolleySkill, EvaluationSymbol, MatchData } from '../types';
 import { VolleyballMediaStudio } from './VolleyballMediaStudio';
+import { SmartSportsEditor } from './SmartSportsEditor';
 import { ComputerVisionOverlay } from './ComputerVisionOverlay';
 import { sampleMatchData, defaultYouTubeMatchUrl, defaultYouTubeMatchTitle } from '../data/sampleMatch';
 import { 
@@ -75,7 +76,7 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
   focusTimestamp = null,
 }) => {
   // Video Sub-Tab: Video Player vs Volleyball Scout Media Studio
-  const [activeMediaTab, setActiveMediaTab] = useState<'video_cuts' | 'media_studio'>('video_cuts');
+  const [activeMediaTab, setActiveMediaTab] = useState<'video_cuts' | 'smart_editor' | 'media_studio'>('video_cuts');
 
   // Video playback states
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -407,6 +408,18 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
           </button>
 
           <button
+            onClick={() => setActiveMediaTab('smart_editor')}
+            className={`flex-1 sm:flex-none px-4 py-2.5 rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition ${
+              activeMediaTab === 'smart_editor'
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 scale-[1.02]'
+                : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700'
+            }`}
+          >
+            <Scissors className="w-4 h-4" />
+            <span>Editor Deportivo Inteligente</span>
+          </button>
+
+          <button
             onClick={() => setActiveMediaTab('media_studio')}
             className={`flex-1 sm:flex-none px-4 py-2.5 rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition ${
               activeMediaTab === 'media_studio'
@@ -423,6 +436,16 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
       {/* RENDER MEDIA STUDIO IF SELECTED */}
       {activeMediaTab === 'media_studio' ? (
         <VolleyballMediaStudio match={match} videoSrc={videoSrc} />
+      ) : activeMediaTab === 'smart_editor' ? (
+        <SmartSportsEditor
+          match={match}
+          actions={actions}
+          userCuts={userCuts}
+          onPreviewAction={(action) => {
+            setActiveMediaTab('video_cuts');
+            handleSelectClip(action);
+          }}
+        />
       ) : (
         <div className="bg-slate-900 text-white p-4 sm:p-6 rounded-3xl shadow-xl border border-slate-800 space-y-6 animate-fadeIn">
           
