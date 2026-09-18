@@ -20,6 +20,7 @@ import {
 import { TrainingSession, TrainingExercise, MatchData, TrainingEvidenceContext } from '../types';
 import { sampleTrainingSessions } from '../data/sampleCompetitionAndTraining';
 import { buildEvidenceExercises, buildTrainingEvidenceNote } from '../utils/trainingEvidence';
+import { buildPerformanceTargetFromMatch } from '../utils/performanceFollowUp';
 
 interface TrainingCenterProps {
   match?: MatchData;
@@ -51,6 +52,20 @@ export const TrainingCenter: React.FC<TrainingCenterProps> = ({
     setTimeout(() => {
       const evidenceNote = buildTrainingEvidenceNote(evidenceContext);
 
+      const performanceTarget =
+        match && evidenceContext?.metric
+          ? buildPerformanceTargetFromMatch(match, {
+              metric: evidenceContext.metric,
+              label: evidenceContext.title,
+              teamSide: evidenceContext.teamSide || 'home',
+              rotationRef: evidenceContext.rotationRef,
+              serveType: evidenceContext.serveType,
+              zoneRef: evidenceContext.zoneRef,
+              sourceInsightId: evidenceContext.insightId,
+              sourceRallyIds: evidenceContext.rallyIds,
+            })
+          : undefined;
+
       const newSession: TrainingSession = {
         id: `train_${Date.now()}`,
         title: `Sesión Táctica: ${genProblem.substring(0, 38)}`,
@@ -60,6 +75,7 @@ export const TrainingCenter: React.FC<TrainingCenterProps> = ({
         playersCount: genPlayers,
         focusProblem: genProblem,
         linkedMatchId: match?.id,
+        performanceTarget,
         status: 'planned',
         completed: false,
         notes: `${evidenceNote} Objetivo: generar una nueva muestra comparable en el próximo control.`,
