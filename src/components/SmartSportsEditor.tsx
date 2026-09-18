@@ -21,6 +21,7 @@ import { getSavedSmartSportsMontages } from '../services/smartSportsMontageStora
 import {
   deleteMontageLocallyFirst,
   saveMontageLocallyFirst,
+  publishMontageConfirmed,
   syncSmartSportsMontages,
 } from '../services/smartSportsMontageSync';
 
@@ -241,7 +242,7 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
     setRecipientEmail(montage.recipientEmail || '');
   };
 
-  const publishMontage = () => {
+  const publishMontage = async () => {
     if (selectedPlaylist.length === 0) {
       setPublishStatus('El montaje no tiene clips.');
       return;
@@ -275,11 +276,16 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
       recipientEmail: email,
       publishedAt: now,
     };
-    const updated = saveMontageLocallyFirst(montage).filter((item) => item.matchId === match.id);
-    setSavedMontages(updated);
+    setPublishStatus('Publicando en OPEN VOLEY...');
+    const result = await publishMontageConfirmed(montage);
+    setSavedMontages(result.montages.filter((item) => item.matchId === match.id));
     setActiveMontageId(montage.id);
     setMontageName(montage.name);
-    setPublishStatus(`Publicado para ${email}`);
+    setPublishStatus(
+      result.ok
+        ? `Publicado para ${email}`
+        : 'El montaje quedó guardado localmente, pero no se pudo confirmar la publicación. Revisa tu conexión e intenta nuevamente.'
+    );
   };
 
   const removeMontage = (id: string) => {
