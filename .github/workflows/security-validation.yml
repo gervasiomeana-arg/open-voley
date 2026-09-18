@@ -51,5 +51,8 @@ jobs:
       - name: SQLite repository tests
         run: npm run test:training-sqlite
 
+      - name: SQLite rollout tests
+        run: npm run test:sqlite-rollout
+
       - name: Production build
         run: npm run build
