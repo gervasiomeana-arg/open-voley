@@ -1161,6 +1161,58 @@ const ReportServePassSeams: React.FC<ReportServePassSeamsProps> = ({
 
   const targetZone = [...zoneStats].filter((row) => row.total >= 2).sort((a, b) => b.negativePct - a.negativePct)[0];
 
+  const serveReceptionMatrix = useMemo(() => {
+    const serveTypes: Array<NonNullable<ScoutCodeAction['serveType']>> = ['float', 'jump_float', 'jump_spin', 'standing'];
+    const rows = serveTypes.flatMap((serveType) =>
+      [1, 2, 3, 4, 5, 6].map((zone) => {
+        const serves = actions.filter(
+          (action) =>
+            action.team !== teamSide &&
+            action.skill === 'S' &&
+            action.serveType === serveType &&
+            action.endZone === zone &&
+            action.rallyId,
+        );
+
+        const receptions = serves.flatMap((serve) =>
+          actions.filter(
+            (action) =>
+              action.team === teamSide &&
+              action.skill === 'R' &&
+              action.rallyId === serve.rallyId,
+          ),
+        );
+
+        const errors = receptions.filter((action) => action.evaluation === '=').length;
+        const negative = receptions.filter((action) =>
+          action.receptionContext === 'negative' || ['=', '/', '-', '!'].includes(action.evaluation),
+        ).length;
+        const positive = receptions.filter((action) =>
+          action.receptionContext === 'positive' || action.evaluation === '+' || action.evaluation === '#',
+        ).length;
+
+        return {
+          serveType,
+          zone,
+          total: receptions.length,
+          errors,
+          negativePct: receptions.length ? Math.round((negative / receptions.length) * 100) : 0,
+          positivePct: receptions.length ? Math.round((positive / receptions.length) * 100) : 0,
+        };
+      }),
+    );
+
+    return rows.filter((row) => row.total > 0);
+  }, [actions, teamSide]);
+
+  const serveTypeLabel: Record<NonNullable<ScoutCodeAction['serveType']>, string> = {
+    float: 'Flotante',
+    jump_float: 'Jump Float',
+    jump_spin: 'Potencia',
+    standing: 'De pie',
+    unknown: 'Desconocido',
+  };
+
   return (
     <div className="space-y-6">
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl">
@@ -1242,8 +1294,56 @@ const ReportServePassSeams: React.FC<ReportServePassSeamsProps> = ({
             </table>
           </div>
           <p className="text-[11px] text-slate-500">
-            “Costuras” entre receptores y saque flotante/potencia requieren campos adicionales en el scouting. OPEN VOLEY no los inventa.
+            Las costuras entre dos receptores todavía requieren una captura específica. OPEN VOLEY no las infiere.
           </p>
+        </div>
+      </div>
+
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h4 className="text-sm font-black text-white">Tipo de saque × zona × recepción</h4>
+            <p className="text-[11px] text-slate-500 mt-1">
+              Cruce exacto por rally entre el saque rival etiquetado y la recepción posterior.
+            </p>
+          </div>
+          <span className="text-[11px] font-mono text-cyan-300">
+            {serveReceptionMatrix.reduce((sum, row) => sum + row.total, 0)} recepciones vinculadas
+          </span>
+        </div>
+
+        <div className="overflow-x-auto rounded-2xl border border-slate-800">
+          <table className="w-full text-xs">
+            <thead className="bg-slate-950 text-slate-400 text-[10px] uppercase">
+              <tr>
+                <th className="px-3 py-2 text-left">Saque</th>
+                <th className="px-3 py-2 text-center">Destino</th>
+                <th className="px-3 py-2 text-center">Rec</th>
+                <th className="px-3 py-2 text-center">Err</th>
+                <th className="px-3 py-2 text-center">Neg %</th>
+                <th className="px-3 py-2 text-center">Pos +%</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800">
+              {serveReceptionMatrix.map((row) => (
+                <tr key={`${row.serveType}-${row.zone}`}>
+                  <td className="px-3 py-2 font-bold text-white">{serveTypeLabel[row.serveType]}</td>
+                  <td className="px-3 py-2 text-center font-black text-amber-300">Z{row.zone}</td>
+                  <td className="px-3 py-2 text-center text-slate-300">{row.total}</td>
+                  <td className="px-3 py-2 text-center text-rose-400">{row.errors}</td>
+                  <td className="px-3 py-2 text-center text-amber-300">{row.negativePct}%</td>
+                  <td className="px-3 py-2 text-center text-cyan-300">{row.positivePct}%</td>
+                </tr>
+              ))}
+              {serveReceptionMatrix.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
+                    Sin rallies con tipo de saque + zona destino + recepción vinculados.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
