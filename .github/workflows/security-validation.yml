@@ -30,5 +30,8 @@ jobs:
       - name: Analytics metrics tests
         run: npm run test:analytics
 
+      - name: Evidence insight tests
+        run: npm run test:evidence
+
       - name: Production build
         run: npm run build

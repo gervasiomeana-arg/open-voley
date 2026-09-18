@@ -9,7 +9,8 @@
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist server.cjs",
     "lint": "tsc --noEmit",
-    "test:analytics": "tsx src/utils/dataVolleyAnalytics.test.ts"
+    "test:analytics": "tsx src/utils/dataVolleyAnalytics.test.ts",
+    "test:evidence": "tsx src/utils/evidenceInsights.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
