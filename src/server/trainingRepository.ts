@@ -109,10 +109,10 @@ function createTrainingRepository(): {
   repository: TrainingRepository;
   status: TrainingRepositoryStatus;
 } {
-  const requestedDriver =
-    process.env.OPENVOLEY_STORAGE_DRIVER?.trim().toLowerCase() === 'sqlite'
-      ? 'sqlite'
-      : 'json';
+  const configuredDriver = process.env.OPENVOLEY_STORAGE_DRIVER?.trim().toLowerCase();
+  // SQLite is now the primary driver. Set OPENVOLEY_STORAGE_DRIVER=json only
+  // as an explicit operational rollback while the transition is monitored.
+  const requestedDriver = configuredDriver === 'json' ? 'json' : 'sqlite';
   return createTrainingRepositoryForDriver(requestedDriver);
 }
 
