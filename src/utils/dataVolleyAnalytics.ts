@@ -65,8 +65,16 @@ function actionRotation(action: ScoutCodeAction, match: MatchData, teamSide: Tea
 
 function sameRallyWindow(actions: ScoutCodeAction[], startIndex: number, maxSeconds = 25): ScoutCodeAction[] {
   const start = actions[startIndex];
-  const result: ScoutCodeAction[] = [];
 
+  // Prefer explicit structured rally membership whenever available.
+  if (start.rallyId) {
+    return actions
+      .filter((action, index) => index !== startIndex && action.rallyId === start.rallyId)
+      .sort((a, b) => (a.rallySequence || 0) - (b.rallySequence || 0));
+  }
+
+  // Backward-compatible fallback for historical matches without rallyId.
+  const result: ScoutCodeAction[] = [];
   for (let i = startIndex + 1; i < actions.length; i += 1) {
     const action = actions[i];
     if (action.setNumber !== start.setNumber) break;
@@ -92,8 +100,8 @@ function observedSideout(actions: ScoutCodeAction[], teamSide: TeamSide, rotatio
     const window = sameRallyWindow(actions, index);
     const pointWon = window.some((next) =>
       next.team === teamSide &&
-      ['A', 'B'].includes(next.skill) &&
-      next.evaluation === '#'
+      next.evaluation === '#' &&
+      (next.phase === 'K1' || (!next.phase && ['A', 'B'].includes(next.skill)))
     );
     if (pointWon) won += 1;
   });
@@ -118,8 +126,8 @@ function observedBreakPoint(actions: ScoutCodeAction[], teamSide: TeamSide, rota
     const window = sameRallyWindow(actions, index);
     const pointWon = window.some((next) =>
       next.team === teamSide &&
-      ['A', 'B'].includes(next.skill) &&
-      next.evaluation === '#'
+      next.evaluation === '#' &&
+      (next.phase === 'K2' || (!next.phase && ['A', 'B'].includes(next.skill)))
     );
     if (pointWon) won += 1;
   });
