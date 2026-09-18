@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { TrainingSession } from '../types';
+import { SqliteTrainingRepository } from './trainingSqliteRepository';
 import {
   UserTrainingRecord,
   deleteUserTrainingSession,
