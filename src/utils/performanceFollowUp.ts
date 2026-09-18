@@ -93,6 +93,16 @@ export function evaluatePerformanceFollowUp(
   currentMatch: MatchData,
   minSample = MIN_COMPARABLE_SAMPLE,
 ): PerformanceFollowUpResult {
+  if (target.sourceMatchId && currentMatch.id === target.sourceMatchId) {
+    return {
+      status: 'not_comparable',
+      label: target.label,
+      baselineValue: target.baselineValue,
+      baselineSample: target.baselineSample,
+      message: 'Este es el partido de origen del objetivo. La comparación debe hacerse con un partido posterior.',
+    };
+  }
+
   if (target.metric === 'manual') {
     return {
       status: 'not_comparable',
