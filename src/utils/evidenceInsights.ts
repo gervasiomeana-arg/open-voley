@@ -38,6 +38,7 @@ export function buildEvidenceInsights(match: MatchData, analyzedTeam: TeamSide):
       actionLabel: 'Ver análisis',
       actionType: 'view_analysis',
       rotationRef: weakest.rotation,
+      performanceMetric: 'sideout_pct',
       rallyIds: [...new Set((match.actions || [])
         .filter((action) => {
           if (action.team !== analyzedTeam || action.skill !== 'R' || !action.rallyId) return false;
@@ -136,6 +137,9 @@ export function buildEvidenceInsights(match: MatchData, analyzedTeam: TeamSide):
       evidenceCount: topTarget.total,
       actionLabel: 'Ver evidencia',
       actionType: 'view_video',
+      performanceMetric: 'reception_negative_pct',
+      serveTypeRef: topTarget.serveType,
+      zoneRef: topTarget.zone,
       rallyIds: [...new Set((match.actions || [])
         .filter((action) =>
           action.team === opponent &&

@@ -244,6 +244,35 @@ export interface TrainingEvidenceContext {
   rallyIds?: string[];
   rotationRef?: number;
   category?: 'rotation_sideout' | 'serve_reception' | 'attack' | 'serve' | 'reception' | 'generic';
+  metric?: TrainingPerformanceTarget['metric'];
+  serveType?: ScoutCodeAction['serveType'];
+  zoneRef?: number;
+  teamSide?: TeamSide;
+}
+
+export interface TrainingPerformanceTarget {
+  metric: 'sideout_pct' | 'reception_negative_pct' | 'attack_efficiency_pct' | 'serve_efficiency_pct' | 'manual';
+  label: string;
+  teamSide: TeamSide;
+  baselineValue?: number;
+  baselineSample?: number;
+  rotationRef?: number;
+  serveType?: ScoutCodeAction['serveType'];
+  zoneRef?: number;
+  sourceMatchId?: string;
+  sourceInsightId?: string;
+  sourceRallyIds?: string[];
+}
+
+export interface PerformanceFollowUpResult {
+  status: 'improved' | 'declined' | 'stable' | 'insufficient_data' | 'not_comparable';
+  label: string;
+  baselineValue?: number;
+  currentValue?: number;
+  delta?: number;
+  baselineSample?: number;
+  currentSample?: number;
+  message: string;
 }
 
 export interface TrainingSession {
@@ -255,6 +284,7 @@ export interface TrainingSession {
   playersCount: number;
   focusProblem: string;
   linkedMatchId?: string;
+  performanceTarget?: TrainingPerformanceTarget;
   exercises: TrainingExercise[];
   notes?: string;
   status: 'planned' | 'completed';
@@ -273,6 +303,9 @@ export interface AiEvidenceInsight {
   actionType?: 'view_video' | 'generate_training' | 'view_players' | 'view_analysis';
   rotationRef?: number;
   playerNumRef?: number;
+  performanceMetric?: TrainingPerformanceTarget['metric'];
+  serveTypeRef?: ScoutCodeAction['serveType'];
+  zoneRef?: number;
   /** Exact rallies supporting the finding; used to jump from insight to evidence. */
   rallyIds?: string[];
 }

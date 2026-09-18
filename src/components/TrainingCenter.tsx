@@ -20,6 +20,7 @@ import {
 import { TrainingSession, TrainingExercise, MatchData, TrainingEvidenceContext } from '../types';
 import { sampleTrainingSessions } from '../data/sampleCompetitionAndTraining';
 import { buildEvidenceExercises, buildTrainingEvidenceNote } from '../utils/trainingEvidence';
+import { buildPerformanceTargetFromMatch, evaluatePerformanceFollowUp } from '../utils/performanceFollowUp';
 
 interface TrainingCenterProps {
   match?: MatchData;
@@ -45,11 +46,29 @@ export const TrainingCenter: React.FC<TrainingCenterProps> = ({
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
 
   const activeSession = sessions.find((s) => s.id === selectedSessionId) || sessions[0];
+  const activeFollowUp =
+    activeSession?.performanceTarget && match
+      ? evaluatePerformanceFollowUp(activeSession.performanceTarget, match)
+      : undefined;
 
   const handleGenerateWithAi = () => {
     setIsGenerating(true);
     setTimeout(() => {
       const evidenceNote = buildTrainingEvidenceNote(evidenceContext);
+
+      const performanceTarget =
+        match && evidenceContext?.metric
+          ? buildPerformanceTargetFromMatch(match, {
+              metric: evidenceContext.metric,
+              label: evidenceContext.title,
+              teamSide: evidenceContext.teamSide || 'home',
+              rotationRef: evidenceContext.rotationRef,
+              serveType: evidenceContext.serveType,
+              zoneRef: evidenceContext.zoneRef,
+              sourceInsightId: evidenceContext.insightId,
+              sourceRallyIds: evidenceContext.rallyIds,
+            })
+          : undefined;
 
       const newSession: TrainingSession = {
         id: `train_${Date.now()}`,
@@ -60,6 +79,7 @@ export const TrainingCenter: React.FC<TrainingCenterProps> = ({
         playersCount: genPlayers,
         focusProblem: genProblem,
         linkedMatchId: match?.id,
+        performanceTarget,
         status: 'planned',
         completed: false,
         notes: `${evidenceNote} Objetivo: generar una nueva muestra comparable en el próximo control.`,
@@ -194,6 +214,81 @@ export const TrainingCenter: React.FC<TrainingCenterProps> = ({
                 <span className="text-slate-300">{activeSession.focusProblem}</span>
               </div>
             </div>
+
+            {activeSession.performanceTarget && (
+              <div className="p-4 bg-slate-950/70 border border-slate-800 rounded-2xl space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <div className="text-[10px] font-black uppercase tracking-wider text-cyan-400">
+                      Seguimiento de mejora
+                    </div>
+                    <div className="text-xs font-bold text-white mt-0.5">
+                      {activeSession.performanceTarget.label}
+                    </div>
+                  </div>
+                  <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase border ${
+                    activeFollowUp?.status === 'improved'
+                      ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+                      : activeFollowUp?.status === 'declined'
+                        ? 'bg-rose-500/10 text-rose-300 border-rose-500/30'
+                        : activeFollowUp?.status === 'stable'
+                          ? 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+                          : 'bg-slate-800 text-slate-400 border-slate-700'
+                  }`}>
+                    {activeFollowUp?.status === 'improved'
+                      ? 'Mejora observada'
+                      : activeFollowUp?.status === 'declined'
+                        ? 'Retroceso observado'
+                        : activeFollowUp?.status === 'stable'
+                          ? 'Sin cambio'
+                          : activeFollowUp?.status === 'insufficient_data'
+                            ? 'Muestra insuficiente'
+                            : 'Pendiente de comparación'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div className="bg-slate-900 border border-slate-800 rounded-xl p-3">
+                    <div className="text-[10px] text-slate-500 uppercase">Base</div>
+                    <div className="text-lg font-black text-white">
+                      {activeSession.performanceTarget.baselineValue !== undefined
+                        ? `${activeSession.performanceTarget.baselineValue}%`
+                        : '—'}
+                    </div>
+                    <div className="text-[10px] text-slate-500">
+                      n={activeSession.performanceTarget.baselineSample ?? 0}
+                    </div>
+                  </div>
+                  <div className="bg-slate-900 border border-slate-800 rounded-xl p-3">
+                    <div className="text-[10px] text-slate-500 uppercase">Actual</div>
+                    <div className="text-lg font-black text-white">
+                      {activeFollowUp?.currentValue !== undefined ? `${activeFollowUp.currentValue}%` : '—'}
+                    </div>
+                    <div className="text-[10px] text-slate-500">
+                      n={activeFollowUp?.currentSample ?? 0}
+                    </div>
+                  </div>
+                  <div className="bg-slate-900 border border-slate-800 rounded-xl p-3">
+                    <div className="text-[10px] text-slate-500 uppercase">Diferencia</div>
+                    <div className="text-lg font-black text-white">
+                      {activeFollowUp?.delta !== undefined
+                        ? `${activeFollowUp.delta > 0 ? '+' : ''}${activeFollowUp.delta} pp`
+                        : '—'}
+                    </div>
+                  </div>
+                  <div className="bg-slate-900 border border-slate-800 rounded-xl p-3">
+                    <div className="text-[10px] text-slate-500 uppercase">Origen</div>
+                    <div className="text-[11px] font-bold text-slate-300 mt-1 break-all">
+                      {activeSession.performanceTarget.sourceMatchId || 'Manual'}
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  {activeFollowUp?.message || 'Todavía no hay un partido comparable para evaluar este objetivo.'}
+                </p>
+              </div>
+            )}
 
             {/* Exercise Blocks List */}
             <div className="space-y-3">

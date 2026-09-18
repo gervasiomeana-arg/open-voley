@@ -11,7 +11,8 @@
     "lint": "tsc --noEmit",
     "test:analytics": "tsx src/utils/dataVolleyAnalytics.test.ts",
     "test:evidence": "tsx src/utils/evidenceInsights.test.ts",
-    "test:training-evidence": "tsx src/utils/trainingEvidence.test.ts"
+    "test:training-evidence": "tsx src/utils/trainingEvidence.test.ts",
+    "test:performance-followup": "tsx src/utils/performanceFollowUp.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
