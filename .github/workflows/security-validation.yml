@@ -42,5 +42,11 @@ jobs:
       - name: Training storage tests
         run: npm run test:training-storage
 
+      - name: Training backend isolation tests
+        run: npm run test:training-backend
+
+      - name: Training sync tests
+        run: npm run test:training-sync
+
       - name: Production build
         run: npm run build
