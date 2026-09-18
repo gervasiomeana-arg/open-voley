@@ -293,6 +293,18 @@ export interface TrainingSession {
   completed?: boolean;
 }
 
+export interface SmartSportsMontage {
+  id: string;
+  name: string;
+  matchId: string;
+  matchTitle: string;
+  createdAt: string;
+  updatedAt: string;
+  preRoll: number;
+  postRoll: number;
+  actionIds: string[];
+}
+
 export interface AiEvidenceInsight {
   id: string;
   type: 'HECHO' | 'INSIGHT' | 'RECOMENDACIÓN';

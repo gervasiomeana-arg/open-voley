@@ -7,8 +7,19 @@ import {
   Scissors,
   User,
   Volleyball,
+  Save,
+  Trash2,
+  ChevronUp,
+  ChevronDown,
+  CheckSquare,
+  Square,
 } from 'lucide-react';
-import { EvaluationSymbol, MatchData, ScoutCodeAction, TeamSide, VolleySkill } from '../types';
+import { EvaluationSymbol, MatchData, ScoutCodeAction, SmartSportsMontage, TeamSide, VolleySkill } from '../types';
+import {
+  deleteSmartSportsMontage,
+  getSavedSmartSportsMontages,
+  saveSmartSportsMontage,
+} from '../services/smartSportsMontageStorage';
 
 interface SmartSportsEditorProps {
   match: MatchData;
@@ -16,7 +27,7 @@ interface SmartSportsEditorProps {
   userCuts: ScoutCodeAction[];
   onPreviewAction: (action: ScoutCodeAction) => void;
   onPlayPlaylist: (actions: ScoutCodeAction[], preRoll: number, postRoll: number) => void;
-  onExportVideo: (actions: ScoutCodeAction[], preRoll: number, postRoll: number) => void;
+  onExportVideo: (actions: ScoutCodeAction[], preRoll: number, postRoll: number, montageName?: string, shareAfterExport?: boolean) => void;
 }
 
 const SKILL_LABELS: Record<VolleySkill, string> = {
@@ -59,6 +70,13 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
   const [evaluation, setEvaluation] = useState<'all' | EvaluationSymbol>('all');
   const [preRoll, setPreRoll] = useState(3);
   const [postRoll, setPostRoll] = useState(3);
+  const [montageName, setMontageName] = useState('');
+  const [selectedActionIds, setSelectedActionIds] = useState<string[]>([]);
+  const [manualOrder, setManualOrder] = useState<string[]>([]);
+  const [savedMontages, setSavedMontages] = useState<SmartSportsMontage[]>(() =>
+    getSavedSmartSportsMontages().filter((item) => item.matchId === match.id),
+  );
+  const [activeMontageId, setActiveMontageId] = useState<string | null>(null);
 
   const sourceActions = useMemo(() => {
     const byId = new Map<string, ScoutCodeAction>();
@@ -96,7 +114,85 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
     });
   }, [sourceActions, team, playerNum, skill, evaluation]);
 
-  const estimatedDuration = playlist.reduce(
+  const filteredPlaylist = playlist;
+  const selectedPlaylist = useMemo(() => {
+    const selected = selectedActionIds.length > 0
+      ? sourceActions.filter((action) => selectedActionIds.includes(action.id))
+      : filteredPlaylist;
+    const order = manualOrder.length > 0 ? manualOrder : selected.map((action) => action.id);
+    return [...selected].sort((a, b) => {
+      const ai = order.indexOf(a.id);
+      const bi = order.indexOf(b.id);
+      if (ai >= 0 && bi >= 0) return ai - bi;
+      if (ai >= 0) return -1;
+      if (bi >= 0) return 1;
+      return a.timestamp - b.timestamp;
+    });
+  }, [filteredPlaylist, sourceActions, selectedActionIds, manualOrder]);
+
+  const toggleAction = (id: string) => {
+    setSelectedActionIds((current) => {
+      const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
+      setManualOrder((order) => {
+        const kept = order.filter((item) => next.includes(item));
+        return [...kept, ...next.filter((item) => !kept.includes(item))];
+      });
+      return next;
+    });
+  };
+
+  const moveAction = (id: string, direction: -1 | 1) => {
+    setManualOrder((current) => {
+      const base = current.length > 0 ? current : selectedPlaylist.map((action) => action.id);
+      const index = base.indexOf(id);
+      const target = index + direction;
+      if (index < 0 || target < 0 || target >= base.length) return base;
+      const next = [...base];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  };
+
+  const saveMontage = () => {
+    if (selectedPlaylist.length === 0) return;
+    const now = new Date().toISOString();
+    const existing = activeMontageId ? savedMontages.find((item) => item.id === activeMontageId) : undefined;
+    const montage: SmartSportsMontage = {
+      id: existing?.id || `montage-${Date.now()}`,
+      name: montageName.trim() || `Montaje ${match.homeTeamName} vs ${match.awayTeamName}`,
+      matchId: match.id,
+      matchTitle: match.title,
+      createdAt: existing?.createdAt || now,
+      updatedAt: now,
+      preRoll,
+      postRoll,
+      actionIds: selectedPlaylist.map((action) => action.id),
+    };
+    const updated = saveSmartSportsMontage(montage).filter((item) => item.matchId === match.id);
+    setSavedMontages(updated);
+    setActiveMontageId(montage.id);
+    setMontageName(montage.name);
+  };
+
+  const loadMontage = (montage: SmartSportsMontage) => {
+    setActiveMontageId(montage.id);
+    setMontageName(montage.name);
+    setPreRoll(montage.preRoll);
+    setPostRoll(montage.postRoll);
+    setSelectedActionIds(montage.actionIds.filter((id) => sourceActions.some((action) => action.id === id)));
+    setManualOrder(montage.actionIds);
+  };
+
+  const removeMontage = (id: string) => {
+    const updated = deleteSmartSportsMontage(id).filter((item) => item.matchId === match.id);
+    setSavedMontages(updated);
+    if (activeMontageId === id) {
+      setActiveMontageId(null);
+      setMontageName('');
+    }
+  };
+
+  const estimatedDuration = selectedPlaylist.reduce(
     (sum, action) => sum + preRoll + postRoll + 1,
     0,
   );
@@ -109,7 +205,7 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
   };
 
   const exportManifest = () => {
-    if (playlist.length === 0) return;
+    if (selectedPlaylist.length === 0) return;
 
     const manifest = {
       version: 1,
@@ -123,7 +219,7 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
         awayTeamName: match.awayTeamName,
       },
       filters: { team, playerNum, skill, evaluation, preRoll, postRoll },
-      clips: playlist.map((action, index) => ({
+      clips: selectedPlaylist.map((action, index) => ({
         order: index + 1,
         actionId: action.id,
         playerNum: action.playerNum,
@@ -162,13 +258,13 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
             </div>
             <div>
               <div className="text-[10px] uppercase tracking-widest font-black text-indigo-300">
-                Editor Deportivo Inteligente · V1
+                Editor Deportivo Inteligente · V2
               </div>
               <h2 className="text-xl sm:text-2xl font-black text-white mt-0.5">
                 Jugadas → Playlist → Montaje
               </h2>
               <p className="text-xs text-slate-400 mt-1 max-w-2xl">
-                Selecciona acciones reales del Scout por jugador, fundamento y resultado. OPEN VOLEY prepara los cortes temporales para revisión y para el futuro renderizador MP4.
+                Selecciona acciones reales del Scout por jugador, fundamento y resultado. Selecciona, ordena, guarda, reproduce y exporta montajes construidos con acciones reales del Scout.
               </p>
             </div>
           </div>
@@ -176,7 +272,7 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
           <div className="flex gap-2 text-xs">
             <div className="px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl">
               <span className="text-slate-500">Clips </span>
-              <strong className="text-white">{playlist.length}</strong>
+              <strong className="text-white">{selectedPlaylist.length}</strong>
             </div>
             <div className="px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl">
               <span className="text-slate-500">Duración aprox. </span>
@@ -251,6 +347,38 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
           </label>
         </div>
 
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-3 pt-2 border-t border-slate-800">
+          <input
+            value={montageName}
+            onChange={(e) => setMontageName(e.target.value)}
+            placeholder="Nombre del montaje, ej: Saques de Juan #8 vs Club X"
+            className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white"
+          />
+          <button
+            type="button"
+            onClick={saveMontage}
+            disabled={selectedPlaylist.length === 0}
+            className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-40 text-white text-xs font-black flex items-center justify-center gap-1.5"
+          >
+            <Save className="w-3.5 h-3.5" /> Guardar montaje
+          </button>
+        </div>
+
+        {savedMontages.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {savedMontages.map((montage) => (
+              <div key={montage.id} className="flex items-center bg-slate-950 border border-slate-800 rounded-xl overflow-hidden">
+                <button type="button" onClick={() => loadMontage(montage)} className="px-3 py-2 text-xs text-slate-300 hover:text-white">
+                  {montage.name} · {montage.actionIds.length} clips
+                </button>
+                <button type="button" onClick={() => removeMontage(montage.id)} className="px-2 py-2 text-slate-600 hover:text-rose-400 border-l border-slate-800" title="Eliminar montaje">
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-800">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[11px] font-bold text-slate-400">Ventana por clip</span>
@@ -290,16 +418,16 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => onPlayPlaylist(playlist, preRoll, postRoll)}
-              disabled={playlist.length === 0}
+              onClick={() => onPlayPlaylist(selectedPlaylist, preRoll, postRoll)}
+              disabled={selectedPlaylist.length === 0}
               className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-black flex items-center gap-1.5"
             >
               <Play className="w-3.5 h-3.5" /> Reproducir montaje
             </button>
             <button
               type="button"
-              onClick={() => onExportVideo(playlist, preRoll, postRoll)}
-              disabled={playlist.length === 0}
+              onClick={() => onExportVideo(selectedPlaylist, preRoll, postRoll, montageName)}
+              disabled={selectedPlaylist.length === 0}
               className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950 text-xs font-black flex items-center gap-1.5"
               title="Genera un archivo real usando las capacidades de grabación del navegador. Requiere video local."
             >
@@ -307,8 +435,17 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
             </button>
             <button
               type="button"
+              onClick={() => onExportVideo(selectedPlaylist, preRoll, postRoll, montageName, true)}
+              disabled={selectedPlaylist.length === 0}
+              className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-xs font-black"
+              title="Genera el video y, si el dispositivo lo permite, abre el panel nativo para compartir el archivo."
+            >
+              Compartir
+            </button>
+            <button
+              type="button"
               onClick={exportManifest}
-              disabled={playlist.length === 0}
+              disabled={selectedPlaylist.length === 0}
               className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white text-xs font-black flex items-center gap-1.5"
               title="Exporta la lista exacta de cortes para reproducir o renderizar el montaje."
             >
@@ -329,25 +466,31 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
           <Film className="w-5 h-5 text-indigo-300" />
         </div>
 
-        {playlist.length === 0 ? (
+        {selectedPlaylist.length === 0 ? (
           <div className="p-10 text-center border border-dashed border-slate-800 rounded-2xl">
             <div className="text-sm font-bold text-slate-400">No hay acciones con estos filtros</div>
             <p className="text-xs text-slate-600 mt-1">Prueba otro jugador, fundamento o resultado.</p>
           </div>
         ) : (
           <div className="space-y-2 max-h-[560px] overflow-y-auto custom-scrollbar pr-1">
-            {playlist.map((action, index) => {
+            {selectedPlaylist.map((action, index) => {
               const roster = (action.team === 'home' ? match.homePlayers : match.awayPlayers)
                 .find((player) => player.number === action.playerNum);
               const start = Math.max(0, action.timestamp - preRoll);
               const end = action.timestamp + postRoll;
               return (
-                <button
-                  type="button"
+                <div
                   key={action.id}
-                  onClick={() => onPreviewAction(action)}
-                  className="w-full text-left p-3.5 bg-slate-950 hover:bg-slate-900 border border-slate-800 hover:border-indigo-500/40 rounded-2xl transition group"
+                  className="w-full p-3.5 bg-slate-950 hover:bg-slate-900 border border-slate-800 hover:border-indigo-500/40 rounded-2xl transition group"
                 >
+                  <div className="flex items-center gap-2 mb-2">
+                    <button type="button" onClick={() => toggleAction(action.id)} className="text-indigo-300" title="Incluir o quitar del montaje">
+                      {selectedActionIds.length === 0 || selectedActionIds.includes(action.id) ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                    </button>
+                    <button type="button" onClick={() => moveAction(action.id, -1)} className="text-slate-500 hover:text-white" title="Subir clip"><ChevronUp className="w-4 h-4" /></button>
+                    <button type="button" onClick={() => moveAction(action.id, 1)} className="text-slate-500 hover:text-white" title="Bajar clip"><ChevronDown className="w-4 h-4" /></button>
+                  </div>
+                  <button type="button" onClick={() => onPreviewAction(action)} className="w-full text-left">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-8 h-8 rounded-xl bg-indigo-500/15 text-indigo-300 flex items-center justify-center font-black text-xs shrink-0">
@@ -371,7 +514,8 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
                       <Play className="w-4 h-4 text-indigo-300 group-hover:text-white" />
                     </div>
                   </div>
-                </button>
+                  </button>
+                </div>
               );
             })}
           </div>
