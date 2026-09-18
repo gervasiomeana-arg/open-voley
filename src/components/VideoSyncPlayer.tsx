@@ -56,6 +56,7 @@ interface VideoSyncPlayerProps {
   onClearCuts: () => void;
   match?: MatchData;
   focusRallyIds?: string[];
+  focusTimestamp?: number | null;
 
 }
 
@@ -71,6 +72,7 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
   onClearCuts,
   match = sampleMatchData,
   focusRallyIds = [],
+  focusTimestamp = null,
 }) => {
   // Video Sub-Tab: Video Player vs Volleyball Scout Media Studio
   const [activeMediaTab, setActiveMediaTab] = useState<'video_cuts' | 'media_studio'>('video_cuts');
@@ -137,6 +139,25 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
     }
   }, [actions, focusRallyIds]);
 
+  // OPEN AI telemetry can request an exact timestamp. Keep this independent
+  // from rally evidence so a direct seek never inherits stale evidence filters.
+  useEffect(() => {
+    if (focusTimestamp === null || focusTimestamp === undefined || focusTimestamp < 0) return;
+
+    setActiveMediaTab('video_cuts');
+    setSelectedAction(null);
+    setCurrentTime(focusTimestamp);
+    setVideoError(null);
+
+    if (videoRef.current) {
+      try {
+        videoRef.current.currentTime = focusTimestamp;
+      } catch {
+        // Safe telemetry seek.
+      }
+    }
+  }, [focusTimestamp]);
+
   // Reload video element on source change (if not YouTube)
   useEffect(() => {
     if (videoRef.current && videoSrc && !youtubeId) {
@@ -168,7 +189,7 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
       setVideoError('Enlace de YouTube no válido. Asegúrate de que sea del formato: https://www.youtube.com/watch?v=... o youtu.be/...');
       return;
     }
-    onSetVideoSrc(`https://www.youtube.com/watch?v=ok56D8DFLl8`, 'Video YouTube de Vóley', 'YouTube Stream');
+    onSetVideoSrc(targetUrl, 'Video YouTube de Vóley', 'YouTube Stream');
     setShowYtInputModal(false);
     setCustomYtInput('');
     setVideoError(null);

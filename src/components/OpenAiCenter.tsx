@@ -234,6 +234,7 @@ interface ActionInsightItem {
   rotationRef?: number;
   serveTypeRef?: TrainingEvidenceContext['serveType'];
   zoneRef?: number;
+  playerNumRef?: number;
   actionCta: string;
 }
 
@@ -294,6 +295,7 @@ interface ActionInsightItem {
     rotationRef: insight.rotationRef,
     serveTypeRef: insight.serveTypeRef,
     zoneRef: insight.zoneRef,
+    playerNumRef: insight.playerNumRef,
     actionCta:
       insight.actionType === 'view_video'
         ? 'Ver rallies / clips'
@@ -404,6 +406,7 @@ interface ActionInsightItem {
               { id: 'all', label: 'Todos' },
               { id: 'tactical', label: 'Tácticos' },
               { id: 'training', label: 'Entrenamiento' },
+              { id: 'scouting', label: 'Scouting rival' },
               { id: 'player', label: 'Individuales' },
             ].map((tab) => (
               <button
@@ -495,8 +498,8 @@ interface ActionInsightItem {
                         onOpenVideoClips(item.rallyIds);
                       } else if (item.actionType === 'view_tactics' && onOpenTactics) {
                         onOpenTactics();
-                      } else if (item.actionType === 'player_profile' && onOpenPlayer360) {
-                        onOpenPlayer360(7);
+                      } else if (item.actionType === 'player_profile' && onOpenPlayer360 && item.playerNumRef) {
+                        onOpenPlayer360(item.playerNumRef);
                       }
                     }}
                     className="w-full bg-purple-500/15 hover:bg-purple-500 text-purple-300 hover:text-white font-bold text-xs py-2 px-3 rounded-xl border border-purple-500/30 transition flex items-center justify-between cursor-pointer group/btn"

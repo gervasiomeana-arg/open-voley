@@ -143,6 +143,7 @@ export default function App() {
   const [videoSrc, setVideoSrc] = useState<string>('');
   const [videoFileName, setVideoFileName] = useState<string | null>(null);
   const [videoFileSize, setVideoFileSize] = useState<string | null>(null);
+  const [videoFocusTimestamp, setVideoFocusTimestamp] = useState<number | null>(null);
   
   const [userCuts, setUserCuts] = useState<ScoutCodeAction[]>(() => {
     try {
@@ -502,7 +503,7 @@ export default function App() {
     setMatchesSubTab('center');
   };
 
-  const handleMatchCenterNavigate = (destination: 'scout' | 'video' | 'stats' | 'ai') => {
+  const handleMatchCenterNavigate = (destination: 'scout' | 'video' | 'stats' | 'ai' | 'analytics') => {
     if (destination === 'scout') {
       setActiveTab('match');
       setMatchesSubTab('scout');
@@ -518,6 +519,9 @@ export default function App() {
         setMatch(persisted);
       }
       setActiveTab('ai');
+    } else if (destination === 'analytics') {
+      setActiveTab('analysis');
+      setAnalysisSubTab('reports');
     }
   };
 
@@ -1343,6 +1347,10 @@ export default function App() {
                     setActiveTab('match');
                     setMatchesSubTab('scout');
                   }}
+                  onEvidenceConsumed={() => {
+                    setTrainingEvidenceContext(undefined);
+                    setTrainingFocusProblem(undefined);
+                  }}
                 />
               )}
             </div>
@@ -1416,6 +1424,7 @@ export default function App() {
                   onClearCuts={handleClearUserCuts}
                   match={match}
                   focusRallyIds={evidenceRallyIds}
+                  focusTimestamp={videoFocusTimestamp}
                 />
               )}
             </div>
@@ -1467,6 +1476,7 @@ export default function App() {
                     setTeamsSubTab('training');
                   }}
                   onOpenVideoClips={(rallyIds) => {
+                    setVideoFocusTimestamp(null);
                     setEvidenceRallyIds(rallyIds || []);
                     setActiveTab('analysis');
                     setAnalysisSubTab('video');
@@ -1492,6 +1502,8 @@ export default function App() {
                   onClearRallies={handleClearAiRallies}
                   userCuts={userCuts}
                   onJumpToTimestamp={(sec) => {
+                    setEvidenceRallyIds([]);
+                    setVideoFocusTimestamp(sec);
                     setActiveTab('analysis');
                     setAnalysisSubTab('video');
                   }}

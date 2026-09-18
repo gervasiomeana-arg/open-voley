@@ -29,6 +29,7 @@ interface TrainingCenterProps {
   initialFocusProblem?: string;
   evidenceContext?: TrainingEvidenceContext;
   onNavigateToMatch?: () => void;
+  onEvidenceConsumed?: () => void;
 }
 
 export const TrainingCenter: React.FC<TrainingCenterProps> = ({
@@ -36,6 +37,7 @@ export const TrainingCenter: React.FC<TrainingCenterProps> = ({
   initialFocusProblem,
   evidenceContext,
   onNavigateToMatch,
+  onEvidenceConsumed,
 }) => {
   const [sessions, setSessions] = useState<TrainingSession[]>(() => {
     const saved = getSavedTrainingSessions();
@@ -78,6 +80,28 @@ export const TrainingCenter: React.FC<TrainingCenterProps> = ({
     activeSession?.performanceTarget && match
       ? evaluatePerformanceFollowUp(activeSession.performanceTarget, match)
       : undefined;
+
+  if (!activeSession) {
+    return (
+      <div className="space-y-6 animate-in fade-in duration-200">
+        <div className="p-8 bg-slate-900 border border-slate-800 rounded-3xl text-center shadow-xl">
+          <Dumbbell className="w-10 h-10 text-purple-400 mx-auto mb-3" />
+          <h2 className="text-lg font-black text-white">Todavía no hay sesiones de entrenamiento</h2>
+          <p className="text-xs text-slate-400 mt-2">
+            Crea una sesión desde OPEN AI o genera un plan táctico nuevo para comenzar el historial.
+          </p>
+          <button
+            type="button"
+            onClick={() => setIsGeneratorOpen(true)}
+            className="mt-4 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-black inline-flex items-center gap-2"
+          >
+            <Sparkles className="w-4 h-4" />
+            Generar primera sesión
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const handleToggleCompleted = () => {
     if (!activeSession) return;
@@ -140,6 +164,9 @@ export const TrainingCenter: React.FC<TrainingCenterProps> = ({
 
       setSessions(saveTrainingSessionLocallyFirst(newSession));
       setSelectedSessionId(newSession.id);
+      if (evidenceContext) {
+        onEvidenceConsumed?.();
+      }
       setIsGenerating(false);
       setIsGeneratorOpen(false);
     }, 600);

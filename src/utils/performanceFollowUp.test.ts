@@ -92,7 +92,7 @@ const receptionTarget = buildPerformanceTargetFromMatch(sourceReception, {
 assert.equal(receptionTarget.baselineSample, 5);
 assert.equal(receptionTarget.baselineValue, 60);
 
-const improvedReception = baseMatch('next-reception', [
+const improvedReception = { ...baseMatch('next-reception', [
   action('s11', 'away', 'S', '+', 'n1', { serveType: 'jump_spin', endZone: 5, phase: 'K2' }),
   action('r11', 'home', 'R', '-', 'n1', { receptionContext: 'negative', phase: 'K1' }),
   action('s12', 'away', 'S', '+', 'n2', { serveType: 'jump_spin', endZone: 5, phase: 'K2' }),
@@ -103,7 +103,7 @@ const improvedReception = baseMatch('next-reception', [
   action('r14', 'home', 'R', '!', 'n4', { receptionContext: 'negative', phase: 'K1' }),
   action('s15', 'away', 'S', '+', 'n5', { serveType: 'jump_spin', endZone: 5, phase: 'K2' }),
   action('r15', 'home', 'R', '+', 'n5', { receptionContext: 'positive', phase: 'K1' }),
-]);
+]), date: '2026-09-19' };
 
 const receptionResult = evaluatePerformanceFollowUp(receptionTarget, improvedReception);
 assert.equal(receptionResult.status, 'improved');
@@ -111,14 +111,14 @@ assert.equal(receptionResult.currentValue, 40);
 assert.equal(receptionResult.delta, -20);
 assert.match(receptionResult.message, /60% → 40% \(-20 pp\); mejora observada/i);
 
-const insufficientReception = baseMatch('small-sample', [
+const insufficientReception = { ...baseMatch('small-sample', [
   action('s21', 'away', 'S', '+', 'm1', { serveType: 'jump_spin', endZone: 5 }),
   action('r21', 'home', 'R', '+', 'm1', { receptionContext: 'positive' }),
   action('s22', 'away', 'S', '+', 'm2', { serveType: 'jump_spin', endZone: 5 }),
   action('r22', 'home', 'R', '-', 'm2', { receptionContext: 'negative' }),
   action('s23', 'away', 'S', '+', 'm3', { serveType: 'jump_spin', endZone: 5 }),
   action('r23', 'home', 'R', '+', 'm3', { receptionContext: 'positive' }),
-]);
+]), date: '2026-09-19' };
 
 const smallResult = evaluatePerformanceFollowUp(receptionTarget, insufficientReception);
 assert.equal(PERFORMANCE_FOLLOW_UP_MIN_SAMPLE, 4);
@@ -144,7 +144,7 @@ const sideoutTarget = buildPerformanceTargetFromMatch(sourceSideout, {
 assert.equal(sideoutTarget.baselineSample, 4);
 assert.equal(sideoutTarget.baselineValue, 50);
 
-const nextSideout = baseMatch('next-sideout', [
+const nextSideout = { ...baseMatch('next-sideout', [
   action('r41', 'home', 'R', '+', 'nr1', { phase: 'K1' }),
   action('a41', 'home', 'A', '#', 'nr1', { phase: 'K1' }),
   action('r42', 'home', 'R', '+', 'nr2', { phase: 'K1' }),
@@ -152,7 +152,7 @@ const nextSideout = baseMatch('next-sideout', [
   action('r43', 'home', 'R', '+', 'nr3', { phase: 'K1' }),
   action('a43', 'home', 'A', '#', 'nr3', { phase: 'K1' }),
   action('r44', 'home', 'R', '+', 'nr4', { phase: 'K1' }),
-]);
+]), date: '2026-09-19' };
 
 const sideoutResult = evaluatePerformanceFollowUp(sideoutTarget, nextSideout);
 assert.equal(sideoutResult.status, 'improved');
@@ -162,6 +162,21 @@ assert.equal(sideoutResult.delta, 25);
 const sameMatchResult = evaluatePerformanceFollowUp(sideoutTarget, sourceSideout);
 assert.equal(sameMatchResult.status, 'not_comparable');
 assert.match(sameMatchResult.message, /partido de origen/i);
+
+const olderMatch = { ...nextSideout, id: 'older-sideout', date: '2026-09-17' };
+const olderMatchResult = evaluatePerformanceFollowUp(sideoutTarget, olderMatch);
+assert.equal(olderMatchResult.status, 'not_comparable');
+assert.match(olderMatchResult.message, /no es posterior/i);
+
+const otherTeamMatch = {
+  ...nextSideout,
+  id: 'other-team-sideout',
+  date: '2026-09-19',
+  homeTeamName: 'Another Team',
+};
+const otherTeamResult = evaluatePerformanceFollowUp(sideoutTarget, otherTeamMatch);
+assert.equal(otherTeamResult.status, 'not_comparable');
+assert.match(otherTeamResult.message, /este objetivo pertenece/i);
 
 const manualTarget: TrainingPerformanceTarget = {
   metric: 'manual',

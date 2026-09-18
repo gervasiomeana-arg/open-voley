@@ -244,29 +244,19 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
       description: desc,
     };
 
-    // 1. Record the action
+    // Record the action. App.tsx is the single source of truth for automatic
+    // scoreboard changes, so Scout must never increment the score a second time.
     onAddAction(newAction);
 
-    // 2. Auto-increment score if point, direct error, or block point
     if (isPoint) {
-      if (activeTeam === 'home') {
-        onScoreChange(homeScore + 1, awayScore);
-      } else {
-        onScoreChange(homeScore, awayScore + 1);
-      }
-      triggerConfirmation(`✓ #${selectedPlayer.number} ${skillObj?.short} — PUNTO (${isPoint ? '++' : ''})`);
+      triggerConfirmation(`✓ #${selectedPlayer.number} ${skillObj?.short} — PUNTO`);
     } else if (isError || isBlock) {
-      if (activeTeam === 'home') {
-        onScoreChange(homeScore, awayScore + 1);
-      } else {
-        onScoreChange(homeScore + 1, awayScore);
-      }
       triggerConfirmation(`✓ #${selectedPlayer.number} ${skillObj?.short} — ${isBlock ? 'BLOQUEADO (Punto rival)' : 'ERROR'}`);
     } else {
       triggerConfirmation(`✓ #${selectedPlayer.number} ${skillObj?.short} — ${outcomeObj?.label || evalSymbol}`);
     }
 
-    // 3. Autosiguiente: context is cleared so it can never leak into the next action.
+    // Autosiguiente: context is cleared so it can never leak into the next action.
     setSelectedTargetZone(null);
     if (stagedSkill === 'S') setSelectedServeType(null);
   }, [selectedPlayer, stagedSkill, activeTeam, match, homeScore, awayScore, activePlayers, onAddAction, onScoreChange, selectedTargetZone, selectedServeType]);
@@ -276,21 +266,9 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
     if (!match.actions || match.actions.length === 0) return;
     const last = match.actions[match.actions.length - 1];
 
-    // Revert scoreboard if this action modified points
-    if (last.evaluation === '#') {
-      if (last.team === 'home') {
-        onScoreChange(Math.max(0, homeScore - 1), awayScore);
-      } else {
-        onScoreChange(homeScore, Math.max(0, awayScore - 1));
-      }
-    } else if (last.evaluation === '=') {
-      if (last.team === 'home') {
-        onScoreChange(homeScore, Math.max(0, awayScore - 1));
-      } else {
-        onScoreChange(Math.max(0, homeScore - 1), awayScore);
-      }
-    }
-
+    // App.tsx also owns score rollback when an action is deleted. Keeping the
+    // rollback in one place prevents double decrements and correctly handles
+    // every terminal evaluation (including blocked attacks).
     onDeleteAction(last.id);
     triggerConfirmation(`↶ Acción Deshecha: #${last.playerNum} ${last.rawCode}`);
   }, [match.actions, homeScore, awayScore, onDeleteAction, onScoreChange]);

@@ -260,6 +260,8 @@ export interface TrainingPerformanceTarget {
   serveType?: ScoutCodeAction['serveType'];
   zoneRef?: number;
   sourceMatchId?: string;
+  sourceMatchDate?: string;
+  sourceTeamName?: string;
   sourceInsightId?: string;
   sourceRallyIds?: string[];
 }

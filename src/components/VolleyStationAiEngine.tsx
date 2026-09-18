@@ -73,6 +73,7 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
 }) => {
   const [activeSubModule, setActiveSubModule] = useState<AiSubModule>('vision');
   const [isVisionAnalyzing, setIsVisionAnalyzing] = useState(false);
+  const [visionNotice, setVisionNotice] = useState<string | null>(null);
   const [showAiOverlays, setShowAiOverlays] = useState(true);
 
   // Video playback states for AI vision player
@@ -104,6 +105,38 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
   // Video Auto-Clips Filter
   const [clipFilter, setClipFilter] = useState<'all' | 'attacks' | 'aces' | 'blocks' | 'errors'>('all');
 
+  const playlistCuts = useMemo(() => {
+    const tagged = userCuts.map((cut) => ({
+      id: cut.id,
+      timestamp: cut.timestamp,
+      durationSec: 6,
+      label: cut.description || cut.rawCode || 'Jugada etiquetada',
+      detail: cut.rawCode,
+      skill: cut.skill,
+      evaluation: cut.evaluation,
+      source: 'tag' as const,
+    }));
+    const detected = detectedRallies.map((rally) => ({
+      id: rally.id,
+      timestamp: rally.timestampStart,
+      durationSec: rally.durationSec,
+      label: rally.phase,
+      detail: rally.detectedCode,
+      skill: undefined,
+      evaluation: rally.result === 'home_point' ? '#' as const : undefined,
+      source: 'rally' as const,
+    }));
+    const combined = [...tagged, ...detected].sort((a, b) => a.timestamp - b.timestamp);
+    return combined.filter((clip) => {
+      if (clipFilter === 'all') return true;
+      if (clipFilter === 'attacks') return clip.skill === 'A' && clip.evaluation === '#';
+      if (clipFilter === 'aces') return clip.skill === 'S' && clip.evaluation === '#';
+      if (clipFilter === 'blocks') return clip.skill === 'B' && clip.evaluation === '#';
+      if (clipFilter === 'errors') return clip.evaluation === '=' || clip.evaluation === '/';
+      return true;
+    });
+  }, [userCuts, detectedRallies, clipFilter]);
+
   // AI Chat Assistant State
   const [chatPrompt, setChatPrompt] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
@@ -116,6 +149,34 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
 
   const homeStats = useMemo(() => calculatePlayerStats(match.homePlayers, match.actions), [match]);
   const awayStats = useMemo(() => calculatePlayerStats(match.awayPlayers, match.actions), [match]);
+  const telemetrySummary = useMemo(() => {
+    const valid = detectedRallies.filter((rally) => rally.confidenceScore > 0);
+    const speeds = valid.map((rally) => rally.ballMaxSpeedKmh).filter((value) => value > 0);
+    const reaches = valid.map((rally) => rally.spikeReachM).filter((value) => value > 0);
+    return {
+      samples: valid.length,
+      maxSpeed: speeds.length ? Math.max(...speeds) : undefined,
+      avgSpeed: speeds.length ? speeds.reduce((sum, value) => sum + value, 0) / speeds.length : undefined,
+      maxReach: reaches.length ? Math.max(...reaches) : undefined,
+    };
+  }, [detectedRallies]);
+
+  const spatialSummary = useMemo(() => {
+    const skill = heatmapMode === 'attack' ? 'A' : heatmapMode === 'serve' ? 'S' : 'D';
+    const relevant = (match.actions || []).filter(
+      (action) => action.skill === skill && action.endZone && action.endZone >= 1 && action.endZone <= 9,
+    );
+    const counts = new Map<number, number>();
+    relevant.forEach((action) => counts.set(action.endZone!, (counts.get(action.endZone!) || 0) + 1));
+    const total = relevant.length;
+    return [...counts.entries()]
+      .map(([zone, count]) => ({
+        zone,
+        count,
+        pct: total ? Math.round((count / total) * 100) : 0,
+      }))
+      .sort((a, b) => b.count - a.count || a.zone - b.zone);
+  }, [match.actions, heatmapMode]);
 
   const formatTime = (secs: number) => {
     if (isNaN(secs) || secs < 0) return '00:00';
@@ -193,66 +254,42 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
     }
   };
 
-  // Run automated scan over video frames to detect rallies
+  // Vision analysis remains experimental until a validated computer-vision backend
+  // returns real detections. Never synthesize rallies or telemetry in the browser.
   const handleRunVisionAnalysis = () => {
+    if (!videoSrc) return;
     setIsVisionAnalyzing(true);
-    setTimeout(() => {
+    setVisionNotice(null);
+    window.setTimeout(() => {
       setIsVisionAnalyzing(false);
-      
-      const currentSec = Math.floor(currentTime);
-      const randomSpeed = (98 + Math.random() * 18).toFixed(1);
-      const randomReach = (3.35 + Math.random() * 0.25).toFixed(2);
-      const randomAttacker = match.homePlayers[Math.floor(Math.random() * match.homePlayers.length)]?.number || 1;
-      const isHomeWin = Math.random() > 0.4;
-
-      const newRally: RallyDetection = {
-        id: `rally-${Date.now()}`,
-        timestampStart: currentSec,
-        timestampEnd: currentSec + 7,
-        durationSec: 7.0,
-        servingTeam: isHomeWin ? 'home' : 'away',
-        serverNum: 9,
-        attackingTeam: 'home',
-        attackerNum: randomAttacker,
-        result: isHomeWin ? 'home_point' : 'away_point',
-        confidenceScore: 98.6,
-        ballMaxSpeedKmh: parseFloat(randomSpeed),
-        spikeReachM: parseFloat(randomReach),
-        detectedCode: `*${randomAttacker < 10 ? '0' + randomAttacker : randomAttacker}AH#15`,
-        phase: 'Punto',
-        notes: `Ataque punto detectado a ${randomSpeed} km/h (Alcance: ${randomReach}m)`
-      };
-
-      onAddRally(newRally);
-    }, 1200);
+      setVisionNotice('Auto-Scan experimental: todavía no hay un motor de visión validado conectado para generar detecciones automáticas reales. Usa el etiquetado manual o el scouting sincronizado.');
+    }, 500);
   };
 
-  // Manual detect single rally at current timestamp
+  // Manual marker at the current timestamp. This creates navigation evidence only;
+  // it deliberately does not invent speed, reach, confidence or outcome.
   const handleDetectCurrentSecond = () => {
     const sec = Math.floor(currentTime);
-    const randomSpeed = (102 + Math.random() * 14).toFixed(1);
-    const randomReach = (3.40 + Math.random() * 0.18).toFixed(2);
     const attackerNum = match.homePlayers[0]?.number || 1;
-
     const newRally: RallyDetection = {
-      id: `rally-${Date.now()}`,
+      id: `rally-manual-${Date.now()}`,
       timestampStart: sec,
       timestampEnd: sec + 6,
-      durationSec: 6.0,
+      durationSec: 6,
       servingTeam: 'home',
-      serverNum: 1,
+      serverNum: match.server?.playerNum || 0,
       attackingTeam: 'home',
-      attackerNum: attackerNum,
+      attackerNum,
       result: 'home_point',
-      confidenceScore: 97.4,
-      ballMaxSpeedKmh: parseFloat(randomSpeed),
-      spikeReachM: parseFloat(randomReach),
-      detectedCode: `*${attackerNum < 10 ? '0' + attackerNum : attackerNum}AH#`,
+      confidenceScore: 0,
+      ballMaxSpeedKmh: 0,
+      spikeReachM: 0,
+      detectedCode: 'MANUAL',
       phase: 'Punto',
-      notes: `Rally escaneado en ${formatTime(sec)}`
+      notes: `Marcador manual creado en ${formatTime(sec)}. Sin telemetría automática.`,
     };
-
     onAddRally(newRally);
+    setVisionNotice('Marcador manual agregado. No incluye velocidad, salto ni confianza porque esos datos no fueron medidos.');
   };
 
   const handleAskAI = async (customQuery?: string) => {
@@ -292,7 +329,7 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
           ...prev,
           {
             role: 'assistant',
-            text: 'Diagnóstico Táctico: El rival presenta un 68% de ataques dirigidos en diagonal profunda hacia Zona 5 cuando recibe en Zona 6. Se sugiere mover el bloqueo hacia la diagonal y liberar la paralela con defensa baja.',
+            text: 'No hay una respuesta táctica verificada disponible para esta consulta. OPEN VOLEY no completará el análisis con porcentajes o patrones inventados.',
           },
         ]);
       }
@@ -301,7 +338,7 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
         ...prev,
         {
           role: 'assistant',
-          text: 'Análisis IA Táctica OPEN VOLEY:\n- Patrón de saque rival: 80% flotante largo a zona 1/6.\n- Oportunidad: Atacar con el central en primer tiempo aprovechando el bloqueo simple del rival en rotación P4.',
+          text: 'El servicio de consulta táctica no está disponible en este momento. Los datos registrados del partido permanecen accesibles en Análisis y OPEN AI, sin generar conclusiones ficticias.',
         },
       ]);
     } finally {
@@ -323,7 +360,7 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
                 <Cpu className="w-3.5 h-3.5 text-amber-400" /> OPEN VOLEY AI Suite
               </span>
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-[11px] font-mono rounded-full font-bold">
-                <Activity className="w-3 h-3 text-emerald-400" /> Motor de Visión & Telemetría Activo
+                <Activity className="w-3 h-3 text-emerald-400" /> Visión & Telemetría Experimental
               </span>
             </div>
 
@@ -331,7 +368,7 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
               Inteligencia Artificial Táctica & Visión Computacional
             </h2>
             <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
-              Tecnología de última generación: detección automática de jugadas por visión artificial en video real, matriz predictiva de distribución del armador, mapas de calor y telemetría de velocidad/salto.
+              Espacio experimental para video, marcadores sincronizados y futuras mediciones de visión computacional. Las métricas sólo se muestran cuando provienen de detecciones validadas.
             </p>
           </div>
 
@@ -370,6 +407,12 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
             </button>
           </div>
         </div>
+
+        {visionNotice && (
+          <div className="mt-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs relative z-10">
+            {visionNotice}
+          </div>
+        )}
 
         {/* Submodule Navigation Pills */}
         <div className="flex flex-wrap items-center gap-2 pt-6 mt-6 border-t border-slate-800/80">
@@ -470,8 +513,8 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
                   >
                     Overlay IA: {showAiOverlays ? 'ACTIVO' : 'OCULTO'}
                   </button>
-                  <div className="text-[11px] font-mono text-emerald-400 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800">
-                    60 FPS • Precisión IA: 98.4%
+                  <div className="text-[11px] font-mono text-slate-400 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800">
+                    Análisis visual experimental
                   </div>
                 </div>
               </div>
@@ -647,7 +690,7 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
                 <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                   <div className="flex items-center gap-2">
                     <Zap className="w-4 h-4 text-amber-400" />
-                    <h3 className="font-black text-sm text-white">Rallies Auto-Detectados</h3>
+                    <h3 className="font-black text-sm text-white">Rallies / Marcadores Registrados</h3>
                   </div>
                   <div className="flex items-center gap-2">
                     {detectedRallies.length > 0 && (
@@ -672,7 +715,7 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
                       <Eye className="w-10 h-10 text-slate-600 mx-auto opacity-50" />
                       <div className="text-xs font-bold text-slate-400">No hay rallies detectados aún</div>
                       <p className="text-[11px] text-slate-500 leading-relaxed">
-                        Carga el video de tu partido y presiona <strong className="text-amber-400">"Auto-Scan Video"</strong> o <strong className="text-emerald-400">"Detectar Rally"</strong> para generar jugadas reales con telemetría.
+                        Carga el video y agrega marcadores manuales o sincroniza jugadas provenientes del Scout. La telemetría sólo aparecerá cuando exista una medición validada.
                       </p>
                     </div>
                   ) : (
@@ -725,7 +768,7 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
               </div>
 
               <div className="text-[11px] text-slate-500 pt-2 border-t border-slate-800 flex items-center justify-between">
-                <span>Auto-Scout OPEN VOLEY AI</span>
+                <span>Registro de rallies OPEN VOLEY</span>
                 <span className="text-amber-400 font-mono font-bold">{detectedRallies.length} Rallies</span>
               </div>
             </div>
@@ -785,88 +828,17 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
             </div>
           </div>
 
-          {/* Zones Distribution Visualizer */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-3 relative overflow-hidden">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Zona 4 (Punta Receptor)</span>
-                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">Z4</span>
-              </div>
-              <div className="text-3xl font-black text-white font-mono">
-                {selectedPassQuality === 'perfect' ? '32%' : selectedPassQuality === 'poor' ? '78%' : '44%'}
-              </div>
-              <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden">
-                <div 
-                  className="bg-gradient-to-r from-blue-500 to-indigo-500 h-full rounded-full"
-                  style={{ width: selectedPassQuality === 'perfect' ? '32%' : selectedPassQuality === 'poor' ? '78%' : '44%' }}
-                />
-              </div>
-              <div className="text-xs text-slate-400 leading-relaxed pt-1">
-                Efectividad de Remate: <strong className="text-emerald-400">54% Pts</strong> (Bloqueo recibido: 8%)
-              </div>
-            </div>
-
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-3 relative overflow-hidden">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Zona 3 (Central / Rápida)</span>
-                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">Z3</span>
-              </div>
-              <div className="text-3xl font-black text-white font-mono">
-                {selectedPassQuality === 'perfect' ? '42%' : selectedPassQuality === 'poor' ? '0%' : '18%'}
-              </div>
-              <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden">
-                <div 
-                  className="bg-gradient-to-r from-amber-500 to-orange-500 h-full rounded-full"
-                  style={{ width: selectedPassQuality === 'perfect' ? '42%' : selectedPassQuality === 'poor' ? '0%' : '18%' }}
-                />
-              </div>
-              <div className="text-xs text-slate-400 leading-relaxed pt-1">
-                Efectividad de Remate: <strong className="text-emerald-400">68% Pts</strong> (Bloqueo recibido: 4%)
-              </div>
-            </div>
-
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-3 relative overflow-hidden">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Zona 2 (Opuesto)</span>
-                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">Z2</span>
-              </div>
-              <div className="text-3xl font-black text-white font-mono">
-                {selectedPassQuality === 'perfect' ? '18%' : selectedPassQuality === 'poor' ? '22%' : '30%'}
-              </div>
-              <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden">
-                <div 
-                  className="bg-gradient-to-r from-purple-500 to-pink-500 h-full rounded-full"
-                  style={{ width: selectedPassQuality === 'perfect' ? '18%' : selectedPassQuality === 'poor' ? '22%' : '30%' }}
-                />
-              </div>
-              <div className="text-xs text-slate-400 leading-relaxed pt-1">
-                Efectividad de Remate: <strong className="text-emerald-400">51% Pts</strong> (Bloqueo recibido: 11%)
-              </div>
-            </div>
-
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-3 relative overflow-hidden">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Zona 8 (Pipe / Zaguero)</span>
-                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">PIPE</span>
-              </div>
-              <div className="text-3xl font-black text-white font-mono">
-                {selectedPassQuality === 'perfect' ? '8%' : selectedPassQuality === 'poor' ? '0%' : '8%'}
-              </div>
-              <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden">
-                <div 
-                  className="bg-gradient-to-r from-emerald-500 to-teal-500 h-full rounded-full"
-                  style={{ width: selectedPassQuality === 'perfect' ? '8%' : selectedPassQuality === 'poor' ? '0%' : '8%' }}
-                />
-              </div>
-              <div className="text-xs text-slate-400 leading-relaxed pt-1">
-                Efectividad de Remate: <strong className="text-emerald-400">62% Pts</strong> (Sorpresa táctica)
-              </div>
-            </div>
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 text-center shadow-xl">
+            <Compass className="w-10 h-10 text-amber-400 mx-auto mb-3" />
+            <h4 className="text-base font-black text-white">Distribución del armador: pendiente de datos estructurados</h4>
+            <p className="text-xs text-slate-400 mt-2 max-w-2xl mx-auto leading-relaxed">
+              OPEN VOLEY no mostrará porcentajes de distribución hasta que cada armado tenga registrado destino, atacante y calidad de recepción vinculados al mismo rally. Las acciones actuales permiten análisis de partido, pero no justifican una matriz predictiva fiable.
+            </p>
           </div>
         </div>
       )}
 
-      {/* SUBMODULE 3: SPATIAL HEATMAPS */}
+            {/* SUBMODULE 3: SPATIAL HEATMAPS */}
       {activeSubModule === 'heatmaps' && (
         <div className="space-y-6 animate-fadeIn">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl flex flex-wrap items-center justify-between gap-4">
@@ -910,101 +882,43 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <div className="lg:col-span-8 bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl flex flex-col items-center justify-center space-y-4">
-              <div className="w-full max-w-lg aspect-[18/9] bg-gradient-to-br from-amber-950/40 via-slate-950 to-orange-950/40 border-2 border-amber-500/60 rounded-2xl relative p-4 flex flex-col justify-between shadow-2xl">
-                <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-amber-400/80 border-l border-dashed border-amber-300 z-20 flex items-center justify-center">
-                  <span className="bg-slate-900 text-amber-400 border border-amber-500 text-[9px] font-black px-1 py-0.5 rounded rotate-90">
-                    RED
-                  </span>
-                </div>
-
-                <svg className="absolute inset-0 w-full h-full pointer-events-none z-10">
-                  {heatmapMode === 'attack' && (
-                    <>
-                      <circle cx="20%" cy="75%" r="38" fill="#ef4444" opacity="0.6" filter="blur(8px)" />
-                      <circle cx="22%" cy="73%" r="22" fill="#f59e0b" opacity="0.8" />
-                      <text x="18%" y="78%" fill="#ffffff" fontSize="10" fontWeight="bold">68% Kills</text>
-
-                      <circle cx="20%" cy="25%" r="26" fill="#3b82f6" opacity="0.5" filter="blur(6px)" />
-                      <circle cx="20%" cy="25%" r="14" fill="#60a5fa" opacity="0.8" />
-                      <text x="16%" y="28%" fill="#ffffff" fontSize="9" fontWeight="bold">24% Line</text>
-
-                      <circle cx="40%" cy="50%" r="18" fill="#10b981" opacity="0.5" filter="blur(5px)" />
-                      <text x="36%" y="53%" fill="#ffffff" fontSize="8" fontWeight="bold">8% Tip</text>
-
-                      <line x1="85%" y1="20%" x2="22%" y2="73%" stroke="#f59e0b" strokeWidth="2.5" strokeDasharray="5 3" />
-                    </>
-                  )}
-
-                  {heatmapMode === 'serve' && (
-                    <>
-                      <circle cx="25%" cy="60%" r="35" fill="#f59e0b" opacity="0.6" filter="blur(8px)" />
-                      <circle cx="25%" cy="60%" r="18" fill="#ef4444" opacity="0.8" />
-                      <text x="21%" y="63%" fill="#ffffff" fontSize="9" fontWeight="bold">Zona Débil</text>
-
-                      <circle cx="38%" cy="48%" r="22" fill="#8b5cf6" opacity="0.6" filter="blur(6px)" />
-                      <text x="34%" y="51%" fill="#ffffff" fontSize="9" fontWeight="bold">Saque Corto</text>
-                    </>
-                  )}
-
-                  {heatmapMode === 'defense' && (
-                    <>
-                      <rect x="10%" y="40%" width="18%" height="22%" fill="#ef4444" opacity="0.3" rx="8" />
-                      <text x="12%" y="52%" fill="#fca5a5" fontSize="9" fontWeight="bold">Espacio Libre</text>
-                    </>
-                  )}
-                </svg>
-
-                <div className="relative z-20 flex justify-between text-[11px] font-mono font-bold text-slate-400">
-                  <span>ZONA DEFENSIVA</span>
-                  <span>ZONA DE ATAQUE</span>
-                </div>
-                <div className="relative z-20 flex justify-between text-[10px] font-mono text-slate-500">
-                  <span>Línea de Fondo (9m)</span>
-                  <span>Línea de 3 metros</span>
-                </div>
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h4 className="font-black text-sm text-white">Distribución real por zona registrada</h4>
+                <p className="text-xs text-slate-400 mt-1">
+                  Se usan únicamente acciones con zona final registrada en Scout.
+                </p>
               </div>
+              <span className="text-[11px] font-mono text-slate-400">
+                n={spatialSummary.reduce((sum, row) => sum + row.count, 0)}
+              </span>
             </div>
 
-            <div className="lg:col-span-4 bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-4">
-              <h4 className="font-black text-sm text-white flex items-center gap-2">
-                <Target className="w-4 h-4 text-rose-400" />
-                Desglose por Zonas de Caída
-              </h4>
-
-              <div className="space-y-3">
-                <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-1.5">
-                  <div className="flex justify-between text-xs font-bold">
-                    <span className="text-slate-300">Diagonal Profunda a Zona 5</span>
-                    <span className="text-rose-400 font-mono">68%</span>
-                  </div>
-                  <div className="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden">
-                    <div className="bg-rose-500 h-full" style={{ width: '68%' }} />
-                  </div>
-                </div>
-
-                <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-1.5">
-                  <div className="flex justify-between text-xs font-bold">
-                    <span className="text-slate-300">Paralela Ajustada a Zona 1</span>
-                    <span className="text-blue-400 font-mono">24%</span>
-                  </div>
-                  <div className="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden">
-                    <div className="bg-blue-500 h-full" style={{ width: '24%' }} />
-                  </div>
-                </div>
-
-                <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-1.5">
-                  <div className="flex justify-between text-xs font-bold">
-                    <span className="text-slate-300">Toque Corto detrás del Bloqueo</span>
-                    <span className="text-emerald-400 font-mono">8%</span>
-                  </div>
-                  <div className="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden">
-                    <div className="bg-emerald-500 h-full" style={{ width: '8%' }} />
-                  </div>
-                </div>
+            {spatialSummary.length === 0 ? (
+              <div className="p-10 text-center bg-slate-950/60 border border-slate-800 rounded-2xl">
+                <Target className="w-9 h-9 text-slate-600 mx-auto mb-2" />
+                <div className="text-xs font-bold text-slate-300">Sin zonas registradas suficientes</div>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Registra la zona destino de las acciones en Scout para construir este mapa con datos reales.
+                </p>
               </div>
-            </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {spatialSummary.map((row) => (
+                  <div key={row.zone} className="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-white">Zona {row.zone}</span>
+                      <span className="text-xs font-mono text-amber-400">{row.pct}%</span>
+                    </div>
+                    <div className="w-full h-2 rounded-full bg-slate-900 overflow-hidden">
+                      <div className="h-full bg-amber-500" style={{ width: `${row.pct}%` }} />
+                    </div>
+                    <div className="text-[11px] text-slate-500">{row.count} acciones registradas</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1030,33 +944,33 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
             <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-2 text-center">
               <div className="text-xs font-bold text-slate-400 uppercase">Velocidad Máxima de Remate</div>
               <div className="text-3xl sm:text-4xl font-black text-amber-400 font-mono">
-                114.2 <span className="text-sm text-slate-400">km/h</span>
+                {telemetrySummary.maxSpeed !== undefined ? telemetrySummary.maxSpeed.toFixed(1) : '—'} <span className="text-sm text-slate-400">km/h</span>
               </div>
-              <div className="text-[11px] text-slate-400">Jugador #1 (Ataque Z4)</div>
+              <div className="text-[11px] text-slate-400">{telemetrySummary.samples ? 'Máximo validado' : 'Sin medición validada'}</div>
             </div>
 
             <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-2 text-center">
               <div className="text-xs font-bold text-slate-400 uppercase">Alcance Máximo de Remate</div>
               <div className="text-3xl sm:text-4xl font-black text-emerald-400 font-mono">
-                3.55 <span className="text-sm text-slate-400">m</span>
+                {telemetrySummary.maxReach !== undefined ? telemetrySummary.maxReach.toFixed(2) : '—'} <span className="text-sm text-slate-400">m</span>
               </div>
-              <div className="text-[11px] text-slate-400">Opuesto / Central</div>
+              <div className="text-[11px] text-slate-400">{telemetrySummary.samples ? 'Máximo validado' : 'Sin medición validada'}</div>
             </div>
 
             <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-2 text-center">
               <div className="text-xs font-bold text-slate-400 uppercase">Velocidad Media de Saque</div>
               <div className="text-3xl sm:text-4xl font-black text-blue-400 font-mono">
-                106.8 <span className="text-sm text-slate-400">km/h</span>
+                {telemetrySummary.avgSpeed !== undefined ? telemetrySummary.avgSpeed.toFixed(1) : '—'} <span className="text-sm text-slate-400">km/h</span>
               </div>
-              <div className="text-[11px] text-slate-400">Saque Potencia con Salto</div>
+              <div className="text-[11px] text-slate-400">{telemetrySummary.samples ? `Promedio sobre ${telemetrySummary.samples} detecciones` : 'Sin medición validada'}</div>
             </div>
 
             <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-2 text-center">
               <div className="text-xs font-bold text-slate-400 uppercase">Tiempo de Suspensión (Hang)</div>
               <div className="text-3xl sm:text-4xl font-black text-purple-400 font-mono">
-                0.78 <span className="text-sm text-slate-400">s</span>
+                — <span className="text-sm text-slate-400">s</span>
               </div>
-              <div className="text-[11px] text-slate-400">Media del Sexteto Inicial</div>
+              <div className="text-[11px] text-slate-400">No medido por el motor actual</div>
             </div>
           </div>
         </div>
@@ -1073,7 +987,7 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
               <div>
                 <h3 className="font-black text-base text-white">Playlists Inteligentes & Filtros de Video (1-Clic)</h3>
                 <p className="text-xs text-slate-400">
-                  Generación instantánea de clips para mostrar en la charla técnica o tiempo muerto.
+                  Reúne y filtra jugadas etiquetadas del partido para revisarlas como una playlist sincronizada.
                 </p>
               </div>
             </div>
@@ -1115,19 +1029,19 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {detectedRallies.length === 0 && userCuts.length === 0 ? (
+            {playlistCuts.length === 0 ? (
               <div className="col-span-full bg-slate-900 border border-slate-800 rounded-3xl p-12 text-center text-slate-500 space-y-3">
                 <Film className="w-12 h-12 text-slate-600 mx-auto opacity-50" />
                 <div className="text-sm font-bold text-slate-400">No hay clips generados aún</div>
                 <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                  Etiqueta jugadas en "3. Sincronización" o ejecuta "Auto-Scan Video" en Visión Artificial para poblar automáticamente los clips aquí.
+                  Etiqueta jugadas en Video o registra acciones durante el Scout. Las jugadas compatibles aparecerán aquí para revisión.
                 </p>
               </div>
             ) : (
-              detectedRallies.map((rally, i) => (
+              playlistCuts.map((clip, i) => (
                 <div
-                  key={rally.id}
-                  onClick={() => handleJumpToRally(rally.timestampStart)}
+                  key={clip.id}
+                  onClick={() => handleJumpToRally(clip.timestamp)}
                   className="bg-slate-900 border border-slate-800 hover:border-indigo-500/50 rounded-3xl p-5 shadow-xl transition cursor-pointer group space-y-3"
                 >
                   <div className="flex items-center justify-between text-xs">
@@ -1135,17 +1049,17 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
                       <Play className="w-3.5 h-3.5 text-amber-400" /> Clip #{i + 1}
                     </span>
                     <span className="font-mono text-slate-400 text-[11px] bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
-                      {formatTime(rally.timestampStart)} ({rally.durationSec}s)
+                      {formatTime(clip.timestamp)} ({clip.durationSec}s)
                     </span>
                   </div>
 
                   <div className="text-xs text-slate-300">
-                    {rally.phase}: <strong className="text-white">{rally.detectedCode}</strong>
+                    {clip.label}{clip.detail ? <>: <strong className="text-white">{clip.detail}</strong></> : null}
                   </div>
 
                   <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-800">
-                    <span>Velocidad: <strong className="text-emerald-400">{rally.ballMaxSpeedKmh} km/h</strong></span>
-                    <span>Salto: <strong className="text-indigo-300">{rally.spikeReachM}m</strong></span>
+                    <span>{clip.source === 'tag' ? 'Etiqueta manual / Scout' : 'Rally registrado'}</span>
+                    <span className="text-indigo-300">{clip.skill ? `Fundamento: ${clip.skill}` : 'Sin fundamento etiquetado'}</span>
                   </div>
                 </div>
               ))

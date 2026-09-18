@@ -103,6 +103,31 @@ export function evaluatePerformanceFollowUp(
     };
   }
 
+  const currentTeamName = target.teamSide === 'home' ? currentMatch.homeTeamName : currentMatch.awayTeamName;
+  if (target.sourceTeamName && currentTeamName !== target.sourceTeamName) {
+    return {
+      status: 'not_comparable',
+      label: target.label,
+      baselineValue: target.baselineValue,
+      baselineSample: target.baselineSample,
+      message: `El partido actual corresponde a ${currentTeamName}; este objetivo pertenece a ${target.sourceTeamName}.`,
+    };
+  }
+
+  if (target.sourceMatchDate && currentMatch.date) {
+    const sourceDate = Date.parse(`${target.sourceMatchDate}T00:00:00Z`);
+    const currentDate = Date.parse(`${currentMatch.date}T00:00:00Z`);
+    if (!Number.isNaN(sourceDate) && !Number.isNaN(currentDate) && currentDate <= sourceDate) {
+      return {
+        status: 'not_comparable',
+        label: target.label,
+        baselineValue: target.baselineValue,
+        baselineSample: target.baselineSample,
+        message: `El partido actual (${currentMatch.date}) no es posterior al partido de origen (${target.sourceMatchDate}).`,
+      };
+    }
+  }
+
   if (target.metric === 'manual') {
     return {
       status: 'not_comparable',
@@ -176,6 +201,8 @@ export function buildPerformanceTargetFromMatch(
   const target: TrainingPerformanceTarget = {
     ...partial,
     sourceMatchId: match.id,
+    sourceMatchDate: match.date,
+    sourceTeamName: partial.teamSide === 'home' ? match.homeTeamName : match.awayTeamName,
   };
 
   if (target.metric === 'manual') return target;
