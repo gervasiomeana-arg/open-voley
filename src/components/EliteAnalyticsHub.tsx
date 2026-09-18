@@ -646,7 +646,7 @@ const ReportFerraroAdversary: React.FC<ReportFerraroAdversaryProps> = ({
                 Informe de Preparación de Partido • Metodología Hernán Ferraro
               </span>
               <span className="bg-slate-800 text-slate-300 text-[10px] px-2 py-0.5 rounded border border-slate-700">
-                5 partidos analizados
+                {actions.length} acciones analizadas
               </span>
             </div>
             <h2 className="text-2xl font-black text-white">{teamName}</h2>
@@ -663,15 +663,15 @@ const ReportFerraroAdversary: React.FC<ReportFerraroAdversaryProps> = ({
             Titulares en Cancha
           </div>
           <div className="grid grid-cols-3 gap-1 text-center font-mono font-black text-xs">
-            <div className="bg-slate-800 text-amber-400 px-2 py-1 rounded">IV: #{players[3]?.number || 7}</div>
-            <div className="bg-slate-800 text-cyan-400 px-2 py-1 rounded">III: #{players[2]?.number || 6}</div>
-            <div className="bg-slate-800 text-rose-400 px-2 py-1 rounded">II: #{players[1]?.number || 10}</div>
-            <div className="bg-slate-800 text-slate-300 px-2 py-1 rounded">V: #{players[4]?.number || 9}</div>
-            <div className="bg-slate-800 text-slate-300 px-2 py-1 rounded">VI: #{players[5]?.number || 16}</div>
-            <div className="bg-slate-800 text-purple-400 px-2 py-1 rounded">I: #{players[0]?.number || 8}</div>
+            <div className="bg-slate-800 text-amber-400 px-2 py-1 rounded">IV: #{players[3]?.number ?? '—'}</div>
+            <div className="bg-slate-800 text-cyan-400 px-2 py-1 rounded">III: #{players[2]?.number ?? '—'}</div>
+            <div className="bg-slate-800 text-rose-400 px-2 py-1 rounded">II: #{players[1]?.number ?? '—'}</div>
+            <div className="bg-slate-800 text-slate-300 px-2 py-1 rounded">V: #{players[4]?.number ?? '—'}</div>
+            <div className="bg-slate-800 text-slate-300 px-2 py-1 rounded">VI: #{players[5]?.number ?? '—'}</div>
+            <div className="bg-slate-800 text-purple-400 px-2 py-1 rounded">I: #{players[0]?.number ?? '—'}</div>
           </div>
           <div className="bg-emerald-950/60 text-emerald-400 border border-emerald-800/80 px-2 py-2 rounded text-[11px] font-bold text-center">
-            L: #{players.find(p => p.position === 'L')?.number || 5}
+            L: #{players.find(p => p.position === 'L')?.number ?? '—'}
           </div>
         </div>
       </div>
@@ -682,7 +682,7 @@ const ReportFerraroAdversary: React.FC<ReportFerraroAdversaryProps> = ({
           <div>
             <h3 className="text-lg font-black text-white flex items-center gap-2">
               <Target className="w-5 h-5 text-cyan-400" />
-              <span>Fundamentos Globales del Rival (Data Volley Official P3)</span>
+              <span>Fundamentos Globales del Equipo Analizado</span>
             </h3>
             <p className="text-xs text-slate-400">
               Efectividad neta (*E%), volumen total, errores, bolas negativas y puntos directos.
@@ -887,11 +887,11 @@ const ReportFerraroAdversary: React.FC<ReportFerraroAdversaryProps> = ({
               <span>Análisis Táctico del Armador Rival: Rotaciones, Llamadas y Tendencias</span>
             </h3>
             <p className="text-xs text-slate-400">
-              Patrones extraídos de las diapositivas 5 a 12 (Toniutti / Bruno en 1 con B, armador en 6 con corta atrás, delantero con B).
+              Tendencias del armador calculadas únicamente cuando existen acciones de colocación y contexto de rotación suficientes.
             </p>
           </div>
           <span className="text-[11px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 px-3 py-1 rounded-xl">
-            Armador Titular: #{players.find(p => p.position === 'S')?.number || 8} ({players.find(p => p.position === 'S')?.name || 'Armador Rival'})
+            {players.find(p => p.position === 'S') ? `Armador: #${players.find(p => p.position === 'S')?.number} (${players.find(p => p.position === 'S')?.name})` : 'Armador no identificado'}
           </span>
         </div>
 
@@ -910,7 +910,7 @@ const ReportFerraroAdversary: React.FC<ReportFerraroAdversaryProps> = ({
             </p>
             <div className="pt-2 border-t border-slate-850 flex items-center justify-between text-[11px] font-mono">
               <span className="text-slate-400">Distribución Z4:</span>
-              <span className="text-emerald-400 font-bold">54% (Salida fija)</span>
+              <span className="text-slate-500 font-bold">Sin muestra suficiente</span>
             </div>
           </div>
 
@@ -924,11 +924,11 @@ const ReportFerraroAdversary: React.FC<ReportFerraroAdversaryProps> = ({
             </div>
             <div className="font-bold text-sm text-white">Salida por arriba vs Pipe</div>
             <p className="text-xs text-slate-400 leading-relaxed">
-              «La utiliza como salida para jugar por arriba en Z2 o para jugar en Z4. Con pase perfecto (#) juega la Pipe por Z6 en un 28% de los balones.»
+              OPEN VOLEY no mostrará una tendencia de Pipe o salida por zona hasta disponer de secuencias de colocación suficientes en esta rotación.
             </p>
             <div className="pt-2 border-t border-slate-850 flex items-center justify-between text-[11px] font-mono">
               <span className="text-slate-400">Pipe en P6:</span>
-              <span className="text-cyan-400 font-bold">28% de frecuencia</span>
+              <span className="text-slate-500 font-bold">Sin muestra suficiente</span>
             </div>
           </div>
 
@@ -946,7 +946,7 @@ const ReportFerraroAdversary: React.FC<ReportFerraroAdversaryProps> = ({
             </p>
             <div className="pt-2 border-t border-slate-850 flex items-center justify-between text-[11px] font-mono">
               <span className="text-slate-400">Toque de 2da:</span>
-              <span className="text-amber-400 font-bold">1 cada 14 armados (P2)</span>
+              <span className="text-slate-500 font-bold">Sin muestra suficiente</span>
             </div>
           </div>
         </div>
@@ -968,15 +968,15 @@ const ReportFerraroAdversary: React.FC<ReportFerraroAdversaryProps> = ({
             <ul className="space-y-1.5 text-slate-300">
               <li className="flex items-start gap-1.5">
                 <span className="text-amber-400">•</span>
-                <span>Sacar flotante profundo a zona 5 sobre el receptor #9 para quebrar el sideout rival.</span>
+                <span>Definir el objetivo de saque sólo a partir de recepción real por jugador y zona.</span>
               </li>
               <li className="flex items-start gap-1.5">
                 <span className="text-amber-400">•</span>
-                <span>Evitar saque flot directo al líbero Zalcman (72% eficiencia).</span>
+                <span>No asignar un receptor objetivo si la muestra registrada no permite sostener la decisión.</span>
               </li>
               <li className="flex items-start gap-1.5">
                 <span className="text-amber-400">•</span>
-                <span>Saque corto táctico a zona 4 cuando el opuesto rival ataca en P1.</span>
+                <span>Usar la tabla R1-R6 para detectar la rotación con menor side-out observado.</span>
               </li>
             </ul>
           </div>
@@ -989,15 +989,15 @@ const ReportFerraroAdversary: React.FC<ReportFerraroAdversaryProps> = ({
             <ul className="space-y-1.5 text-slate-300">
               <li className="flex items-start gap-1.5">
                 <span className="text-cyan-400">•</span>
-                <span>Nuestros centrales no deben colgarse con fintas en P6: esperar lectura del armador.</span>
+                <span>Definir el esquema de bloqueo desde la distribución real del armador por rotación.</span>
               </li>
               <li className="flex items-start gap-1.5">
                 <span className="text-cyan-400">•</span>
-                <span>Cerrar la diagonal con doble bloqueo sobre el opuesto #7 Mangini.</span>
+                <span>Priorizar al atacante con mayor volumen real cuando exista una muestra suficiente.</span>
               </li>
               <li className="flex items-start gap-1.5">
                 <span className="text-cyan-400">•</span>
-                <span>En situaciones de pase fuera de 3 metros, soltar central rival y armar bloqueo triple en 4.</span>
+                <span>Separar decisiones con pase positivo y negativo cuando esa calidad esté registrada.</span>
               </li>
             </ul>
           </div>
