@@ -48,5 +48,8 @@ jobs:
       - name: Training sync tests
         run: npm run test:training-sync
 
+      - name: SQLite repository tests
+        run: npm run test:training-sqlite
+
       - name: Production build
         run: npm run build
