@@ -18,6 +18,7 @@ import {
 import { MatchData, TrainingEvidenceContext } from '../types';
 import { getCurrentMatch } from '../services/teamStorage';
 import { buildEvidenceInsights } from '../utils/evidenceInsights';
+import { buildOpenAiConversationContext } from '../utils/openAiConversationContext';
 
 export interface AttackCounts {
   totalAttacks: number;
@@ -181,6 +182,7 @@ const ISSUE_TRANSLATIONS: Record<PerformanceIssueResult, string> = {
 interface OpenAiCenterProps {
   match?: MatchData;
   currentMatch?: MatchData;
+  historicalMatches?: MatchData[];
   onGenerateTraining?: (context: TrainingEvidenceContext) => void;
   onOpenVideoClips?: (rallyIds?: string[]) => void;
   onOpenTactics?: () => void;
@@ -190,6 +192,7 @@ interface OpenAiCenterProps {
 export const OpenAiCenter: React.FC<OpenAiCenterProps> = ({
   match,
   currentMatch: propCurrentMatch,
+  historicalMatches = [],
   onGenerateTraining,
   onOpenVideoClips,
   onOpenTactics,
@@ -311,19 +314,34 @@ interface ActionInsightItem {
       ? allInsights
       : allInsights.filter((i) => i.category === activeCategory);
 
-  const handleSendQuestion = (e: React.FormEvent) => {
+  const handleSendQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!customQuestion.trim() || isAnswering) return;
 
     const q = customQuestion.trim();
     setCustomQuestion('');
     setIsAnswering(true);
-
-    setTimeout(() => {
-      const a = 'Datos insuficientes para generar este análisis.';
-      setCustomAnswers((prev) => [{ q, a, timestamp: new Date().toLocaleTimeString().slice(0, 5) }, ...prev]);
+    try {
+      const context = buildOpenAiConversationContext(currentMatch, historicalMatches);
+      const conversation = customAnswers.slice(0, 6).reverse().map((item) => ({ question: item.q, answer: item.a }));
+      const response = await fetch('/api/ai-scout', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ query: q, context, conversation }),
+      });
+      const payload = await response.json().catch(() => null);
+      const a = response.ok && payload?.reply
+        ? String(payload.reply)
+        : payload?.error === 'AI service is not configured'
+          ? 'OPEN AI no está configurado en este servidor. Falta GEMINI_API_KEY.'
+          : 'No fue posible completar la consulta con los datos disponibles.';
+      setCustomAnswers((prev) => [{ q, a, timestamp: new Date().toLocaleTimeString().slice(0, 5) }, ...prev].slice(0, 20));
+    } catch {
+      setCustomAnswers((prev) => [{ q, a: 'No fue posible conectar con OPEN AI.', timestamp: new Date().toLocaleTimeString().slice(0, 5) }, ...prev].slice(0, 20));
+    } finally {
       setIsAnswering(false);
-    }, 400);
+    }
   };
 
   return (
@@ -560,7 +578,7 @@ interface ActionInsightItem {
             <Sparkles className="w-5 h-5 text-purple-400" />
             <h3 className="text-sm font-black text-white">Consulta Táctica Contextual</h3>
           </div>
-          <span className="text-[11px] text-slate-400">Sin alucinaciones • Respuestas sustentadas en el partido</span>
+          <span className="text-[11px] text-slate-400">Contexto controlado • Partido + historial + evidencia registrada</span>
         </div>
 
         {/* Input Form */}
@@ -569,7 +587,7 @@ interface ActionInsightItem {
             type="text"
             value={customQuestion}
             onChange={(e) => setCustomQuestion(e.target.value)}
-            placeholder="Ej: ¿En qué rotación concedimos más puntos? o ¿Cómo frenar al central rival?"
+            placeholder="Ej: ¿Cómo estuvo nuestra recepción? ¿Qué jugador hizo más puntos? ¿Qué cambió respecto de partidos anteriores?"
             className="flex-1 bg-slate-950 border border-slate-700/80 rounded-xl px-4 py-2.5 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-purple-400"
           />
           <button
