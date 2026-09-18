@@ -60,6 +60,23 @@ export function requestProtection(req: Request, res: Response, next: NextFunctio
     }
   }
 
+  if (req.method === 'POST' && (path === '/api/mercadopago/create-preference' || path === '/api/mercadopago/confirm-payment')) {
+    const session = getSessionFromRequest(req);
+    if (!session) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    if (!consume(`payment:${session.userId}`, 20, 10 * 60 * 1000)) {
+      return res.status(429).json({ error: 'Too many payment requests. Try again later.' });
+    }
+  }
+
+  if (req.method === 'POST' && path === '/api/mercadopago/webhook') {
+    if (!consume(`mp-webhook:${ip}`, 120, 60 * 60 * 1000)) {
+      return res.status(429).send('Webhook rate limit exceeded');
+    }
+  }
+
   if (req.method === 'POST' && path === '/api/visitors/track') {
     if (!consume(`visitor:${ip}`, 60, 60 * 60 * 1000)) {
       return res.status(429).json({ error: 'Tracking rate limit exceeded' });
