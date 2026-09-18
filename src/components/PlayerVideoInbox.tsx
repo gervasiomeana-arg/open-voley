@@ -89,8 +89,13 @@ export const PlayerVideoInbox: React.FC = () => {
                 </div>
               )}
 
-              <div className="mt-4 pt-3 border-t border-slate-800 text-[10px] text-slate-500">
-                Publicado {montage.publishedAt ? new Date(montage.publishedAt).toLocaleString() : ''}
+              <div className="mt-4 pt-3 border-t border-slate-800 space-y-2">
+                <div className="text-[10px] text-slate-500">
+                  Publicado {montage.publishedAt ? new Date(montage.publishedAt).toLocaleString() : ''}
+                </div>
+                <div className="text-[11px] text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2">
+                  Montaje recibido: incluye selección de clips y devolución técnica. La reproducción del archivo final requiere que el video fuente esté disponible en OPEN VOLEY.
+                </div>
               </div>
             </article>
           ))}
