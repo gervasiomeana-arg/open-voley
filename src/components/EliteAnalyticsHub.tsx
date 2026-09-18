@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { MatchData, TeamSide, ScoutCodeAction } from '../types';
+import { calculateTeamDataVolleySummary } from '../utils/dataVolleyAnalytics';
 import { 
   TrendingUp, 
   Target, 
@@ -160,6 +161,16 @@ export const EliteAnalyticsHub: React.FC<EliteAnalyticsHubProps> = ({
   const targetTeamName = analyzedTeamSide === 'away' ? match.awayTeamName : match.homeTeamName;
   const opposingTeamName = analyzedTeamSide === 'away' ? match.homeTeamName : match.awayTeamName;
   const targetPlayers = analyzedTeamSide === 'away' ? match.awayPlayers : match.homePlayers;
+
+  const filteredMatch = useMemo<MatchData>(() => ({
+    ...match,
+    actions: filteredActions,
+  }), [match, filteredActions]);
+
+  const dataVolleySummary = useMemo(
+    () => calculateTeamDataVolleySummary(filteredMatch, analyzedTeamSide),
+    [filteredMatch, analyzedTeamSide],
+  );
 
   const handlePrint = () => {
     window.print();
@@ -360,6 +371,87 @@ export const EliteAnalyticsHub: React.FC<EliteAnalyticsHubProps> = ({
         </div>
       </div>
 
+      {/* DataVolley coach snapshot: only real actions from the selected team/set */}
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xl space-y-4">
+        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-3">
+          <div>
+            <div className="text-[10px] font-black tracking-[0.18em] text-cyan-400 uppercase">Lectura rápida del DT</div>
+            <h2 className="text-xl font-black text-white mt-1">Resumen DataVolley • {dataVolleySummary.teamName}</h2>
+            <p className="text-xs text-slate-400 mt-1">
+              Calculado únicamente con las {dataVolleySummary.sampleSize} acciones registradas en el filtro actual.
+            </p>
+          </div>
+          <div className="text-[11px] text-slate-400 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2">
+            {dataVolleySummary.sampleSize === 0
+              ? 'Sin muestra estadística disponible'
+              : 'Sin valores de ejemplo ni proyecciones inventadas'}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+          {[
+            { label: 'Recepción +', value: dataVolleySummary.reception.total ? `${dataVolleySummary.reception.positivePct}%` : '—', detail: `${dataVolleySummary.reception.total} rec.` },
+            { label: 'Recepción #', value: dataVolleySummary.reception.total ? `${dataVolleySummary.reception.perfectPct}%` : '—', detail: 'perfecta' },
+            { label: 'Ataque %', value: dataVolleySummary.attack.total ? `${dataVolleySummary.attack.pointPct}%` : '—', detail: `${dataVolleySummary.attack.points}/${dataVolleySummary.attack.total}` },
+            { label: 'Ataque E%', value: dataVolleySummary.attack.total ? `${dataVolleySummary.attack.efficiencyPct}%` : '—', detail: 'puntos-err-blq' },
+            { label: 'Ace %', value: dataVolleySummary.serve.total ? `${dataVolleySummary.serve.pointPct}%` : '—', detail: `${dataVolleySummary.serve.points}/${dataVolleySummary.serve.total}` },
+            { label: 'Bloqueos', value: String(dataVolleySummary.blockPoints), detail: 'puntos directos' },
+            { label: 'Balance', value: dataVolleySummary.sampleSize ? (dataVolleySummary.gainLoss > 0 ? `+${dataVolleySummary.gainLoss}` : String(dataVolleySummary.gainLoss)) : '—', detail: 'ganancia/pérdida' },
+          ].map((metric) => (
+            <div key={metric.label} className="bg-slate-950 border border-slate-800 rounded-2xl p-3">
+              <div className="text-[10px] uppercase tracking-wider font-bold text-slate-500">{metric.label}</div>
+              <div className="text-xl font-black text-white mt-1">{metric.value}</div>
+              <div className="text-[10px] text-slate-500 mt-0.5">{metric.detail}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="overflow-x-auto rounded-2xl border border-slate-800">
+          <table className="w-full text-xs text-left">
+            <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] tracking-wider">
+              <tr>
+                <th className="px-3 py-2">Rotación</th>
+                <th className="px-3 py-2 text-center">Muestra</th>
+                <th className="px-3 py-2 text-center">Rec +</th>
+                <th className="px-3 py-2 text-center">Ataque E%</th>
+                <th className="px-3 py-2 text-center">K1 / Side-out</th>
+                <th className="px-3 py-2 text-center">K2 / Break Point</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800">
+              {dataVolleySummary.rotations.map((row) => (
+                <tr key={row.rotation} className="bg-slate-900/50 hover:bg-slate-800/50">
+                  <td className="px-3 py-2 font-black text-white">R{row.rotation}</td>
+                  <td className="px-3 py-2 text-center text-slate-300">{row.samples}</td>
+                  <td className="px-3 py-2 text-center text-cyan-300">{row.reception.total ? `${row.reception.positivePct}%` : '—'}</td>
+                  <td className="px-3 py-2 text-center text-amber-300">{row.attack.total ? `${row.attack.efficiencyPct}%` : '—'}</td>
+                  <td className="px-3 py-2 text-center text-emerald-300">{row.sideoutOpportunities ? `${row.sideoutPct}% (${row.sideoutWon}/${row.sideoutOpportunities})` : '—'}</td>
+                  <td className="px-3 py-2 text-center text-purple-300">{row.breakPointOpportunities ? `${row.breakPointPct}% (${row.breakPointWon}/${row.breakPointOpportunities})` : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="flex flex-wrap gap-2 text-[11px]">
+          {dataVolleySummary.strongestRotation && (
+            <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300">
+              Mejor side-out observado: R{dataVolleySummary.strongestRotation}
+            </span>
+          )}
+          {dataVolleySummary.weakestRotation && (
+            <span className="px-2.5 py-1 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300">
+              Rotación a revisar: R{dataVolleySummary.weakestRotation}
+            </span>
+          )}
+          {!dataVolleySummary.strongestRotation && (
+            <span className="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-slate-400">
+              Se requieren al menos 2 recepciones por rotación para marcar fortalezas/debilidades.
+            </span>
+          )}
+        </div>
+      </div>
+
       {/* Insufficient data notification or Active Report Content */}
       {hasEnoughActionsForAdvancedAnalysis === false ? (
         <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl text-center">
@@ -446,11 +538,10 @@ const ReportFerraroAdversary: React.FC<ReportFerraroAdversaryProps> = ({
     const calcSkillRow = (
       name: string,
       predicate: (a: ScoutCodeAction) => boolean,
-      defaultSample: { tot: number; err: number; errP: number; slash: number; slashP: number; neg: number; negP: number; excl: number; exclP: number; pos: number; posP: number; kill: number; killP: number; eff: number }
     ) => {
       const subset = teamActions.filter(predicate);
       if (subset.length === 0) {
-        return { name, ...defaultSample };
+        return { name, tot: 0, err: 0, errP: 0, slash: 0, slashP: 0, neg: 0, negP: 0, excl: 0, exclP: 0, pos: 0, posP: 0, kill: 0, killP: 0, eff: 0 };
       }
       const tot = subset.length;
       const err = subset.filter((a) => a.evaluation === '=').length;
@@ -482,15 +573,15 @@ const ReportFerraroAdversary: React.FC<ReportFerraroAdversaryProps> = ({
     };
 
     return [
-      calcSkillRow('Saque', (a) => a.skill === 'S', { tot: 74, err: 12, errP: 16, slash: 2, slashP: 3, neg: 31, negP: 42, excl: 15, exclP: 20, pos: 9, posP: 12, kill: 5, killP: 7, eff: -9 }),
-      calcSkillRow('Recepción', (a) => a.skill === 'R', { tot: 68, err: 3, errP: 4, slash: 3, slashP: 4, neg: 10, negP: 15, excl: 16, exclP: 24, pos: 17, posP: 25, kill: 19, killP: 28, eff: 49 }),
-      calcSkillRow('Ataque', (a) => a.skill === 'A', { tot: 108, err: 11, errP: 10, slash: 8, slashP: 7, neg: 28, negP: 26, excl: 2, exclP: 2, pos: 13, posP: 12, kill: 46, killP: 43, eff: 25 }),
-      calcSkillRow('Atq después de Rec (K1)', (a) => a.skill === 'A' && a.rawCode.includes('K1'), { tot: 62, err: 6, errP: 10, slash: 4, slashP: 6, neg: 12, negP: 19, excl: 1, exclP: 2, pos: 6, posP: 10, kill: 33, killP: 53, eff: 37 }),
-      calcSkillRow('Transición (K2)', (a) => a.skill === 'A' && a.rawCode.includes('K2'), { tot: 46, err: 5, errP: 11, slash: 4, slashP: 9, neg: 16, negP: 35, excl: 1, exclP: 2, pos: 7, posP: 15, kill: 13, killP: 28, eff: 9 }),
-      calcSkillRow('Bloqueo', (a) => a.skill === 'B', { tot: 53, err: 13, errP: 25, slash: 1, slashP: 2, neg: 11, negP: 21, excl: 0, exclP: 0, pos: 19, posP: 36, kill: 9, killP: 17, eff: -8 }),
-      calcSkillRow('Defensa', (a) => a.skill === 'D', { tot: 38, err: 14, errP: 37, slash: 0, slashP: 0, neg: 4, negP: 11, excl: 0, exclP: 0, pos: 1, posP: 3, kill: 19, killP: 50, eff: 13 }),
-      calcSkillRow('Free ball', (a) => a.skill === 'F', { tot: 8, err: 0, errP: 0, slash: 0, slashP: 0, neg: 0, negP: 0, excl: 0, exclP: 0, pos: 1, posP: 12, kill: 7, killP: 88, eff: 88 }),
-      calcSkillRow('Levantada', (a) => a.skill === 'E', { tot: 105, err: 1, errP: 1, slash: 0, slashP: 0, neg: 0, negP: 0, excl: 0, exclP: 0, pos: 0, posP: 0, kill: 104, killP: 99, eff: 98 }),
+      calcSkillRow('Saque', (a) => a.skill === 'S'),
+      calcSkillRow('Recepción', (a) => a.skill === 'R'),
+      calcSkillRow('Ataque', (a) => a.skill === 'A'),
+      calcSkillRow('Atq después de Rec (K1)', (a) => a.skill === 'A' && a.rawCode.includes('K1')),
+      calcSkillRow('Transición (K2)', (a) => a.skill === 'A' && a.rawCode.includes('K2')),
+      calcSkillRow('Bloqueo', (a) => a.skill === 'B'),
+      calcSkillRow('Defensa', (a) => a.skill === 'D'),
+      calcSkillRow('Free ball', (a) => a.skill === 'F'),
+      calcSkillRow('Levantada', (a) => a.skill === 'E'),
     ];
   }, [actions, teamSide]);
 
