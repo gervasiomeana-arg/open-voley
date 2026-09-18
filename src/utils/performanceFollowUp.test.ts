@@ -111,14 +111,14 @@ assert.equal(receptionResult.currentValue, 40);
 assert.equal(receptionResult.delta, -20);
 assert.match(receptionResult.message, /60% → 40% \(-20 pp\); mejora observada/i);
 
-const insufficientReception = baseMatch('small-sample', [
+const insufficientReception = { ...baseMatch('small-sample', [
   action('s21', 'away', 'S', '+', 'm1', { serveType: 'jump_spin', endZone: 5 }),
   action('r21', 'home', 'R', '+', 'm1', { receptionContext: 'positive' }),
   action('s22', 'away', 'S', '+', 'm2', { serveType: 'jump_spin', endZone: 5 }),
   action('r22', 'home', 'R', '-', 'm2', { receptionContext: 'negative' }),
   action('s23', 'away', 'S', '+', 'm3', { serveType: 'jump_spin', endZone: 5 }),
   action('r23', 'home', 'R', '+', 'm3', { receptionContext: 'positive' }),
-]);
+]), date: '2026-09-19' };
 
 const smallResult = evaluatePerformanceFollowUp(receptionTarget, insufficientReception);
 assert.equal(PERFORMANCE_FOLLOW_UP_MIN_SAMPLE, 4);
