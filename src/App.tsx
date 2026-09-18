@@ -503,7 +503,7 @@ export default function App() {
     setMatchesSubTab('center');
   };
 
-  const handleMatchCenterNavigate = (destination: 'scout' | 'video' | 'stats' | 'ai') => {
+  const handleMatchCenterNavigate = (destination: 'scout' | 'video' | 'stats' | 'ai' | 'analytics') => {
     if (destination === 'scout') {
       setActiveTab('match');
       setMatchesSubTab('scout');
@@ -519,6 +519,9 @@ export default function App() {
         setMatch(persisted);
       }
       setActiveTab('ai');
+    } else if (destination === 'analytics') {
+      setActiveTab('analysis');
+      setAnalysisSubTab('reports');
     }
   };
 
