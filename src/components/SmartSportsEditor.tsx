@@ -13,6 +13,8 @@ import {
   ChevronDown,
   CheckSquare,
   Square,
+  Send,
+  MessageSquare,
 } from 'lucide-react';
 import { EvaluationSymbol, MatchData, ScoutCodeAction, SmartSportsMontage, TeamSide, VolleySkill } from '../types';
 import { getSavedSmartSportsMontages } from '../services/smartSportsMontageStorage';
@@ -80,6 +82,10 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
     getSavedSmartSportsMontages().filter((item) => item.matchId === match.id),
   );
   const [activeMontageId, setActiveMontageId] = useState<string | null>(null);
+  const [recipientType, setRecipientType] = useState<'player' | 'team' | 'staff'>('player');
+  const [recipientLabel, setRecipientLabel] = useState('');
+  const [coachNote, setCoachNote] = useState('');
+  const [shareTitle, setShareTitle] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -111,6 +117,10 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
       setPostRoll(montage.postRoll);
       setSelectedActionIds(montage.actionIds.filter((id) => sourceActions.some((action) => action.id === id)));
       setManualOrder(montage.actionIds);
+      setRecipientType(montage.recipientType || 'player');
+      setRecipientLabel(montage.recipientLabel || '');
+      setCoachNote(montage.coachNote || '');
+      setShareTitle(montage.shareTitle || montage.name);
     });
   }, [initialMontageId, match.id, sourceActions]);
 
@@ -197,6 +207,11 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
       playerNames: Array.from(new Set<string>(selectedPlaylist.map((action) => action.playerName).filter((name): name is string => Boolean(name)))),
       skills: Array.from(new Set<VolleySkill>(selectedPlaylist.map((action) => action.skill))),
       teamSides: Array.from(new Set<TeamSide>(selectedPlaylist.map((action) => action.team))),
+      recipientType,
+      recipientLabel: recipientLabel.trim() || undefined,
+      coachNote: coachNote.trim() || undefined,
+      shareTitle: shareTitle.trim() || montageName.trim() || undefined,
+      readyToShare: Boolean(recipientLabel.trim() || coachNote.trim()),
     };
     const updated = saveMontageLocallyFirst(montage).filter((item) => item.matchId === match.id);
     setSavedMontages(updated);
@@ -211,6 +226,10 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
     setPostRoll(montage.postRoll);
     setSelectedActionIds(montage.actionIds.filter((id) => sourceActions.some((action) => action.id === id)));
     setManualOrder(montage.actionIds);
+    setRecipientType(montage.recipientType || 'player');
+    setRecipientLabel(montage.recipientLabel || '');
+    setCoachNote(montage.coachNote || '');
+    setShareTitle(montage.shareTitle || montage.name);
   };
 
   const removeMontage = (id: string) => {
@@ -409,6 +428,51 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
           </div>
         )}
 
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 pt-2 border-t border-slate-800">
+          <label className="space-y-1">
+            <span className="text-[11px] font-bold text-slate-400">Destinatario</span>
+            <select
+              value={recipientType}
+              onChange={(e) => setRecipientType(e.target.value as 'player' | 'team' | 'staff')}
+              className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white"
+            >
+              <option value="player">Jugador</option>
+              <option value="team">Equipo</option>
+              <option value="staff">Cuerpo técnico</option>
+            </select>
+          </label>
+          <label className="space-y-1">
+            <span className="text-[11px] font-bold text-slate-400">Nombre / grupo</span>
+            <input
+              value={recipientLabel}
+              onChange={(e) => setRecipientLabel(e.target.value)}
+              placeholder="Ej: Juan Pérez #8"
+              className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white"
+            />
+          </label>
+          <label className="space-y-1">
+            <span className="text-[11px] font-bold text-slate-400">Título al compartir</span>
+            <input
+              value={shareTitle}
+              onChange={(e) => setShareTitle(e.target.value)}
+              placeholder="Ej: Tus saques vs Club X"
+              className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white"
+            />
+          </label>
+          <label className="space-y-1 lg:col-span-3">
+            <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
+              <MessageSquare className="w-3 h-3" /> Nota del entrenador
+            </span>
+            <textarea
+              value={coachNote}
+              onChange={(e) => setCoachNote(e.target.value)}
+              rows={3}
+              placeholder="Ej: Mirá especialmente la dirección del saque y el contacto de la mano en los clips 3, 5 y 7."
+              className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white resize-y"
+            />
+          </label>
+        </div>
+
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-800">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[11px] font-bold text-slate-400">Ventana por clip</span>
@@ -465,12 +529,12 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => onExportVideo(selectedPlaylist, preRoll, postRoll, montageName, true)}
+              onClick={() => onExportVideo(selectedPlaylist, preRoll, postRoll, shareTitle.trim() || montageName, true)}
               disabled={selectedPlaylist.length === 0}
-              className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-xs font-black"
+              className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-xs font-black flex items-center gap-1.5"
               title="Genera el video y, si el dispositivo lo permite, abre el panel nativo para compartir el archivo."
             >
-              Compartir
+              <Send className="w-3.5 h-3.5" /> Compartir con {recipientType === 'player' ? 'jugador' : recipientType === 'team' ? 'equipo' : 'staff'}
             </button>
             <button
               type="button"
