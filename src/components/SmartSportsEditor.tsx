@@ -82,21 +82,6 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
   const [activeMontageId, setActiveMontageId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!initialMontageId) return;
-    void syncSmartSportsMontages().then((montages) => {
-      const montage = montages.find((item) => item.id === initialMontageId && item.matchId === match.id);
-      if (!montage) return;
-      setSavedMontages(montages.filter((item) => item.matchId === match.id));
-      setActiveMontageId(montage.id);
-      setMontageName(montage.name);
-      setPreRoll(montage.preRoll);
-      setPostRoll(montage.postRoll);
-      setSelectedActionIds(montage.actionIds.filter((id) => sourceActions.some((action) => action.id === id)));
-      setManualOrder(montage.actionIds);
-    });
-  }, [initialMontageId, match.id, sourceActions]);
-
-  useEffect(() => {
     let active = true;
     void syncSmartSportsMontages().then((montages) => {
       if (active) setSavedMontages(montages.filter((item) => item.matchId === match.id));
@@ -113,6 +98,21 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
     });
     return [...byId.values()].sort((a, b) => a.timestamp - b.timestamp);
   }, [actions, userCuts]);
+
+  useEffect(() => {
+    if (!initialMontageId) return;
+    void syncSmartSportsMontages().then((montages) => {
+      const montage = montages.find((item) => item.id === initialMontageId && item.matchId === match.id);
+      if (!montage) return;
+      setSavedMontages(montages.filter((item) => item.matchId === match.id));
+      setActiveMontageId(montage.id);
+      setMontageName(montage.name);
+      setPreRoll(montage.preRoll);
+      setPostRoll(montage.postRoll);
+      setSelectedActionIds(montage.actionIds.filter((id) => sourceActions.some((action) => action.id === id)));
+      setManualOrder(montage.actionIds);
+    });
+  }, [initialMontageId, match.id, sourceActions]);
 
   const availablePlayers = useMemo(() => {
     const seen = new Map<string, { team: TeamSide; number: number; name: string }>();
