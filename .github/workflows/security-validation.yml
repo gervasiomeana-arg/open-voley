@@ -66,5 +66,8 @@ jobs:
       - name: Player 360 real analytics tests
         run: npm run test:player360
 
+      - name: OPEN AI conversation context tests
+        run: npm run test:open-ai-context
+
       - name: Production build
         run: npm run build
