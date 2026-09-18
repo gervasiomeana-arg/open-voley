@@ -262,5 +262,7 @@ export interface AiEvidenceInsight {
   actionType?: 'view_video' | 'generate_training' | 'view_players' | 'view_analysis';
   rotationRef?: number;
   playerNumRef?: number;
+  /** Exact rallies supporting the finding; used to jump from insight to evidence. */
+  rallyIds?: string[];
 }
 
