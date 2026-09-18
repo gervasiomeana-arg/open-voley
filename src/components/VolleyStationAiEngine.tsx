@@ -161,6 +161,23 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
     };
   }, [detectedRallies]);
 
+  const spatialSummary = useMemo(() => {
+    const skill = heatmapMode === 'attack' ? 'A' : heatmapMode === 'serve' ? 'S' : 'D';
+    const relevant = (match.actions || []).filter(
+      (action) => action.skill === skill && action.endZone && action.endZone >= 1 && action.endZone <= 9,
+    );
+    const counts = new Map<number, number>();
+    relevant.forEach((action) => counts.set(action.endZone!, (counts.get(action.endZone!) || 0) + 1));
+    const total = relevant.length;
+    return [...counts.entries()]
+      .map(([zone, count]) => ({
+        zone,
+        count,
+        pct: total ? Math.round((count / total) * 100) : 0,
+      }))
+      .sort((a, b) => b.count - a.count || a.zone - b.zone);
+  }, [match.actions, heatmapMode]);
+
   const formatTime = (secs: number) => {
     if (isNaN(secs) || secs < 0) return '00:00';
     const m = Math.floor(secs / 60);
@@ -673,7 +690,7 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
                 <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                   <div className="flex items-center gap-2">
                     <Zap className="w-4 h-4 text-amber-400" />
-                    <h3 className="font-black text-sm text-white">Rallies Auto-Detectados</h3>
+                    <h3 className="font-black text-sm text-white">Rallies / Marcadores Registrados</h3>
                   </div>
                   <div className="flex items-center gap-2">
                     {detectedRallies.length > 0 && (
@@ -698,7 +715,7 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
                       <Eye className="w-10 h-10 text-slate-600 mx-auto opacity-50" />
                       <div className="text-xs font-bold text-slate-400">No hay rallies detectados aún</div>
                       <p className="text-[11px] text-slate-500 leading-relaxed">
-                        Carga el video de tu partido y presiona <strong className="text-amber-400">"Auto-Scan Video"</strong> o <strong className="text-emerald-400">"Detectar Rally"</strong> para generar jugadas reales con telemetría.
+                        Carga el video y agrega marcadores manuales o sincroniza jugadas provenientes del Scout. La telemetría sólo aparecerá cuando exista una medición validada.
                       </p>
                     </div>
                   ) : (
@@ -751,7 +768,7 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
               </div>
 
               <div className="text-[11px] text-slate-500 pt-2 border-t border-slate-800 flex items-center justify-between">
-                <span>Auto-Scout OPEN VOLEY AI</span>
+                <span>Registro de rallies OPEN VOLEY</span>
                 <span className="text-amber-400 font-mono font-bold">{detectedRallies.length} Rallies</span>
               </div>
             </div>
@@ -811,88 +828,17 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
             </div>
           </div>
 
-          {/* Zones Distribution Visualizer */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-3 relative overflow-hidden">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Zona 4 (Punta Receptor)</span>
-                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">Z4</span>
-              </div>
-              <div className="text-3xl font-black text-white font-mono">
-                {selectedPassQuality === 'perfect' ? '32%' : selectedPassQuality === 'poor' ? '78%' : '44%'}
-              </div>
-              <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden">
-                <div 
-                  className="bg-gradient-to-r from-blue-500 to-indigo-500 h-full rounded-full"
-                  style={{ width: selectedPassQuality === 'perfect' ? '32%' : selectedPassQuality === 'poor' ? '78%' : '44%' }}
-                />
-              </div>
-              <div className="text-xs text-slate-400 leading-relaxed pt-1">
-                Efectividad de Remate: <strong className="text-emerald-400">54% Pts</strong> (Bloqueo recibido: 8%)
-              </div>
-            </div>
-
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-3 relative overflow-hidden">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Zona 3 (Central / Rápida)</span>
-                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">Z3</span>
-              </div>
-              <div className="text-3xl font-black text-white font-mono">
-                {selectedPassQuality === 'perfect' ? '42%' : selectedPassQuality === 'poor' ? '0%' : '18%'}
-              </div>
-              <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden">
-                <div 
-                  className="bg-gradient-to-r from-amber-500 to-orange-500 h-full rounded-full"
-                  style={{ width: selectedPassQuality === 'perfect' ? '42%' : selectedPassQuality === 'poor' ? '0%' : '18%' }}
-                />
-              </div>
-              <div className="text-xs text-slate-400 leading-relaxed pt-1">
-                Efectividad de Remate: <strong className="text-emerald-400">68% Pts</strong> (Bloqueo recibido: 4%)
-              </div>
-            </div>
-
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-3 relative overflow-hidden">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Zona 2 (Opuesto)</span>
-                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">Z2</span>
-              </div>
-              <div className="text-3xl font-black text-white font-mono">
-                {selectedPassQuality === 'perfect' ? '18%' : selectedPassQuality === 'poor' ? '22%' : '30%'}
-              </div>
-              <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden">
-                <div 
-                  className="bg-gradient-to-r from-purple-500 to-pink-500 h-full rounded-full"
-                  style={{ width: selectedPassQuality === 'perfect' ? '18%' : selectedPassQuality === 'poor' ? '22%' : '30%' }}
-                />
-              </div>
-              <div className="text-xs text-slate-400 leading-relaxed pt-1">
-                Efectividad de Remate: <strong className="text-emerald-400">51% Pts</strong> (Bloqueo recibido: 11%)
-              </div>
-            </div>
-
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-3 relative overflow-hidden">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Zona 8 (Pipe / Zaguero)</span>
-                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">PIPE</span>
-              </div>
-              <div className="text-3xl font-black text-white font-mono">
-                {selectedPassQuality === 'perfect' ? '8%' : selectedPassQuality === 'poor' ? '0%' : '8%'}
-              </div>
-              <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden">
-                <div 
-                  className="bg-gradient-to-r from-emerald-500 to-teal-500 h-full rounded-full"
-                  style={{ width: selectedPassQuality === 'perfect' ? '8%' : selectedPassQuality === 'poor' ? '0%' : '8%' }}
-                />
-              </div>
-              <div className="text-xs text-slate-400 leading-relaxed pt-1">
-                Efectividad de Remate: <strong className="text-emerald-400">62% Pts</strong> (Sorpresa táctica)
-              </div>
-            </div>
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 text-center shadow-xl">
+            <Compass className="w-10 h-10 text-amber-400 mx-auto mb-3" />
+            <h4 className="text-base font-black text-white">Distribución del armador: pendiente de datos estructurados</h4>
+            <p className="text-xs text-slate-400 mt-2 max-w-2xl mx-auto leading-relaxed">
+              OPEN VOLEY no mostrará porcentajes de distribución hasta que cada armado tenga registrado destino, atacante y calidad de recepción vinculados al mismo rally. Las acciones actuales permiten análisis de partido, pero no justifican una matriz predictiva fiable.
+            </p>
           </div>
         </div>
       )}
 
-      {/* SUBMODULE 3: SPATIAL HEATMAPS */}
+            {/* SUBMODULE 3: SPATIAL HEATMAPS */}
       {activeSubModule === 'heatmaps' && (
         <div className="space-y-6 animate-fadeIn">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl flex flex-wrap items-center justify-between gap-4">
@@ -936,101 +882,43 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <div className="lg:col-span-8 bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl flex flex-col items-center justify-center space-y-4">
-              <div className="w-full max-w-lg aspect-[18/9] bg-gradient-to-br from-amber-950/40 via-slate-950 to-orange-950/40 border-2 border-amber-500/60 rounded-2xl relative p-4 flex flex-col justify-between shadow-2xl">
-                <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-amber-400/80 border-l border-dashed border-amber-300 z-20 flex items-center justify-center">
-                  <span className="bg-slate-900 text-amber-400 border border-amber-500 text-[9px] font-black px-1 py-0.5 rounded rotate-90">
-                    RED
-                  </span>
-                </div>
-
-                <svg className="absolute inset-0 w-full h-full pointer-events-none z-10">
-                  {heatmapMode === 'attack' && (
-                    <>
-                      <circle cx="20%" cy="75%" r="38" fill="#ef4444" opacity="0.6" filter="blur(8px)" />
-                      <circle cx="22%" cy="73%" r="22" fill="#f59e0b" opacity="0.8" />
-                      <text x="18%" y="78%" fill="#ffffff" fontSize="10" fontWeight="bold">68% Kills</text>
-
-                      <circle cx="20%" cy="25%" r="26" fill="#3b82f6" opacity="0.5" filter="blur(6px)" />
-                      <circle cx="20%" cy="25%" r="14" fill="#60a5fa" opacity="0.8" />
-                      <text x="16%" y="28%" fill="#ffffff" fontSize="9" fontWeight="bold">24% Line</text>
-
-                      <circle cx="40%" cy="50%" r="18" fill="#10b981" opacity="0.5" filter="blur(5px)" />
-                      <text x="36%" y="53%" fill="#ffffff" fontSize="8" fontWeight="bold">8% Tip</text>
-
-                      <line x1="85%" y1="20%" x2="22%" y2="73%" stroke="#f59e0b" strokeWidth="2.5" strokeDasharray="5 3" />
-                    </>
-                  )}
-
-                  {heatmapMode === 'serve' && (
-                    <>
-                      <circle cx="25%" cy="60%" r="35" fill="#f59e0b" opacity="0.6" filter="blur(8px)" />
-                      <circle cx="25%" cy="60%" r="18" fill="#ef4444" opacity="0.8" />
-                      <text x="21%" y="63%" fill="#ffffff" fontSize="9" fontWeight="bold">Zona Débil</text>
-
-                      <circle cx="38%" cy="48%" r="22" fill="#8b5cf6" opacity="0.6" filter="blur(6px)" />
-                      <text x="34%" y="51%" fill="#ffffff" fontSize="9" fontWeight="bold">Saque Corto</text>
-                    </>
-                  )}
-
-                  {heatmapMode === 'defense' && (
-                    <>
-                      <rect x="10%" y="40%" width="18%" height="22%" fill="#ef4444" opacity="0.3" rx="8" />
-                      <text x="12%" y="52%" fill="#fca5a5" fontSize="9" fontWeight="bold">Espacio Libre</text>
-                    </>
-                  )}
-                </svg>
-
-                <div className="relative z-20 flex justify-between text-[11px] font-mono font-bold text-slate-400">
-                  <span>ZONA DEFENSIVA</span>
-                  <span>ZONA DE ATAQUE</span>
-                </div>
-                <div className="relative z-20 flex justify-between text-[10px] font-mono text-slate-500">
-                  <span>Línea de Fondo (9m)</span>
-                  <span>Línea de 3 metros</span>
-                </div>
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h4 className="font-black text-sm text-white">Distribución real por zona registrada</h4>
+                <p className="text-xs text-slate-400 mt-1">
+                  Se usan únicamente acciones con zona final registrada en Scout.
+                </p>
               </div>
+              <span className="text-[11px] font-mono text-slate-400">
+                n={spatialSummary.reduce((sum, row) => sum + row.count, 0)}
+              </span>
             </div>
 
-            <div className="lg:col-span-4 bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-4">
-              <h4 className="font-black text-sm text-white flex items-center gap-2">
-                <Target className="w-4 h-4 text-rose-400" />
-                Desglose por Zonas de Caída
-              </h4>
-
-              <div className="space-y-3">
-                <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-1.5">
-                  <div className="flex justify-between text-xs font-bold">
-                    <span className="text-slate-300">Diagonal Profunda a Zona 5</span>
-                    <span className="text-rose-400 font-mono">68%</span>
-                  </div>
-                  <div className="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden">
-                    <div className="bg-rose-500 h-full" style={{ width: '68%' }} />
-                  </div>
-                </div>
-
-                <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-1.5">
-                  <div className="flex justify-between text-xs font-bold">
-                    <span className="text-slate-300">Paralela Ajustada a Zona 1</span>
-                    <span className="text-blue-400 font-mono">24%</span>
-                  </div>
-                  <div className="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden">
-                    <div className="bg-blue-500 h-full" style={{ width: '24%' }} />
-                  </div>
-                </div>
-
-                <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-1.5">
-                  <div className="flex justify-between text-xs font-bold">
-                    <span className="text-slate-300">Toque Corto detrás del Bloqueo</span>
-                    <span className="text-emerald-400 font-mono">8%</span>
-                  </div>
-                  <div className="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden">
-                    <div className="bg-emerald-500 h-full" style={{ width: '8%' }} />
-                  </div>
-                </div>
+            {spatialSummary.length === 0 ? (
+              <div className="p-10 text-center bg-slate-950/60 border border-slate-800 rounded-2xl">
+                <Target className="w-9 h-9 text-slate-600 mx-auto mb-2" />
+                <div className="text-xs font-bold text-slate-300">Sin zonas registradas suficientes</div>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Registra la zona destino de las acciones en Scout para construir este mapa con datos reales.
+                </p>
               </div>
-            </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {spatialSummary.map((row) => (
+                  <div key={row.zone} className="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-white">Zona {row.zone}</span>
+                      <span className="text-xs font-mono text-amber-400">{row.pct}%</span>
+                    </div>
+                    <div className="w-full h-2 rounded-full bg-slate-900 overflow-hidden">
+                      <div className="h-full bg-amber-500" style={{ width: `${row.pct}%` }} />
+                    </div>
+                    <div className="text-[11px] text-slate-500">{row.count} acciones registradas</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
