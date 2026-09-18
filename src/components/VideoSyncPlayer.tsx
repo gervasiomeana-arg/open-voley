@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect, ChangeEvent } from 'react';
-import { ScoutCodeAction, VolleySkill, EvaluationSymbol, MatchData } from '../types';
+import { ScoutCodeAction, VolleySkill, EvaluationSymbol, MatchData, SmartSportsMontage } from '../types';
 import { VolleyballMediaStudio } from './VolleyballMediaStudio';
 import { SmartSportsEditor } from './SmartSportsEditor';
+import { SmartSportsLibrary } from './SmartSportsLibrary';
 import { ComputerVisionOverlay } from './ComputerVisionOverlay';
 import { sampleMatchData, defaultYouTubeMatchUrl, defaultYouTubeMatchTitle } from '../data/sampleMatch';
 import { 
@@ -76,7 +77,7 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
   focusTimestamp = null,
 }) => {
   // Video Sub-Tab: Video Player vs Volleyball Scout Media Studio
-  const [activeMediaTab, setActiveMediaTab] = useState<'video_cuts' | 'smart_editor' | 'media_studio'>('video_cuts');
+  const [activeMediaTab, setActiveMediaTab] = useState<'video_cuts' | 'smart_editor' | 'library' | 'media_studio'>('video_cuts');
 
   // Video playback states
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -98,6 +99,7 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
   const [playlistIndex, setPlaylistIndex] = useState<number>(-1);
   const [playlistPreRoll, setPlaylistPreRoll] = useState<number>(3);
   const [playlistPostRoll, setPlaylistPostRoll] = useState<number>(3);
+  const [libraryMontageId, setLibraryMontageId] = useState<string | null>(null);
 
   // New Tag Form state
   const [tagPlayerName, setTagPlayerName] = useState<string>('Jugador');
@@ -585,6 +587,18 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
           </button>
 
           <button
+            onClick={() => setActiveMediaTab('library')}
+            className={`flex-1 sm:flex-none px-4 py-2.5 rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition ${
+              activeMediaTab === 'library'
+                ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/30 scale-[1.02]'
+                : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700'
+            }`}
+          >
+            <FolderOpen className="w-4 h-4" />
+            <span>Biblioteca de Montajes</span>
+          </button>
+
+          <button
             onClick={() => setActiveMediaTab('media_studio')}
             className={`flex-1 sm:flex-none px-4 py-2.5 rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition ${
               activeMediaTab === 'media_studio'
@@ -601,6 +615,19 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
       {/* RENDER MEDIA STUDIO IF SELECTED */}
       {activeMediaTab === 'media_studio' ? (
         <VolleyballMediaStudio match={match} videoSrc={videoSrc} />
+      ) : activeMediaTab === 'library' ? (
+        <SmartSportsLibrary
+          currentMatchId={match.id}
+          onOpenMontage={(montage: SmartSportsMontage) => {
+            if (montage.matchId !== match.id) {
+              setVideoError(`El montaje "${montage.name}" pertenece a otro partido. Carga ese partido para editar o reproducir sus clips.`);
+              return;
+            }
+            setLibraryMontageId(montage.id);
+            setActiveMediaTab('smart_editor');
+            setVideoError(null);
+          }}
+        />
       ) : activeMediaTab === 'smart_editor' ? (
         <SmartSportsEditor
           match={match}
@@ -612,6 +639,7 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
           }}
           onPlayPlaylist={startPlaylistPlayback}
           onExportVideo={exportPlaylistVideo}
+          initialMontageId={libraryMontageId}
         />
       ) : (
         <div className="bg-slate-900 text-white p-4 sm:p-6 rounded-3xl shadow-xl border border-slate-800 space-y-6 animate-fadeIn">
