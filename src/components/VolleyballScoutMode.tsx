@@ -219,8 +219,17 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
       playerName: selectedPlayer.name,
       skill: stagedSkill,
       evaluation: evalSymbol,
+      // Capture only context that is known at tap time. Never invent a destination zone.
       startZone: inferredZone,
-      endZone: isPoint ? (activeTeam === 'home' ? 5 : 1) : undefined,
+      endZone: undefined,
+      receptionContext:
+        stagedSkill === 'R'
+          ? (evalSymbol === '#' || evalSymbol === '+'
+              ? 'positive'
+              : (evalSymbol === '!' || evalSymbol === '-' || evalSymbol === '/' || evalSymbol === '='
+                  ? 'negative'
+                  : 'unknown'))
+          : undefined,
       timestamp: Date.now() / 1000,
       setNumber: match.currentSet,
       scoreHome: homeScore,
