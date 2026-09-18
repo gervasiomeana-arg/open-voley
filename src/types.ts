@@ -244,6 +244,10 @@ export interface TrainingEvidenceContext {
   rallyIds?: string[];
   rotationRef?: number;
   category?: 'rotation_sideout' | 'serve_reception' | 'attack' | 'serve' | 'reception' | 'generic';
+  metric?: TrainingPerformanceTarget['metric'];
+  serveType?: ScoutCodeAction['serveType'];
+  zoneRef?: number;
+  teamSide?: TeamSide;
 }
 
 export interface TrainingPerformanceTarget {
@@ -299,6 +303,9 @@ export interface AiEvidenceInsight {
   actionType?: 'view_video' | 'generate_training' | 'view_players' | 'view_analysis';
   rotationRef?: number;
   playerNumRef?: number;
+  performanceMetric?: TrainingPerformanceTarget['metric'];
+  serveTypeRef?: ScoutCodeAction['serveType'];
+  zoneRef?: number;
   /** Exact rallies supporting the finding; used to jump from insight to evidence. */
   rallyIds?: string[];
 }
