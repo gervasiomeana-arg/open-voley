@@ -29,6 +29,7 @@ interface SmartSportsEditorProps {
   onPreviewAction: (action: ScoutCodeAction) => void;
   onPlayPlaylist: (actions: ScoutCodeAction[], preRoll: number, postRoll: number) => void;
   onExportVideo: (actions: ScoutCodeAction[], preRoll: number, postRoll: number, montageName?: string, shareAfterExport?: boolean) => void;
+  initialMontageId?: string | null;
 }
 
 const SKILL_LABELS: Record<VolleySkill, string> = {
@@ -64,6 +65,7 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
   onPreviewAction,
   onPlayPlaylist,
   onExportVideo,
+  initialMontageId = null,
 }) => {
   const [team, setTeam] = useState<'all' | TeamSide>('all');
   const [playerNum, setPlayerNum] = useState<'all' | number>('all');
@@ -78,6 +80,21 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
     getSavedSmartSportsMontages().filter((item) => item.matchId === match.id),
   );
   const [activeMontageId, setActiveMontageId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!initialMontageId) return;
+    void syncSmartSportsMontages().then((montages) => {
+      const montage = montages.find((item) => item.id === initialMontageId && item.matchId === match.id);
+      if (!montage) return;
+      setSavedMontages(montages.filter((item) => item.matchId === match.id));
+      setActiveMontageId(montage.id);
+      setMontageName(montage.name);
+      setPreRoll(montage.preRoll);
+      setPostRoll(montage.postRoll);
+      setSelectedActionIds(montage.actionIds.filter((id) => sourceActions.some((action) => action.id === id)));
+      setManualOrder(montage.actionIds);
+    });
+  }, [initialMontageId, match.id, sourceActions]);
 
   useEffect(() => {
     let active = true;
@@ -176,6 +193,10 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
       preRoll,
       postRoll,
       actionIds: selectedPlaylist.map((action) => action.id),
+      playerNums: [...new Set(selectedPlaylist.map((action) => action.playerNum))].sort((a, b) => a - b),
+      playerNames: [...new Set(selectedPlaylist.map((action) => action.playerName).filter((name): name is string => Boolean(name)))],
+      skills: [...new Set(selectedPlaylist.map((action) => action.skill))],
+      teamSides: [...new Set(selectedPlaylist.map((action) => action.team))],
     };
     const updated = saveMontageLocallyFirst(montage).filter((item) => item.matchId === match.id);
     setSavedMontages(updated);
