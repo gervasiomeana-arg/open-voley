@@ -16,6 +16,7 @@ interface SmartSportsEditorProps {
   userCuts: ScoutCodeAction[];
   onPreviewAction: (action: ScoutCodeAction) => void;
   onPlayPlaylist: (actions: ScoutCodeAction[], preRoll: number, postRoll: number) => void;
+  onExportVideo: (actions: ScoutCodeAction[], preRoll: number, postRoll: number) => void;
 }
 
 const SKILL_LABELS: Record<VolleySkill, string> = {
@@ -50,6 +51,7 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
   userCuts,
   onPreviewAction,
   onPlayPlaylist,
+  onExportVideo,
 }) => {
   const [team, setTeam] = useState<'all' | TeamSide>('all');
   const [playerNum, setPlayerNum] = useState<'all' | number>('all');
@@ -296,12 +298,21 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
             </button>
             <button
               type="button"
+              onClick={() => onExportVideo(playlist, preRoll, postRoll)}
+              disabled={playlist.length === 0}
+              className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950 text-xs font-black flex items-center gap-1.5"
+              title="Genera un archivo real usando las capacidades de grabación del navegador. Requiere video local."
+            >
+              <Film className="w-3.5 h-3.5" /> Exportar video
+            </button>
+            <button
+              type="button"
               onClick={exportManifest}
               disabled={playlist.length === 0}
               className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white text-xs font-black flex items-center gap-1.5"
-              title="Exporta la lista exacta de cortes. El render MP4 se incorporará en la siguiente fase."
+              title="Exporta la lista exacta de cortes para reproducir o renderizar el montaje."
             >
-              <Download className="w-3.5 h-3.5" /> Preparar montaje
+              <Download className="w-3.5 h-3.5" /> Exportar lista
             </button>
           </div>
         </div>
