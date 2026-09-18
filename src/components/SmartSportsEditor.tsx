@@ -15,6 +15,7 @@ interface SmartSportsEditorProps {
   actions: ScoutCodeAction[];
   userCuts: ScoutCodeAction[];
   onPreviewAction: (action: ScoutCodeAction) => void;
+  onPlayPlaylist: (actions: ScoutCodeAction[], preRoll: number, postRoll: number) => void;
 }
 
 const SKILL_LABELS: Record<VolleySkill, string> = {
@@ -48,6 +49,7 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
   actions,
   userCuts,
   onPreviewAction,
+  onPlayPlaylist,
 }) => {
   const [team, setTeam] = useState<'all' | TeamSide>('all');
   const [playerNum, setPlayerNum] = useState<'all' | number>('all');
@@ -283,6 +285,14 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
               className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold flex items-center gap-1.5"
             >
               <Filter className="w-3.5 h-3.5" /> Limpiar
+            </button>
+            <button
+              type="button"
+              onClick={() => onPlayPlaylist(playlist, preRoll, postRoll)}
+              disabled={playlist.length === 0}
+              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-black flex items-center gap-1.5"
+            >
+              <Play className="w-3.5 h-3.5" /> Reproducir montaje
             </button>
             <button
               type="button"
