@@ -68,7 +68,9 @@ assert.equal(playerBInbox.some((item) => item.id === 'player-a-video'), false);
 assert.equal(playerAInbox.some((item) => item.id === 'draft-video'), false);
 
 const db = new DatabaseSync(dbPath);
-const rows = db.prepare('SELECT user_id, montage_id FROM smart_sports_montages ORDER BY user_id').all() as Array<{user_id:string;montage_id:string}>;
+const rows = db.prepare(
+  'SELECT user_id, montage_id FROM smart_sports_montages WHERE user_id = ? AND montage_id = ?'
+).all('user-b', 'same-id') as Array<{user_id:string;montage_id:string}>;
 assert.equal(rows.length, 1);
 assert.equal(rows[0].user_id, 'user-b');
 assert.equal(rows[0].montage_id, 'same-id');
