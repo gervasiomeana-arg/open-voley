@@ -189,7 +189,7 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
       setVideoError('Enlace de YouTube no válido. Asegúrate de que sea del formato: https://www.youtube.com/watch?v=... o youtu.be/...');
       return;
     }
-    onSetVideoSrc(`https://www.youtube.com/watch?v=ok56D8DFLl8`, 'Video YouTube de Vóley', 'YouTube Stream');
+    onSetVideoSrc(targetUrl, 'Video YouTube de Vóley', 'YouTube Stream');
     setShowYtInputModal(false);
     setCustomYtInput('');
     setVideoError(null);
