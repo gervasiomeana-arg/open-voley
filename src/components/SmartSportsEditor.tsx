@@ -193,10 +193,10 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
       preRoll,
       postRoll,
       actionIds: selectedPlaylist.map((action) => action.id),
-      playerNums: [...new Set(selectedPlaylist.map((action) => action.playerNum))].sort((a, b) => a - b),
-      playerNames: [...new Set(selectedPlaylist.map((action) => action.playerName).filter((name): name is string => Boolean(name)))],
-      skills: [...new Set(selectedPlaylist.map((action) => action.skill))],
-      teamSides: [...new Set(selectedPlaylist.map((action) => action.team))],
+      playerNums: Array.from(new Set<number>(selectedPlaylist.map((action) => action.playerNum))).sort((a, b) => a - b),
+      playerNames: Array.from(new Set<string>(selectedPlaylist.map((action) => action.playerName).filter((name): name is string => Boolean(name)))),
+      skills: Array.from(new Set<VolleySkill>(selectedPlaylist.map((action) => action.skill))),
+      teamSides: Array.from(new Set<TeamSide>(selectedPlaylist.map((action) => action.team))),
     };
     const updated = saveMontageLocallyFirst(montage).filter((item) => item.matchId === match.id);
     setSavedMontages(updated);
