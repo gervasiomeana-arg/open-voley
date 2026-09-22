@@ -51,6 +51,8 @@ export interface ScoutCodeAction {
   /** Serving state immediately before this action, used for exact rally undo. */
   servingTeam?: TeamSide;
   serverNum?: number;
+  /** Physical libero state immediately before this action, used for exact undo. */
+  liberoReplacements?: MatchData['liberoReplacements'];
 }
 
 export type UserRole = 'Entrenador' | 'Jugador' | 'Analista' | 'Organizador' | 'Club' | 'Asistente' | 'Administrador';
