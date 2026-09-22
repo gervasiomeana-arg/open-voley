@@ -377,7 +377,8 @@ export default function App() {
         homeRotation: rallyState.homeRotation,
         awayRotation: rallyState.awayRotation,
         server: rallyState.server,
-        liberoReplacements,
+        // Libero replacements are set-scoped and must never leak into the next set.
+        liberoReplacements: shouldPrepareNextSet ? {} : liberoReplacements,
         currentSet: shouldPrepareNextSet ? curSet + 1 : curSet,
         isPrepared: shouldPrepareNextSet ? false : prev.isPrepared,
         winner: matchWinner ?? prev.winner,
