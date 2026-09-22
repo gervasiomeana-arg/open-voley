@@ -133,6 +133,18 @@ export default function App() {
     }
   }, [match]);
 
+  // A new set must never start with the previous set's lineup silently.
+  useEffect(() => {
+    if (match.status === 'prepared' && match.isPrepared === false && !match.isFinished) {
+      setMatchesSubTab('center');
+      setIsPreparationModalOpen(true);
+      setFloatingToast({
+        title: `Preparar Set ${match.currentSet}`,
+        subtitle: 'Confirma P1–P6 de ambos equipos y el equipo que realiza el saque inicial.',
+      });
+    }
+  }, [match.currentSet, match.status, match.isPrepared, match.isFinished]);
+
   // Ensure entering OPEN AI reloads exactly the same persisted currentMatch from storage
   useEffect(() => {
     if (activeTab === 'ai') {
