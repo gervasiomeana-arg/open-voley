@@ -96,5 +96,8 @@ jobs:
       - name: Match engine regression tests
         run: npm run test:match-regression
 
+      - name: Full real match simulation
+        run: npm run test:real-match-simulation
+
       - name: Production build
         run: npm run build
