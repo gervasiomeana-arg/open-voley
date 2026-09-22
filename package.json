@@ -23,7 +23,8 @@
     "test:video-render": "tsx src/server/videoRenderPlan.test.ts",
     "test:player360": "tsx src/utils/player360Analytics.test.ts",
     "test:open-ai-context": "tsx src/utils/openAiConversationContext.test.ts",
-    "test:e2e-real-match": "tsx src/utils/endToEndRealMatch.test.ts"
+    "test:e2e-real-match": "tsx src/utils/endToEndRealMatch.test.ts",
+    "test:match-rotation": "tsx src/utils/matchRotationEngine.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

@@ -133,7 +133,7 @@ export const MatchPreparationModal: React.FC<MatchPreparationModalProps> = ({
           {/* Saque Inicial */}
           <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2">
             <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-              1. Equipo con Saque Inicial (Set 1)
+              1. Equipo con Saque Inicial — el sacador será automáticamente P1
             </span>
             <div className="grid grid-cols-2 gap-3">
               <button
@@ -186,7 +186,7 @@ export const MatchPreparationModal: React.FC<MatchPreparationModalProps> = ({
                   title="Rotar una posición"
                 >
                   <RotateCw className="w-3 h-3" />
-                  <span>Rotar</span>
+                  <span>Rotar formación</span>
                 </button>
               </div>
 
@@ -203,9 +203,7 @@ export const MatchPreparationModal: React.FC<MatchPreparationModalProps> = ({
                         className="w-full bg-slate-950 text-white text-xs font-black py-1 px-1 rounded mt-0.5 border border-slate-800"
                       >
                         {(match.homePlayers || []).map((p) => (
-                          <option key={p.id} value={p.number}>
-                            #{p.number} {p.name.split(' ')[0]}
-                          </option>
+                          <option key={p.id} value={p.number}>#{p.number}</option>
                         ))}
                       </select>
                     </div>
@@ -244,9 +242,7 @@ export const MatchPreparationModal: React.FC<MatchPreparationModalProps> = ({
                         className="w-full bg-slate-950 text-white text-xs font-black py-1 px-1 rounded mt-0.5 border border-slate-800"
                       >
                         {(match.awayPlayers || []).map((p) => (
-                          <option key={p.id} value={p.number}>
-                            #{p.number} {p.name.split(' ')[0]}
-                          </option>
+                          <option key={p.id} value={p.number}>#{p.number}</option>
                         ))}
                       </select>
                     </div>
