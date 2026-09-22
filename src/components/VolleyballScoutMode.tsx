@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { MatchData, Player, ScoutCodeAction, TeamSide, VolleySkill, EvaluationSymbol } from '../types';
-import { nextScoutStep } from '../utils/scoutRallyAssist';
+import { isTerminalScoutAction, nextScoutStep } from '../utils/scoutRallyAssist';
 import { 
   RotateCcw, 
   RotateCw, 
@@ -240,9 +240,10 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
     const outcomes = SKILL_OUTCOMES[stagedSkill] || [];
     const outcomeObj = outcomes.find((o) => o.symbol === evalSymbol);
 
-    const isPoint = evalSymbol === '#';
+    const isTerminal = isTerminalScoutAction(stagedSkill, evalSymbol);
+    const isPoint = evalSymbol === '#' && isTerminal;
     const isError = evalSymbol === '=';
-    const isBlock = evalSymbol === '/';
+    const isBlock = stagedSkill === 'A' && evalSymbol === '/';
 
     // Standard FIVB/Data Volley code representation
     const prefix = activeTeam === 'home' ? '*' : 'a';
@@ -310,8 +311,23 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
       setActiveTeam(next.team);
       setStagedSkill(next.skill);
       setStagedPlayerId(null);
+    } else if (isTerminal) {
+      // The match engine updates score/rotation/server. Prepare the UI for the
+      // next rally; the server synchronization effect below selects the new P1.
+      setStagedSkill('S');
+      setStagedPlayerId(null);
     }
   }, [selectedPlayer, stagedSkill, activeTeam, match, homeScore, awayScore, activePlayers, onAddAction, onScoreChange, selectedTargetZone, selectedServeType, servingPlayer]);
+
+  // After a terminal rally, App.tsx may rotate and change service.
+  // Keep Scout aligned with the authoritative server and preselect the physical P1.
+  useEffect(() => {
+    if (stagedSkill !== 'S') return;
+    setActiveTeam(match.server.team);
+    const roster = match.server.team === 'home' ? match.homeRoster : match.awayRoster;
+    const server = roster.find((p) => p.number === match.server.playerNum);
+    if (server) setStagedPlayerId(server.id);
+  }, [stagedSkill, match.server.team, match.server.playerNum, match.homeRoster, match.awayRoster]);
 
   // Immediate Undo without modal
   const handleUndo = useCallback(() => {

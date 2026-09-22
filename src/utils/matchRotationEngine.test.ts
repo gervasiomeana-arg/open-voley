@@ -18,9 +18,14 @@ const servingPoint = applyRallyWinner(sideout, 'home');
 assert.deepEqual(servingPoint.homeRotation, sideout.homeRotation);
 assert.deepEqual(servingPoint.server, { team: 'home', playerNum: 13 });
 
-assert.equal(pointWinnerFromAction('home', '#'), 'home');
-assert.equal(pointWinnerFromAction('home', '='), 'away');
-assert.equal(pointWinnerFromAction('away', '/'), 'home');
-assert.equal(pointWinnerFromAction('away', '+'), null);
+assert.equal(pointWinnerFromAction('home', 'A', '#'), 'home');
+assert.equal(pointWinnerFromAction('home', 'S', '#'), 'home');
+assert.equal(pointWinnerFromAction('home', 'B', '#'), 'home');
+assert.equal(pointWinnerFromAction('home', 'R', '#'), null);
+assert.equal(pointWinnerFromAction('home', 'E', '#'), null);
+assert.equal(pointWinnerFromAction('home', 'R', '='), 'away');
+assert.equal(pointWinnerFromAction('away', 'A', '/'), 'home');
+assert.equal(pointWinnerFromAction('away', 'R', '/'), null);
+assert.equal(pointWinnerFromAction('away', 'A', '+'), null);
 
 console.log('Match rotation engine tests passed.');

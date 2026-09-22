@@ -343,7 +343,7 @@ export default function App() {
         server: { ...prev.server },
       };
       for (const act of newActions) {
-        const winner = pointWinnerFromAction(act.team, act.evaluation);
+        const winner = pointWinnerFromAction(act.team, act.skill, act.evaluation);
         if (!winner) continue;
         if (winner === 'home') {
           updatedSets[setIdx].scoreHome = (updatedSets[setIdx].scoreHome || 0) + 1;

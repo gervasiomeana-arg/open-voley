@@ -1,4 +1,4 @@
-import { EvaluationSymbol, MatchData, TeamSide } from '../types';
+import { EvaluationSymbol, MatchData, TeamSide, VolleySkill } from '../types';
 
 export const rotateClockwise = (rotation: number[]): number[] => {
   if (rotation.length !== 6) return [...rotation];
@@ -8,10 +8,18 @@ export const rotateClockwise = (rotation: number[]): number[] => {
 
 export const pointWinnerFromAction = (
   actionTeam: TeamSide,
+  skill: VolleySkill,
   evaluation: EvaluationSymbol,
 ): TeamSide | null => {
-  if (evaluation === '#') return actionTeam;
-  if (evaluation === '=' || evaluation === '/') return actionTeam === 'home' ? 'away' : 'home';
+  if (evaluation === '#') {
+    return skill === 'A' || skill === 'S' || skill === 'B' ? actionTeam : null;
+  }
+  if (evaluation === '/') {
+    return skill === 'A' ? (actionTeam === 'home' ? 'away' : 'home') : null;
+  }
+  if (evaluation === '=') {
+    return actionTeam === 'home' ? 'away' : 'home';
+  }
   return null;
 };
 
