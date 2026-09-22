@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import { authMeRouter } from './src/server/authMeRouter';
 import { requestProtection } from './src/server/requestProtection';

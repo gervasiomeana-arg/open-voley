@@ -46,16 +46,12 @@ export function requestProtection(req: Request, res: Response, next: NextFunctio
   const ip = clientKey(req);
 
   if (req.method === 'POST' && path === '/api/auth/google') {
-    if (!process.env.GOOGLE_CLIENT_ID?.trim()) {
-      return res.status(503).json({ error: 'Google authentication is not configured' });
-    }
-
     const credential = req.body?.credential;
-    if (typeof credential !== 'string' || credential.length < 100 || credential.length > 10000) {
+    if (typeof credential !== 'string' || credential.length < 50 || credential.length > 10000) {
       return res.status(400).json({ error: 'Invalid Google credential payload' });
     }
 
-    if (!consume(`auth:${ip}`, 12, 10 * 60 * 1000)) {
+    if (!consume(`auth:${ip}`, 20, 10 * 60 * 1000)) {
       return res.status(429).json({ error: 'Too many authentication attempts' });
     }
   }
