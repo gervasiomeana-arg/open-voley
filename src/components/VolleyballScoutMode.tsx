@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { MatchData, Player, ScoutCodeAction, TeamSide, VolleySkill, EvaluationSymbol } from '../types';
+import { nextScoutStep } from '../utils/scoutRallyAssist';
 import { 
   RotateCcw, 
   RotateCw, 
