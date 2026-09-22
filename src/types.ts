@@ -48,6 +48,9 @@ export interface ScoutCodeAction {
   phase?: 'K1' | 'K2' | 'K3' | 'transition' | 'unknown';
   serveType?: 'float' | 'jump_float' | 'jump_spin' | 'standing' | 'unknown';
   receptionContext?: 'positive' | 'negative' | 'freeball' | 'unknown';
+  /** Serving state immediately before this action, used for exact rally undo. */
+  servingTeam?: TeamSide;
+  serverNum?: number;
 }
 
 export type UserRole = 'Entrenador' | 'Jugador' | 'Analista' | 'Organizador' | 'Club' | 'Asistente' | 'Administrador';
