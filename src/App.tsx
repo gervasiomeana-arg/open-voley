@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { applyRallyWinner, pointWinnerFromAction, rotateClockwise } from './utils/matchRotationEngine';
 import { evaluateSetCompletion, matchWinnerFromSets } from './utils/matchSetEngine';
+import { applySubstitution } from './utils/matchSubstitutionEngine';
 import { MatchData, Player, ScoutCodeAction, TeamSide, ClientUser, TrialInfo, RallyDetection, UserRole, TrainingEvidenceContext } from './types';
 import { sampleMatchData } from './data/sampleMatch';
 import { ResearchTab } from './components/ResearchTab';
@@ -516,6 +517,24 @@ export default function App() {
       return next.server.team === team
         ? { ...next, server: { team, playerNum: rotation[0] } }
         : next;
+    });
+  };
+
+  const handleSubstitutePlayer = (team: TeamSide, playerOut: number, playerIn: number) => {
+    setMatch((prev) => {
+      const result = applySubstitution(prev, team, playerOut, playerIn);
+      if (!result) return prev;
+      const updatedMatch = {
+        ...prev,
+        [team === 'home' ? 'homeRotation' : 'awayRotation']: result.rotation,
+        server: result.server,
+      };
+      try {
+        saveCurrentMatch(updatedMatch);
+      } catch {
+        // local persistence is best-effort; state remains authoritative.
+      }
+      return updatedMatch;
     });
   };
 
@@ -1223,6 +1242,7 @@ export default function App() {
                   onScoreChange={handleScoreChange}
                   onSetScoreWinner={() => {}}
                   onRotateTeam={handleRotateTeam}
+                  onSubstitutePlayer={handleSubstitutePlayer}
                   onUpdatePlayers={handleUpdatePlayers}
                   onUpdateTeamName={handleUpdateTeamName}
                   selectedActionId={selectedActionId}
