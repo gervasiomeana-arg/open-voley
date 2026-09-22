@@ -224,7 +224,7 @@ export const TeamsHub: React.FC<TeamsHubProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-6">
 
         {/* LEFT COLUMN: TEAM SELECTOR (4 COLS) */}
-        <div className="lg:col-span-4 space-y-4">
+        <div className="lg:col-span-4 space-y-3 sm:space-y-4">
           
           {/* Tabs: Mis Equipos vs Rivales */}
           <div className="grid grid-cols-2 p-1 bg-slate-900 border border-slate-800 rounded-2xl">
@@ -318,12 +318,12 @@ export const TeamsHub: React.FC<TeamsHubProps> = ({
         </div>
 
         {/* RIGHT COLUMN: TEAM DETAILS & PLAYERS (8 COLS) */}
-        <div className="lg:col-span-8 space-y-4">
+        <div className="lg:col-span-8 space-y-3 sm:space-y-4">
           {currentTeam ? (
             <div className="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-3 sm:p-6 space-y-4 sm:space-y-6 shadow-xl">
               
               {/* Team Header & Actions */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-800">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-3 sm:pb-5 border-b border-slate-800">
                 <div className="space-y-1">
                   {isEditingTeamName ? (
                     <div className="flex items-center gap-2">
@@ -558,8 +558,8 @@ export const TeamsHub: React.FC<TeamsHubProps> = ({
       {/* MODAL: CREAR EQUIPO                                                       */}
       {/* ========================================================================= */}
       {isCreatingTeam && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-5 shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-4 sm:p-6 space-y-4 sm:space-y-5 shadow-2xl max-h-[94vh] overflow-y-auto">
             <h3 className="text-lg font-black text-white">Crear Nuevo Equipo</h3>
             <form onSubmit={handleCreateTeamSubmit} className="space-y-4">
               <div>
@@ -636,13 +636,13 @@ export const TeamsHub: React.FC<TeamsHubProps> = ({
       {/* MODAL: AGREGAR / EDITAR JUGADOR                                           */}
       {/* ========================================================================= */}
       {isPlayerModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm p-6 space-y-5 shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl w-full max-w-sm p-4 sm:p-6 space-y-4 sm:space-y-5 shadow-2xl max-h-[94vh] overflow-y-auto">
             <h3 className="text-lg font-black text-white">
               {editingPlayerId ? 'Editar Jugador' : 'Agregar Jugador'}
             </h3>
             <form onSubmit={handleSavePlayer} className="space-y-4">
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="col-span-1">
                   <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Camiseta N°</label>
                   <input
@@ -721,8 +721,8 @@ export const TeamsHub: React.FC<TeamsHubProps> = ({
       {/* MODAL: QUICK PASTE ROSTER                                                 */}
       {/* ========================================================================= */}
       {isQuickPasteOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg p-6 space-y-4 shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl w-full max-w-lg p-4 sm:p-6 space-y-4 shadow-2xl max-h-[94vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-black text-white flex items-center gap-2">
                 <ClipboardPaste className="w-5 h-5 text-cyan-400" />

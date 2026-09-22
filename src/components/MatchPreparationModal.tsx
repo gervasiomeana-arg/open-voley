@@ -100,19 +100,19 @@ export const MatchPreparationModal: React.FC<MatchPreparationModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
       <div 
-        className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-3xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh]"
+        className="bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl w-full max-w-3xl overflow-hidden shadow-2xl flex flex-col max-h-[96vh] sm:max-h-[92vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/50">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/50">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center">
+            <div className="hidden sm:flex w-8 h-8 rounded-xl bg-cyan-500/10 text-cyan-400 items-center justify-center">
               <Users className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-base font-black text-white">Preparación del Partido</h2>
+              <h2 className="text-sm sm:text-base font-black text-white">Preparación del Partido</h2>
               <p className="text-xs text-slate-400">
                 {match.homeTeamName} vs {match.awayTeamName} • Set {match.currentSet || 1}
               </p>
@@ -128,18 +128,18 @@ export const MatchPreparationModal: React.FC<MatchPreparationModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto space-y-6">
+        <div className="p-3 sm:p-6 overflow-y-auto space-y-3 sm:space-y-6">
           
           {/* Saque Inicial */}
-          <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2">
+          <div className="bg-slate-950 p-3 sm:p-4 rounded-2xl border border-slate-800 space-y-2">
             <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
               1. Equipo con Saque Inicial — el sacador será automáticamente P1
             </span>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
               <button
                 type="button"
                 onClick={() => setServerTeam('home')}
-                className={`p-3 rounded-xl border text-left transition cursor-pointer flex items-center justify-between ${
+                className={`p-2.5 sm:p-3 rounded-xl border text-left transition cursor-pointer flex items-center justify-between gap-2 ${
                   serverTeam === 'home'
                     ? 'bg-amber-500/20 border-amber-500/60 text-white font-bold'
                     : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
@@ -155,7 +155,7 @@ export const MatchPreparationModal: React.FC<MatchPreparationModalProps> = ({
               <button
                 type="button"
                 onClick={() => setServerTeam('away')}
-                className={`p-3 rounded-xl border text-left transition cursor-pointer flex items-center justify-between ${
+                className={`p-2.5 sm:p-3 rounded-xl border text-left transition cursor-pointer flex items-center justify-between gap-2 ${
                   serverTeam === 'away'
                     ? 'bg-cyan-500/20 border-cyan-500/60 text-white font-bold'
                     : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
@@ -171,10 +171,10 @@ export const MatchPreparationModal: React.FC<MatchPreparationModalProps> = ({
           </div>
 
           {/* Formaciones Iniciales: Local & Rival */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-5">
             
             {/* Local */}
-            <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-3">
+            <div className="bg-slate-950 p-3 sm:p-4 rounded-2xl border border-slate-800 space-y-3">
               <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                 <span className="text-xs font-black text-amber-400 uppercase tracking-wider">
                   Formación {match.homeTeamName} (Local)
@@ -195,12 +195,12 @@ export const MatchPreparationModal: React.FC<MatchPreparationModalProps> = ({
                   const rotIndex = posNumber - 1;
                   const currentNum = homeRot[rotIndex] || 0;
                   return (
-                    <div key={`h-pos-${posNumber}`} className="p-2 bg-slate-900 rounded-xl border border-slate-800">
+                    <div key={`h-pos-${posNumber}`} className="p-1.5 sm:p-2 bg-slate-900 rounded-xl border border-slate-800">
                       <span className="text-[9px] font-bold text-slate-500 block">P{posNumber}</span>
                       <select
                         value={currentNum}
                         onChange={(e) => handleUpdateHomePos(rotIndex, parseInt(e.target.value, 10))}
-                        className="w-full bg-slate-950 text-white text-xs font-black py-1 px-1 rounded mt-0.5 border border-slate-800"
+                        className="w-full bg-slate-950 text-white text-sm sm:text-xs font-black py-2 sm:py-1 px-1 rounded mt-0.5 border border-slate-800"
                       >
                         {(match.homePlayers || []).map((p) => (
                           <option key={p.id} value={p.number}>#{p.number}</option>
@@ -213,7 +213,7 @@ export const MatchPreparationModal: React.FC<MatchPreparationModalProps> = ({
             </div>
 
             {/* Rival */}
-            <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-3">
+            <div className="bg-slate-950 p-3 sm:p-4 rounded-2xl border border-slate-800 space-y-3">
               <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                 <span className="text-xs font-black text-cyan-400 uppercase tracking-wider">
                   Formación {match.awayTeamName} (Rival)
@@ -234,12 +234,12 @@ export const MatchPreparationModal: React.FC<MatchPreparationModalProps> = ({
                   const rotIndex = posNumber - 1;
                   const currentNum = awayRot[rotIndex] || 0;
                   return (
-                    <div key={`a-pos-${posNumber}`} className="p-2 bg-slate-900 rounded-xl border border-slate-800">
+                    <div key={`a-pos-${posNumber}`} className="p-1.5 sm:p-2 bg-slate-900 rounded-xl border border-slate-800">
                       <span className="text-[9px] font-bold text-slate-500 block">P{posNumber}</span>
                       <select
                         value={currentNum}
                         onChange={(e) => handleUpdateAwayPos(rotIndex, parseInt(e.target.value, 10))}
-                        className="w-full bg-slate-950 text-white text-xs font-black py-1 px-1 rounded mt-0.5 border border-slate-800"
+                        className="w-full bg-slate-950 text-white text-sm sm:text-xs font-black py-2 sm:py-1 px-1 rounded mt-0.5 border border-slate-800"
                       >
                         {(match.awayPlayers || []).map((p) => (
                           <option key={p.id} value={p.number}>#{p.number}</option>
@@ -256,7 +256,7 @@ export const MatchPreparationModal: React.FC<MatchPreparationModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="px-6 py-4 bg-slate-950/70 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="px-3 sm:px-6 py-3 sm:py-4 bg-slate-950/70 border-t border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-3">
           <button
             type="button"
             onClick={onClose}
@@ -265,7 +265,7 @@ export const MatchPreparationModal: React.FC<MatchPreparationModalProps> = ({
             Cancelar
           </button>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:items-center sm:w-auto sm:justify-end">
             <button
               type="button"
               onClick={() => handleConfirm(false)}

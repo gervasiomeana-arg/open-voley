@@ -217,7 +217,7 @@ export const MatchCenter: React.FC<MatchCenterProps> = ({
       {/* =========================================================
           1. ENCABEZADO PRINCIPAL DEL PARTIDO
           ========================================================= */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-7 shadow-xl space-y-5 relative overflow-hidden">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-3 sm:p-7 shadow-xl space-y-3 sm:space-y-5 relative overflow-hidden">
         {/* Subtle background glow */}
         <div className="absolute top-0 right-1/4 w-80 h-28 bg-amber-500/5 blur-3xl pointer-events-none" />
 
@@ -254,10 +254,10 @@ export const MatchCenter: React.FC<MatchCenterProps> = ({
         </div>
 
         {/* Scoreboard: LOCAL vs VISITANTE & Sets */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-center">
+        <div className="grid grid-cols-3 md:grid-cols-12 gap-2 sm:gap-5 items-center">
           
           {/* Home Team */}
-          <div className="md:col-span-5 flex items-center justify-between md:justify-start gap-4">
+          <div className="col-span-1 md:col-span-5 flex flex-col sm:flex-row items-center sm:justify-between md:justify-start gap-1 sm:gap-4 text-center sm:text-left">
             <div className="min-w-0">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">
                 Local
@@ -452,12 +452,12 @@ export const MatchCenter: React.FC<MatchCenterProps> = ({
       {/* =========================================================
           2. MÓDULOS DEL PARTIDO (ACCESO SECUNDARIO Y DINÁMICO)
           ========================================================= */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3.5">
         
         {/* BOTÓN 1: [ SCOUT ] */}
         <button
           onClick={() => onNavigateTo('scout')}
-          className={`group p-4 rounded-2xl text-white text-left transition active:scale-98 shadow-md flex flex-col justify-between h-36 cursor-pointer ${
+          className={`group p-3 sm:p-4 rounded-2xl text-white text-left transition active:scale-98 shadow-md flex flex-col justify-between min-h-28 sm:h-36 cursor-pointer ${
             isInProgress
               ? 'bg-amber-500/10 hover:bg-amber-500/20 border-2 border-amber-500/60 ring-1 ring-amber-500/30'
               : (isScheduled || isPrepared)
@@ -521,7 +521,7 @@ export const MatchCenter: React.FC<MatchCenterProps> = ({
         {/* BOTÓN 3: [ ESTADÍSTICAS & PLANILLA ] */}
         <button
           onClick={() => onNavigateTo('stats')}
-          className={`group p-4 rounded-2xl text-white text-left transition active:scale-98 shadow-md flex flex-col justify-between h-36 cursor-pointer ${
+          className={`group p-3 sm:p-4 rounded-2xl text-white text-left transition active:scale-98 shadow-md flex flex-col justify-between min-h-28 sm:h-36 cursor-pointer ${
             isFinished
               ? 'bg-emerald-500/10 hover:bg-emerald-500/20 border-2 border-emerald-500/60 ring-1 ring-emerald-500/30'
               : 'bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-slate-700'
@@ -556,7 +556,7 @@ export const MatchCenter: React.FC<MatchCenterProps> = ({
         {/* BOTÓN 4: [ INFORME / ANÁLISIS ] */}
         <button
           onClick={() => onNavigateTo('analytics')}
-          className={`group p-4 rounded-2xl text-white text-left transition active:scale-98 shadow-md flex flex-col justify-between h-36 cursor-pointer ${
+          className={`group p-3 sm:p-4 rounded-2xl text-white text-left transition active:scale-98 shadow-md flex flex-col justify-between min-h-28 sm:h-36 cursor-pointer ${
             isFinished
               ? 'bg-purple-500/10 hover:bg-purple-500/20 border-2 border-purple-500/60 ring-1 ring-purple-500/30'
               : 'bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-slate-700'
@@ -596,7 +596,7 @@ export const MatchCenter: React.FC<MatchCenterProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
         {/* RESUMEN AUTOMÁTICO (Información real existente sin métricas inventadas) */}
-        <div className="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+        <div className="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-3 sm:p-6 shadow-xl space-y-4">
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <div className="flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-amber-400" />
@@ -711,7 +711,7 @@ export const MatchCenter: React.FC<MatchCenterProps> = ({
         </div>
 
         {/* ÚLTIMAS ACCIONES (Máximo 3 a 5 jugadas) */}
-        <div className="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+        <div className="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-3 sm:p-6 shadow-xl space-y-4">
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <div className="flex items-center gap-2">
               <History className="w-4 h-4 text-cyan-400" />

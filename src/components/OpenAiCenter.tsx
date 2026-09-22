@@ -345,22 +345,22 @@ interface ActionInsightItem {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-200">
+    <div className="space-y-3 sm:space-y-6 animate-in fade-in duration-200">
       {/* 1. HERO: EXECUTIVE 3-LINE POST-MATCH SUMMARY */}
-      <div className="p-6 bg-gradient-to-r from-slate-900 via-slate-900 to-purple-950/40 border border-slate-800 rounded-3xl shadow-xl space-y-4">
+      <div className="p-4 sm:p-6 bg-gradient-to-r from-slate-900 via-slate-900 to-purple-950/40 border border-slate-800 rounded-2xl sm:rounded-3xl shadow-xl space-y-3 sm:space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-purple-500/20 text-purple-400 rounded-2xl border border-purple-500/30">
+            <div className="hidden sm:flex p-2.5 bg-purple-500/20 text-purple-400 rounded-2xl border border-purple-500/30">
               <Sparkles className="w-6 h-6" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-xl font-black text-white">OPEN AI Tactical Intelligence</h2>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30">
+                <h2 className="text-base sm:text-xl font-black text-white">OPEN AI Tactical Intelligence</h2>
+                <span className="hidden sm:inline text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30">
                   Motor FIVB Vóley
                 </span>
               </div>
-              <p className="text-xs text-slate-400">
+              <p className="hidden sm:block text-xs text-slate-400">
                 Inteligencia deportiva contextual con acciones directas para el cuerpo técnico y atletas
               </p>
             </div>
@@ -376,7 +376,7 @@ interface ActionInsightItem {
         </div>
 
         {/* Post-Match Summary */}
-        <div className="p-4 bg-slate-950/70 border border-purple-800/30 rounded-2xl space-y-1.5">
+        <div className="p-3 sm:p-4 bg-slate-950/70 border border-purple-800/30 rounded-2xl space-y-1.5">
           <div className="text-[10px] font-black uppercase text-purple-400 tracking-wider">
             Dictamen Ejecutivo Post-Partido
           </div>
@@ -419,7 +419,7 @@ interface ActionInsightItem {
           </div>
 
           {/* Filter Pills */}
-          <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 p-1 rounded-xl text-xs overflow-x-auto custom-scrollbar">
+          <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 p-1 rounded-xl text-xs overflow-x-auto custom-scrollbar snap-x w-full sm:w-auto">
             {[
               { id: 'all', label: 'Todos' },
               { id: 'tactical', label: 'Tácticos' },
@@ -430,7 +430,7 @@ interface ActionInsightItem {
               <button
                 key={tab.id}
                 onClick={() => setActiveCategory(tab.id as any)}
-                className={`px-3 py-1 rounded-lg font-bold transition whitespace-nowrap ${
+                className={`px-3 py-2 sm:py-1 rounded-lg font-bold transition whitespace-nowrap snap-start ${
                   activeCategory === tab.id
                     ? 'bg-purple-500 text-white'
                     : 'text-slate-400 hover:text-white'
@@ -457,7 +457,7 @@ interface ActionInsightItem {
             return (
               <div
                 key={item.id}
-                className="p-4 bg-slate-900 border border-slate-800 hover:border-purple-500/40 rounded-2xl shadow-lg transition flex flex-col justify-between space-y-3 group"
+                className="p-3 sm:p-4 bg-slate-900 border border-slate-800 hover:border-purple-500/40 rounded-2xl shadow-lg transition flex flex-col justify-between space-y-3 group"
               >
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
