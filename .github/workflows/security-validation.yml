@@ -72,5 +72,8 @@ jobs:
       - name: End-to-end real match flow
         run: npm run test:e2e-real-match
 
+      - name: Match rotation engine tests
+        run: npm run test:match-rotation
+
       - name: Production build
         run: npm run build
