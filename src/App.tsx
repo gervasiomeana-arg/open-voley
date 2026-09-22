@@ -409,8 +409,12 @@ export default function App() {
 
   const handleDeleteAction = (id: string) => {
     setMatch((prev) => {
-      const targetAction = (prev.actions || []).find((a) => a.id === id);
-      const updatedActions = (prev.actions || []).filter((a) => a.id !== id);
+      const actions = prev.actions || [];
+      const targetAction = actions.find((a) => a.id === id);
+      // Stateful volleyball rollback is only safe in reverse chronological order.
+      // Older actions remain immutable evidence once newer match state exists.
+      if (!targetAction || actions[actions.length - 1]?.id !== id) return prev;
+      const updatedActions = actions.slice(0, -1);
       const curSet = Math.max(1, prev.currentSet || 1);
       const setIdx = curSet - 1;
       const updatedSets = [...(prev.sets || [])];

@@ -93,5 +93,8 @@ jobs:
       - name: Set transition integrity tests
         run: npm run test:set-transition
 
+      - name: Match engine regression tests
+        run: npm run test:match-regression
+
       - name: Production build
         run: npm run build

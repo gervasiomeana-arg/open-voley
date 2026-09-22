@@ -117,20 +117,7 @@ export const UnifiedTacticalHub: React.FC<UnifiedTacticalHubProps> = ({
   const handleUndo = () => {
     if (!match.actions || match.actions.length === 0) return;
     const last = match.actions[match.actions.length - 1];
-    const curSet = match.sets[match.currentSet - 1] || { scoreHome: 0, scoreAway: 0 };
-    if (last.evaluation === '#') {
-      if (last.team === 'home') {
-        onScoreChange(Math.max(0, curSet.scoreHome - 1), curSet.scoreAway);
-      } else {
-        onScoreChange(curSet.scoreHome, Math.max(0, curSet.scoreAway - 1));
-      }
-    } else if (last.evaluation === '=') {
-      if (last.team === 'home') {
-        onScoreChange(curSet.scoreHome, Math.max(0, curSet.scoreAway - 1));
-      } else {
-        onScoreChange(Math.max(0, curSet.scoreHome - 1), curSet.scoreAway);
-      }
-    }
+    // App.tsx owns the complete rollback: score, rotations, server and libero state.
     onDeleteAction(last.id);
   };
 
@@ -1322,13 +1309,15 @@ export const UnifiedTacticalHub: React.FC<UnifiedTacticalHubProps> = ({
                           >
                             {act.evaluation}
                           </span>
-                          <button
-                            onClick={() => onDeleteAction(act.id)}
-                            className="p-1 text-slate-500 hover:text-rose-400 rounded transition"
-                            title="Eliminar jugada"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          {act.id === match.actions?.[match.actions.length - 1]?.id && (
+                            <button
+                              onClick={() => onDeleteAction(act.id)}
+                              className="p-1 text-slate-500 hover:text-rose-400 rounded transition"
+                              title="Deshacer última jugada"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))
