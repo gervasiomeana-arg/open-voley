@@ -938,6 +938,43 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
             </div>
           </div>
 
+          {/* STEP 2: OUTCOME / QUALITY (1 CLICK = REGISTRADO) */}
+          <div className="space-y-2 pt-2 border-t border-slate-800">
+            <div className="flex items-center justify-between text-xs text-slate-400">
+              <span className="font-black text-white uppercase tracking-wider flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                2. Resultado
+              </span>
+              <span className="hidden sm:inline text-emerald-400 font-bold">
+                ✓ Graba automáticamente en marcador y planilla
+              </span>
+            </div>
+
+            <div className={`grid gap-2.5 ${
+              currentOutcomes.length === 3
+                ? 'grid-cols-3'
+                : currentOutcomes.length === 4
+                ? 'grid-cols-2 sm:grid-cols-4'
+                : 'grid-cols-3 sm:grid-cols-5'
+            }`}>
+              {currentOutcomes.map((opt) => (
+                <button
+                  key={opt.symbol}
+                  onClick={() => handleCommitAction(opt.symbol)}
+                  className={`${opt.colorClass} border-2 py-3 sm:py-4 px-2 sm:px-3 rounded-xl sm:rounded-2xl font-black transition transform active:scale-95 shadow-xl flex flex-col items-center justify-center gap-1 cursor-pointer min-h-[58px]`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xl sm:text-2xl font-mono leading-none">{opt.symbol}</span>
+                    <span className="text-[11px] sm:text-base tracking-tight">{opt.label}</span>
+                  </div>
+                  <span className="hidden sm:block text-[10px] tracking-tight opacity-90 text-center truncate w-full">
+                    {opt.sublabel} ({opt.key})
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* OPTIONAL CONTEXT: fast, one-tap and never blocks registration */}
           <div className="space-y-3 pt-2 border-t border-slate-800">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1008,42 +1045,7 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
             )}
           </div>
 
-          {/* STEP 2: OUTCOME / QUALITY (1 CLICK = REGISTRADO) */}
-          <div className="space-y-2 pt-2 border-t border-slate-800">
-            <div className="flex items-center justify-between text-xs text-slate-400">
-              <span className="font-black text-white uppercase tracking-wider flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                2. Resultado de la Jugada (1 Toque Registra Directo)
-              </span>
-              <span className="text-emerald-400 font-bold">
-                ✓ Graba automáticamente en marcador y planilla
-              </span>
-            </div>
 
-            <div className={`grid gap-2.5 ${
-              currentOutcomes.length === 3
-                ? 'grid-cols-1 sm:grid-cols-3'
-                : currentOutcomes.length === 4
-                ? 'grid-cols-2 sm:grid-cols-4'
-                : 'grid-cols-2 sm:grid-cols-5'
-            }`}>
-              {currentOutcomes.map((opt) => (
-                <button
-                  key={opt.symbol}
-                  onClick={() => handleCommitAction(opt.symbol)}
-                  className={`${opt.colorClass} border-2 py-4 px-3 rounded-2xl font-black transition transform active:scale-95 shadow-xl flex flex-col items-center justify-center gap-1 cursor-pointer`}
-                >
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-2xl font-mono leading-none">{opt.symbol}</span>
-                    <span className="text-sm sm:text-base tracking-tight">{opt.label}</span>
-                  </div>
-                  <span className="text-[10px] tracking-tight opacity-90 text-center truncate w-full">
-                    {opt.sublabel} ({opt.key})
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
 
         </div>
 
