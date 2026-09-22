@@ -84,5 +84,8 @@ jobs:
       - name: Match substitution engine tests
         run: npm run test:match-substitution
 
+      - name: Libero replacement engine tests
+        run: npm run test:libero
+
       - name: Production build
         run: npm run build
