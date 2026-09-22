@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { applyRallyWinner, pointWinnerFromAction, rotateClockwise } from './utils/matchRotationEngine';
 import { MatchData, Player, ScoutCodeAction, TeamSide, ClientUser, TrialInfo, RallyDetection, UserRole, TrainingEvidenceContext } from './types';
 import { sampleMatchData } from './data/sampleMatch';
 import { ResearchTab } from './components/ResearchTab';
@@ -318,27 +319,32 @@ export default function App() {
       }
       updatedSets[setIdx] = { ...updatedSets[setIdx] };
 
-      // Auto-increment score if any terminal action scored a point (#), direct error (=), or block point (/)
+      // The match engine is the single source of truth for score, service and rotation.
+      // A receiving team rotates exactly once when it wins the rally; a serving team
+      // that wins keeps both its rotation and its server.
+      let rallyState = {
+        homeRotation: [...prev.homeRotation],
+        awayRotation: [...prev.awayRotation],
+        server: { ...prev.server },
+      };
       for (const act of newActions) {
-        if (act.evaluation === '#') {
-          if (act.team === 'home') {
-            updatedSets[setIdx].scoreHome = (updatedSets[setIdx].scoreHome || 0) + 1;
-          } else {
-            updatedSets[setIdx].scoreAway = (updatedSets[setIdx].scoreAway || 0) + 1;
-          }
-        } else if (act.evaluation === '=' || act.evaluation === '/') {
-          if (act.team === 'home') {
-            updatedSets[setIdx].scoreAway = (updatedSets[setIdx].scoreAway || 0) + 1;
-          } else {
-            updatedSets[setIdx].scoreHome = (updatedSets[setIdx].scoreHome || 0) + 1;
-          }
+        const winner = pointWinnerFromAction(act.team, act.evaluation);
+        if (!winner) continue;
+        if (winner === 'home') {
+          updatedSets[setIdx].scoreHome = (updatedSets[setIdx].scoreHome || 0) + 1;
+        } else {
+          updatedSets[setIdx].scoreAway = (updatedSets[setIdx].scoreAway || 0) + 1;
         }
+        rallyState = applyRallyWinner(rallyState, winner);
       }
 
       const updatedMatch = {
         ...prev,
         sets: updatedSets,
         actions: updatedActions,
+        homeRotation: rallyState.homeRotation,
+        awayRotation: rallyState.awayRotation,
+        server: rallyState.server,
       };
 
       try {
@@ -462,17 +468,13 @@ export default function App() {
 
   const handleRotateTeam = (team: TeamSide) => {
     setMatch((prev) => {
-      if (team === 'home') {
-        const rot = [...prev.homeRotation];
-        const last = rot.pop()!;
-        rot.unshift(last);
-        return { ...prev, homeRotation: rot };
-      } else {
-        const rot = [...prev.awayRotation];
-        const last = rot.pop()!;
-        rot.unshift(last);
-        return { ...prev, awayRotation: rot };
-      }
+      const rotation = rotateClockwise(team === 'home' ? prev.homeRotation : prev.awayRotation);
+      const next = team === 'home'
+        ? { ...prev, homeRotation: rotation }
+        : { ...prev, awayRotation: rotation };
+      return next.server.team === team
+        ? { ...next, server: { team, playerNum: rotation[0] } }
+        : next;
     });
   };
 
