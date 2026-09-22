@@ -806,24 +806,16 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
               <span className="text-[11px] font-black text-emerald-200 shrink-0 uppercase tracking-wider">
                 Suplentes / Líberos:
               </span>
-              {activePlayers.bench.map((benchP) => {
-                const isSelected = selectedPlayer?.id === benchP.id;
-                return (
-                  <button
-                    key={benchP.id}
-                    onClick={() => setStagedPlayerId(benchP.id)}
-                    className={`px-3 py-1.5 rounded-xl font-bold text-xs shrink-0 flex items-center gap-1.5 border transition cursor-pointer ${
-                      isSelected
-                        ? 'bg-blue-600 text-white border-white ring-2 ring-blue-400'
-                        : 'bg-slate-950/80 text-amber-200 border-slate-700 hover:bg-slate-800'
-                    }`}
-                  >
-                    <span className="font-mono font-black">#{benchP.number}</span>
-                    <span>{benchP.name.split(' ')[0]}</span>
-                    <span className="text-[10px] opacity-75">({benchP.position})</span>
-                  </button>
-                );
-              })}
+              {activePlayers.bench.map((benchP) => (
+                <div
+                  key={benchP.id}
+                  className="px-3 py-1.5 rounded-xl font-bold text-xs shrink-0 flex items-center gap-1.5 border bg-slate-950/80 text-slate-400 border-slate-800"
+                  title="Fuera de cancha: realiza una sustitución antes de registrar acciones"
+                >
+                  <span className="font-mono font-black">#{benchP.number}</span>
+                  <span>{benchP.position === 'L' ? 'Líbero' : 'Suplente'}</span>
+                </div>
+              ))}
             </div>
           )}
 

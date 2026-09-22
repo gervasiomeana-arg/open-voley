@@ -78,5 +78,8 @@ jobs:
       - name: Scout rally assist tests
         run: npm run test:scout-rally-assist
 
+      - name: Match set engine tests
+        run: npm run test:match-set
+
       - name: Production build
         run: npm run build
