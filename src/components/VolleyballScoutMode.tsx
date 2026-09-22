@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { MatchData, Player, ScoutCodeAction, TeamSide, VolleySkill, EvaluationSymbol } from '../types';
+import { nextScoutStep } from '../utils/scoutRallyAssist';
 import { 
   RotateCcw, 
   RotateCw, 
@@ -287,9 +288,16 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
       triggerConfirmation(`✓ #${actionPlayer.number} ${skillObj?.short} — ${outcomeObj?.label || evalSymbol}`);
     }
 
-    // Autosiguiente: context is cleared so it can never leak into the next action.
+    // Autosiguiente: reduce taps only when the volleyball sequence is unambiguous.
+    // The analyst can always override team/skill manually.
+    const next = nextScoutStep(activeTeam, stagedSkill, evalSymbol);
     setSelectedTargetZone(null);
     if (stagedSkill === 'S') setSelectedServeType(null);
+    if (next) {
+      setActiveTeam(next.team);
+      setStagedSkill(next.skill);
+      setStagedPlayerId(null);
+    }
   }, [selectedPlayer, stagedSkill, activeTeam, match, homeScore, awayScore, activePlayers, onAddAction, onScoreChange, selectedTargetZone, selectedServeType, servingPlayer]);
 
   // Immediate Undo without modal

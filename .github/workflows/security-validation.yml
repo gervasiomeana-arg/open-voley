@@ -75,5 +75,8 @@ jobs:
       - name: Match rotation engine tests
         run: npm run test:match-rotation
 
+      - name: Scout rally assist tests
+        run: npm run test:scout-rally-assist
+
       - name: Production build
         run: npm run build
