@@ -81,5 +81,8 @@ jobs:
       - name: Match set engine tests
         run: npm run test:match-set
 
+      - name: Match substitution engine tests
+        run: npm run test:match-substitution
+
       - name: Production build
         run: npm run build

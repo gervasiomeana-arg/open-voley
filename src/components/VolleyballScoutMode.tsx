@@ -23,6 +23,7 @@ interface VolleyballScoutModeProps {
   onDeleteAction: (id: string) => void;
   onScoreChange: (homeScore: number, awayScore: number) => void;
   onRotateTeam: (team: TeamSide) => void;
+  onSubstitutePlayer: (team: TeamSide, playerOut: number, playerIn: number) => void;
   onSelectAction?: (id: string) => void;
 }
 
@@ -105,6 +106,7 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
   onDeleteAction,
   onScoreChange,
   onRotateTeam,
+  onSubstitutePlayer,
   onSelectAction,
 }) => {
   // Active team being scouted
@@ -123,6 +125,7 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
 
   // Keyboard helper toggle
   const [showKeyboardGuide, setShowKeyboardGuide] = useState<boolean>(false);
+  const [substitutionOut, setSubstitutionOut] = useState<number | null>(null);
 
   // Score of current set
   const currentSetData = match.sets[match.currentSet - 1] || { scoreHome: 0, scoreAway: 0 };
@@ -798,6 +801,24 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
               })}
             </div>
 
+            <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1">
+              <span className="text-[10px] font-black uppercase text-slate-500 shrink-0">Sustituir:</span>
+              {activePlayers.court.map(({ player, zoneIndex }) => (
+                <button
+                  key={`sub-out-${activeTeam}-${player.number}`}
+                  type="button"
+                  onClick={() => setSubstitutionOut((prev) => prev === player.number ? null : player.number)}
+                  className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black border shrink-0 ${
+                    substitutionOut === player.number
+                      ? 'bg-rose-500 text-white border-rose-300'
+                      : 'bg-slate-950 text-slate-400 border-slate-800'
+                  }`}
+                >
+                  P{zoneIndex} #{player.number} SALE
+                </button>
+              ))}
+            </div>
+
           </div>
 
           {/* Bench & Libero Quick Switchers */}
@@ -806,16 +827,35 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
               <span className="text-[11px] font-black text-emerald-200 shrink-0 uppercase tracking-wider">
                 Suplentes / Líberos:
               </span>
-              {activePlayers.bench.map((benchP) => (
-                <div
-                  key={benchP.id}
-                  className="px-3 py-1.5 rounded-xl font-bold text-xs shrink-0 flex items-center gap-1.5 border bg-slate-950/80 text-slate-400 border-slate-800"
-                  title="Fuera de cancha: realiza una sustitución antes de registrar acciones"
-                >
-                  <span className="font-mono font-black">#{benchP.number}</span>
-                  <span>{benchP.position === 'L' ? 'Líbero' : 'Suplente'}</span>
-                </div>
-              ))}
+              {activePlayers.bench.map((benchP) => {
+                const isLibero = benchP.position === 'L';
+                return (
+                  <button
+                    key={benchP.id}
+                    type="button"
+                    disabled={isLibero}
+                    onClick={() => {
+                      if (substitutionOut == null) {
+                        triggerConfirmation('Primero toca el jugador de cancha que sale');
+                        return;
+                      }
+                      onSubstitutePlayer(activeTeam, substitutionOut, benchP.number);
+                      setSubstitutionOut(null);
+                      setStagedPlayerId(benchP.id);
+                      triggerConfirmation(`🔄 #${substitutionOut} → #${benchP.number}`);
+                    }}
+                    className={`px-3 py-1.5 rounded-xl font-bold text-xs shrink-0 flex items-center gap-1.5 border transition ${
+                      isLibero
+                        ? 'bg-slate-950/80 text-purple-300 border-purple-900/60 cursor-not-allowed'
+                        : 'bg-slate-950/80 text-emerald-200 border-slate-700 hover:bg-emerald-500/10'
+                    }`}
+                    title={isLibero ? 'Líbero: tendrá un flujo específico' : 'Selecciona antes el jugador de cancha que sale'}
+                  >
+                    <span className="font-mono font-black">#{benchP.number}</span>
+                    <span>{isLibero ? 'Líbero' : 'Entra'}</span>
+                  </button>
+                );
+              })}
             </div>
           )}
 
