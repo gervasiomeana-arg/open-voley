@@ -27,7 +27,8 @@
     "test:match-rotation": "tsx src/utils/matchRotationEngine.test.ts",
     "test:scout-rally-assist": "tsx src/utils/scoutRallyAssist.test.ts",
     "test:match-set": "tsx src/utils/matchSetEngine.test.ts",
-    "test:match-substitution": "tsx src/utils/matchSubstitutionEngine.test.ts"
+    "test:match-substitution": "tsx src/utils/matchSubstitutionEngine.test.ts",
+    "test:libero": "tsx src/utils/liberoEngine.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
