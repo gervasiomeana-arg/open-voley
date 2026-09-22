@@ -87,5 +87,8 @@ jobs:
       - name: Libero replacement engine tests
         run: npm run test:libero
 
+      - name: Match state integrity tests
+        run: npm run test:match-state
+
       - name: Production build
         run: npm run build
