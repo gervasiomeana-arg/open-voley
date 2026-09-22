@@ -192,6 +192,12 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
     };
   }, [match.server, match.homePlayers, match.awayPlayers, match.homeRotation, match.awayRotation]);
 
+  useEffect(() => {
+    if (stagedSkill !== 'S') return;
+    setActiveTeam(match.server.team);
+    setStagedPlayerId(servingPlayer.id);
+  }, [stagedSkill, match.server.team, match.server.playerNum, servingPlayer.id]);
+
   // Last registered action in the match
   const lastAction = useMemo(() => {
     if (!match.actions || match.actions.length === 0) return null;
@@ -617,6 +623,29 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
         {/* Court Header: Active Team & Selected Player Status */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
           <div className="flex items-center gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
+          {(['home', 'away'] as TeamSide[]).map((side) => {
+            const rotation = side === 'home' ? match.homeRotation : match.awayRotation;
+            const isServing = match.server.team === side;
+            return (
+              <div key={side} className={`rounded-xl border px-3 py-2 ${isServing ? 'border-amber-400/70 bg-amber-500/10' : 'border-slate-800 bg-slate-950/60'}`}>
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <span className="text-[10px] font-black uppercase text-slate-300 truncate">
+                    {side === 'home' ? match.homeTeamName : match.awayTeamName}
+                  </span>
+                  {isServing && <span className="text-[10px] font-black text-amber-400">🏐 SAQUE #{rotation[0]}</span>}
+                </div>
+                <div className="grid grid-cols-6 gap-1">
+                  {rotation.map((num, idx) => (
+                    <div key={`${side}-rot-${idx}`} className={`rounded-md px-1 py-1 text-center font-mono text-[10px] font-black ${isServing && idx === 0 ? 'bg-amber-400 text-slate-950' : 'bg-slate-800 text-slate-200'}`}>
+                      <span className="block text-[8px] opacity-60">P{idx + 1}</span>#{num}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
             <div className="flex items-center gap-2">
               <span className={`w-3 h-3 rounded-full ${activeTeam === 'home' ? 'bg-amber-400' : 'bg-cyan-400'}`} />
               <span className="font-black text-sm text-white">
