@@ -393,10 +393,24 @@ export default function App() {
         }
       }
 
+      const restoredServer = targetAction?.servingTeam
+        ? {
+            team: targetAction.servingTeam,
+            playerNum:
+              targetAction.serverNum ??
+              (targetAction.servingTeam === 'home'
+                ? targetAction.rotationHome[0]
+                : targetAction.rotationAway[0]),
+          }
+        : prev.server;
+
       const updatedMatch = {
         ...prev,
         sets: updatedSets,
         actions: updatedActions,
+        homeRotation: targetAction?.rotationHome ? [...targetAction.rotationHome] : prev.homeRotation,
+        awayRotation: targetAction?.rotationAway ? [...targetAction.rotationAway] : prev.awayRotation,
+        server: restoredServer,
       };
 
       try {
