@@ -141,7 +141,7 @@ export const BoxScoreReport: React.FC<BoxScoreReportProps> = ({
         <div>
           <div className="flex items-center gap-2 text-slate-900 font-black text-lg">
             <FileText className="w-5 h-5 text-indigo-600" />
-            <span>Planilla Oficial Estadística FIVB P2 / NCAA</span>
+            <span>Planilla Estadística del Partido</span>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
             Rendimiento por jugador computado en tiempo real desde la consola de scouting.
@@ -278,9 +278,9 @@ export const BoxScoreReport: React.FC<BoxScoreReportProps> = ({
               <th colSpan={3} className="p-2 rounded-tl-lg border-r border-slate-800">
                 Jugador
               </th>
-              {columnsConfig.serve && (
-                <th colSpan={3} className="p-2 text-center border-r border-slate-800">
-                  Saque
+              {columnsConfig.attack && (
+                <th colSpan={5} className="p-2 text-center border-r border-slate-800">
+                  Ataque
                 </th>
               )}
               {columnsConfig.reception && (
@@ -288,9 +288,9 @@ export const BoxScoreReport: React.FC<BoxScoreReportProps> = ({
                   Recepción
                 </th>
               )}
-              {columnsConfig.attack && (
-                <th colSpan={5} className="p-2 text-center border-r border-slate-800">
-                  Ataque
+              {columnsConfig.serve && (
+                <th colSpan={3} className="p-2 text-center border-r border-slate-800">
+                  Saque
                 </th>
               )}
               {columnsConfig.block && (
@@ -305,11 +305,13 @@ export const BoxScoreReport: React.FC<BoxScoreReportProps> = ({
               <th className="p-2">Nombre</th>
               <th className="p-2 border-r border-slate-200">Pos</th>
 
-              {columnsConfig.serve && (
+              {columnsConfig.attack && (
                 <>
                   <th className="p-2 text-center">Tot</th>
-                  <th className="p-2 text-center text-emerald-700">Ace</th>
-                  <th className="p-2 text-center text-rose-600 border-r border-slate-200">Err</th>
+                  <th className="p-2 text-center text-emerald-700">Pts</th>
+                  <th className="p-2 text-center text-rose-600">Err</th>
+                  <th className="p-2 text-center text-amber-600">Blq</th>
+                  <th className="p-2 text-center font-extrabold text-indigo-900 border-r border-slate-200">Efic %</th>
                 </>
               )}
 
@@ -321,13 +323,11 @@ export const BoxScoreReport: React.FC<BoxScoreReportProps> = ({
                 </>
               )}
 
-              {columnsConfig.attack && (
+              {columnsConfig.serve && (
                 <>
                   <th className="p-2 text-center">Tot</th>
-                  <th className="p-2 text-center text-emerald-700">Pts</th>
-                  <th className="p-2 text-center text-rose-600">Err</th>
-                  <th className="p-2 text-center text-amber-600">Blq</th>
-                  <th className="p-2 text-center font-extrabold text-indigo-900 border-r border-slate-200">Efic %</th>
+                  <th className="p-2 text-center text-emerald-700">Ace</th>
+                  <th className="p-2 text-center text-rose-600 border-r border-slate-200">Err</th>
                 </>
               )}
 
@@ -353,12 +353,16 @@ export const BoxScoreReport: React.FC<BoxScoreReportProps> = ({
                   </td>
                   <td className="p-2 text-slate-500 font-mono border-r border-slate-200">{s.position}</td>
 
-                  {/* Serve */}
-                  {columnsConfig.serve && (
+                  {/* Attack */}
+                  {columnsConfig.attack && (
                     <>
-                      <td className="p-2 text-center font-mono">{s.serveTotal}</td>
-                      <td className="p-2 text-center font-mono font-bold text-emerald-600">{s.serveAce}</td>
-                      <td className="p-2 text-center font-mono text-rose-600 border-r border-slate-200">{s.serveErr}</td>
+                      <td className="p-2 text-center font-mono">{s.attTotal}</td>
+                      <td className="p-2 text-center font-mono font-bold text-emerald-600">{s.attPts}</td>
+                      <td className="p-2 text-center font-mono text-rose-600">{s.attErr}</td>
+                      <td className="p-2 text-center font-mono text-amber-600">{s.attBlocked}</td>
+                      <td className="p-2 text-center font-mono font-extrabold text-indigo-900 bg-indigo-50/50 border-r border-slate-200">
+                        {s.attEffPct}%
+                      </td>
                     </>
                   )}
 
@@ -373,16 +377,12 @@ export const BoxScoreReport: React.FC<BoxScoreReportProps> = ({
                     </>
                   )}
 
-                  {/* Attack */}
-                  {columnsConfig.attack && (
+                  {/* Serve */}
+                  {columnsConfig.serve && (
                     <>
-                      <td className="p-2 text-center font-mono">{s.attTotal}</td>
-                      <td className="p-2 text-center font-mono font-bold text-emerald-600">{s.attPts}</td>
-                      <td className="p-2 text-center font-mono text-rose-600">{s.attErr}</td>
-                      <td className="p-2 text-center font-mono text-amber-600">{s.attBlocked}</td>
-                      <td className="p-2 text-center font-mono font-extrabold text-indigo-900 bg-indigo-50/50 border-r border-slate-200">
-                        {s.attEffPct}%
-                      </td>
+                      <td className="p-2 text-center font-mono">{s.serveTotal}</td>
+                      <td className="p-2 text-center font-mono font-bold text-emerald-600">{s.serveAce}</td>
+                      <td className="p-2 text-center font-mono text-rose-600 border-r border-slate-200">{s.serveErr}</td>
                     </>
                   )}
 
@@ -399,7 +399,7 @@ export const BoxScoreReport: React.FC<BoxScoreReportProps> = ({
 
       {/* Formulas Explanation Footer (Low contrast, secondary info) */}
       <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-[11px] text-slate-500 space-y-0.5">
-        <div className="font-bold text-slate-700">Fórmulas Oficiales FIVB P2:</div>
+        <div className="font-bold text-slate-700">Fórmulas estadísticas utilizadas:</div>
         <div>• <strong>Eficiencia de Ataque (Efic %):</strong> ((Puntos - Errores - Ataques Bloqueados) / Total de Ataques) × 100</div>
         <div>• <strong>Recepción Positiva (Pos %):</strong> ((Pases Perfectos [#] + Pases Positivos [+]) / Total de Recepciones) × 100</div>
       </div>
