@@ -412,7 +412,7 @@ export const TrainingCenter: React.FC<TrainingCenterProps> = ({
                     key={ex.id}
                     className="p-4 bg-slate-950/70 border border-slate-800 rounded-2xl space-y-2 hover:border-slate-700/80 transition"
                   >
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <span className="w-5 h-5 rounded-md bg-purple-500/20 text-purple-400 font-mono font-bold text-[11px] flex items-center justify-center">
                           {i + 1}
