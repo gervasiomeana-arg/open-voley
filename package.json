@@ -29,7 +29,8 @@
     "test:match-set": "tsx src/utils/matchSetEngine.test.ts",
     "test:match-substitution": "tsx src/utils/matchSubstitutionEngine.test.ts",
     "test:libero": "tsx src/utils/liberoEngine.test.ts",
-    "test:match-state": "tsx src/utils/matchStateIntegrity.test.ts"
+    "test:match-state": "tsx src/utils/matchStateIntegrity.test.ts",
+    "test:set-transition": "tsx src/utils/setTransitionIntegrity.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

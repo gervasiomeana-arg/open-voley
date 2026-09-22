@@ -90,5 +90,8 @@ jobs:
       - name: Match state integrity tests
         run: npm run test:match-state
 
+      - name: Set transition integrity tests
+        run: npm run test:set-transition
+
       - name: Production build
         run: npm run build
