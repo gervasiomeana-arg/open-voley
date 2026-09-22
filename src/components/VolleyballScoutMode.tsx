@@ -35,11 +35,11 @@ interface SkillConfig {
 }
 
 const SKILLS: SkillConfig[] = [
-  { id: 'S', label: 'SAQUE', short: 'Saque', icon: '🏐', key: 'S' },
-  { id: 'R', label: 'RECEPCIÓN', short: 'Recep', icon: '🤲', key: 'R' },
-  { id: 'E', label: 'ARMADO', short: 'Armado', icon: '👐', key: 'E' },
   { id: 'A', label: 'ATAQUE', short: 'Ataque', icon: '💥', key: 'A' },
+  { id: 'R', label: 'RECEPCIÓN', short: 'Recep', icon: '🤲', key: 'R' },
+  { id: 'S', label: 'SAQUE', short: 'Saque', icon: '🏐', key: 'S' },
   { id: 'B', label: 'BLOQUEO', short: 'Bloq', icon: '🧱', key: 'B' },
+  { id: 'E', label: 'ARMADO', short: 'Armado', icon: '👐', key: 'E' },
   { id: 'D', label: 'DEFENSA', short: 'Defensa', icon: '🛡️', key: 'D' },
 ];
 
@@ -177,6 +177,21 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
     };
   }, [stagedPlayerId, activePlayers, activeTeam, match]);
 
+  // Service is rule-driven: the server is always P1 of the serving team.
+  const servingPlayer = useMemo(() => {
+    const list = match.server.team === 'home' ? match.homePlayers : match.awayPlayers;
+    const rotation = match.server.team === 'home' ? match.homeRotation : match.awayRotation;
+    const p1 = rotation[0] ?? match.server.playerNum;
+    return list.find((p) => p.number === p1) || {
+      id: `tmp_${match.server.team}_${p1}`,
+      number: p1,
+      name: `Jugador ${p1}`,
+      position: 'OH' as const,
+      team: match.server.team,
+      starter: true,
+    };
+  }, [match.server, match.homePlayers, match.awayPlayers, match.homeRotation, match.awayRotation]);
+
   // Last registered action in the match
   const lastAction = useMemo(() => {
     if (!match.actions || match.actions.length === 0) return null;
@@ -196,6 +211,14 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
   const handleCommitAction = useCallback((evalSymbol: EvaluationSymbol) => {
     if (!selectedPlayer) return;
 
+    // A serve can only be registered by P1 of the team that currently owns service.
+    // Selecting SAQUE automatically uses that player and rejects the other team.
+    if (stagedSkill === 'S' && activeTeam !== match.server.team) {
+      triggerConfirmation(`🏐 Saca ${match.server.team === 'home' ? match.homeTeamName : match.awayTeamName} #${servingPlayer.number}`);
+      return;
+    }
+    const actionPlayer = stagedSkill === 'S' ? servingPlayer : selectedPlayer;
+
     const skillObj = SKILLS.find((s) => s.id === stagedSkill);
     const outcomes = SKILL_OUTCOMES[stagedSkill] || [];
     const outcomeObj = outcomes.find((o) => o.symbol === evalSymbol);
@@ -206,21 +229,21 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
 
     // Standard FIVB/Data Volley code representation
     const prefix = activeTeam === 'home' ? '*' : 'a';
-    const numStr = selectedPlayer.number.toString().padStart(2, '0');
+    const numStr = actionPlayer.number.toString().padStart(2, '0');
     const rawCode = `${prefix}${numStr}${stagedSkill}${evalSymbol}`;
 
-    const desc = `${activeTeam === 'home' ? match.homeTeamName : match.awayTeamName} #${selectedPlayer.number} ${selectedPlayer.name}: ${skillObj?.short || stagedSkill} (${outcomeObj?.label || evalSymbol})`;
+    const desc = `${activeTeam === 'home' ? match.homeTeamName : match.awayTeamName} #${actionPlayer.number} ${actionPlayer.name}: ${skillObj?.short || stagedSkill} (${outcomeObj?.label || evalSymbol})`;
 
     // Infer zone from player position on court (1..6)
-    const courtIndex = activePlayers.court.findIndex((c) => c.player.number === selectedPlayer.number);
+    const courtIndex = activePlayers.court.findIndex((c) => c.player.number === actionPlayer.number);
     const inferredZone = courtIndex >= 0 ? courtIndex + 1 : undefined;
 
     const newAction: ScoutCodeAction = {
       id: `act_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       rawCode,
       team: activeTeam,
-      playerNum: selectedPlayer.number,
-      playerName: selectedPlayer.name,
+      playerNum: actionPlayer.number,
+      playerName: actionPlayer.name,
       skill: stagedSkill,
       evaluation: evalSymbol,
       // Capture only context that is known at tap time. Never invent a destination zone.
@@ -241,6 +264,8 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
       scoreAway: awayScore,
       rotationHome: [...(match.homeRotation || [1, 2, 3, 4, 5, 6])],
       rotationAway: [...(match.awayRotation || [1, 2, 3, 4, 5, 6])],
+      servingTeam: match.server.team,
+      serverNum: match.server.playerNum,
       description: desc,
     };
 
@@ -249,17 +274,17 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
     onAddAction(newAction);
 
     if (isPoint) {
-      triggerConfirmation(`✓ #${selectedPlayer.number} ${skillObj?.short} — PUNTO`);
+      triggerConfirmation(`✓ #${actionPlayer.number} ${skillObj?.short} — PUNTO`);
     } else if (isError || isBlock) {
-      triggerConfirmation(`✓ #${selectedPlayer.number} ${skillObj?.short} — ${isBlock ? 'BLOQUEADO (Punto rival)' : 'ERROR'}`);
+      triggerConfirmation(`✓ #${actionPlayer.number} ${skillObj?.short} — ${isBlock ? 'BLOQUEADO (Punto rival)' : 'ERROR'}`);
     } else {
-      triggerConfirmation(`✓ #${selectedPlayer.number} ${skillObj?.short} — ${outcomeObj?.label || evalSymbol}`);
+      triggerConfirmation(`✓ #${actionPlayer.number} ${skillObj?.short} — ${outcomeObj?.label || evalSymbol}`);
     }
 
     // Autosiguiente: context is cleared so it can never leak into the next action.
     setSelectedTargetZone(null);
     if (stagedSkill === 'S') setSelectedServeType(null);
-  }, [selectedPlayer, stagedSkill, activeTeam, match, homeScore, awayScore, activePlayers, onAddAction, onScoreChange, selectedTargetZone, selectedServeType]);
+  }, [selectedPlayer, stagedSkill, activeTeam, match, homeScore, awayScore, activePlayers, onAddAction, onScoreChange, selectedTargetZone, selectedServeType, servingPlayer]);
 
   // Immediate Undo without modal
   const handleUndo = useCallback(() => {
