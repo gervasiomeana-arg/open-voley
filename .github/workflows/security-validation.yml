@@ -99,5 +99,8 @@ jobs:
       - name: Full real match simulation
         run: npm run test:real-match-simulation
 
+      - name: Rally Simulation V2
+        run: npm run test:rally-simulation-v2
+
       - name: Production build
         run: npm run build
