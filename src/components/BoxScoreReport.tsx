@@ -135,7 +135,7 @@ export const BoxScoreReport: React.FC<BoxScoreReportProps> = ({
   };
 
   return (
-    <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5">
+    <div className="bg-white p-3 sm:p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4 sm:space-y-5">
       {/* Header and Controls */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
@@ -148,7 +148,7 @@ export const BoxScoreReport: React.FC<BoxScoreReportProps> = ({
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
           {onBackToMatchCenter && (
             <button
               onClick={onBackToMatchCenter}
@@ -258,7 +258,7 @@ export const BoxScoreReport: React.FC<BoxScoreReportProps> = ({
       </div>
 
       {/* Match Details Banner (visible in print too) */}
-      <div className="bg-slate-50 border border-slate-200/80 p-3 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div className="bg-slate-50 border border-slate-200/80 p-3 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 text-xs">
         <div className="flex items-center gap-3">
           <span className="font-black text-slate-800 text-sm">{match.homeTeamName} vs {match.awayTeamName}</span>
           <span className="bg-indigo-50 text-indigo-700 font-bold px-2 py-0.5 rounded text-[11px] border border-indigo-100">{match.competition}</span>
@@ -269,8 +269,44 @@ export const BoxScoreReport: React.FC<BoxScoreReportProps> = ({
         </div>
       </div>
 
+      {/* Mobile stats cards: avoid forcing a desktop table into a phone width */}
+      <div className="sm:hidden space-y-2">
+        {activeStats.map((s) => (
+          <div key={`mobile-${s.playerNum}`} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <div className="font-black text-slate-900 text-sm truncate">#{s.playerNum} {s.name}</div>
+                <div className="text-[10px] text-slate-500">{s.position}</div>
+              </div>
+              <div className="text-right">
+                <div className="text-[10px] uppercase font-bold text-slate-400">Puntos</div>
+                <div className="text-lg font-black text-slate-900">{s.attPts + s.serveAce + s.blockPts}</div>
+              </div>
+            </div>
+            <div className="grid grid-cols-4 gap-1.5 mt-3 text-center">
+              <div className="rounded-lg bg-slate-50 p-2">
+                <div className="text-[9px] text-slate-500">Ataque</div>
+                <div className="text-xs font-black text-indigo-900">{s.attTotal ? `${s.attEffPct}%` : '—'}</div>
+              </div>
+              <div className="rounded-lg bg-slate-50 p-2">
+                <div className="text-[9px] text-slate-500">Recep.</div>
+                <div className="text-xs font-black text-blue-700">{s.recTotal ? `${s.recPosPct}%` : '—'}</div>
+              </div>
+              <div className="rounded-lg bg-slate-50 p-2">
+                <div className="text-[9px] text-slate-500">Aces</div>
+                <div className="text-xs font-black text-emerald-700">{s.serveAce}</div>
+              </div>
+              <div className="rounded-lg bg-slate-50 p-2">
+                <div className="text-[9px] text-slate-500">Bloq.</div>
+                <div className="text-xs font-black text-emerald-700">{s.blockPts}</div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
       {/* Stats Table */}
-      <div className="overflow-x-auto">
+      <div className="hidden sm:block overflow-x-auto">
         <table className="w-full text-left text-xs border-collapse">
           <thead>
             {/* Super Header */}
