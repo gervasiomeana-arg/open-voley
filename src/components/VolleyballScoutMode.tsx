@@ -421,8 +421,60 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
         </div>
       )}
 
-      {/* 1. SCOREBOARD & MATCH HEADER (ALWAYS VISIBLE & COMPACT) */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-5 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-4">
+      {/* MOBILE STICKY SCORE: always visible below the global match context bar */}
+      <div className="sm:hidden sticky top-[98px] z-30 -mx-1 bg-slate-950/95 backdrop-blur-xl border border-slate-800 rounded-xl px-2 py-1.5 shadow-2xl">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5">
+          <div className="min-w-0">
+            <div className="text-[9px] font-black uppercase text-amber-400 truncate">{match.homeTeamName}</div>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => onScoreChange(Math.max(0, homeScore - 1), awayScore)}
+                className="w-6 h-6 rounded-md bg-slate-800 text-slate-400 text-xs font-black border border-slate-700"
+                aria-label="Restar punto local"
+              >−</button>
+              <span className="text-2xl leading-none font-black font-mono text-white min-w-[30px] text-center">{homeScore}</span>
+              <button
+                type="button"
+                onClick={() => onScoreChange(homeScore + 1, awayScore)}
+                className="w-6 h-6 rounded-md bg-amber-500/20 text-amber-300 text-xs font-black border border-amber-500/40"
+                aria-label="Sumar punto local"
+              >+</button>
+            </div>
+          </div>
+
+          <div className="flex flex-col items-center justify-center px-1">
+            <span className="text-[9px] font-black bg-amber-400 text-slate-950 px-2 py-0.5 rounded-full">
+              SET {match.currentSet}
+            </span>
+            <span className="mt-1 text-[10px] font-black text-amber-300 whitespace-nowrap">
+              🏐 {match.server.team === 'home' ? 'LOCAL' : 'RIVAL'} #{match.server.playerNum}
+            </span>
+          </div>
+
+          <div className="min-w-0 flex flex-col items-end">
+            <div className="text-[9px] font-black uppercase text-cyan-400 truncate max-w-full">{match.awayTeamName}</div>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => onScoreChange(homeScore, Math.max(0, awayScore - 1))}
+                className="w-6 h-6 rounded-md bg-slate-800 text-slate-400 text-xs font-black border border-slate-700"
+                aria-label="Restar punto rival"
+              >−</button>
+              <span className="text-2xl leading-none font-black font-mono text-white min-w-[30px] text-center">{awayScore}</span>
+              <button
+                type="button"
+                onClick={() => onScoreChange(homeScore, awayScore + 1)}
+                className="w-6 h-6 rounded-md bg-cyan-500/20 text-cyan-300 text-xs font-black border border-cyan-500/40"
+                aria-label="Sumar punto rival"
+              >+</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 1. SCOREBOARD & MATCH HEADER (TABLET / DESKTOP) */}
+      <div className="hidden sm:flex bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-5 shadow-2xl flex-col md:flex-row items-center justify-between gap-4">
         
         {/* Local Team */}
         <div className="flex items-center gap-3.5 w-full md:w-auto justify-between md:justify-start">
@@ -577,16 +629,16 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
       </div>
 
       {/* 2. PERSISTENT 'ÚLTIMA ACCIÓN' STRIP + 'DESHACER' DIRECT BUTTON */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl px-4 py-2.5 shadow-md flex flex-wrap items-center justify-between gap-3">
+      <div className="bg-slate-900 border border-slate-800 rounded-xl sm:rounded-2xl px-2.5 sm:px-4 py-2 sm:py-2.5 shadow-md flex items-center justify-between gap-2 sm:gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <span className="text-[10px] font-black tracking-widest uppercase bg-slate-800 text-slate-300 px-2.5 py-1 rounded-lg shrink-0">
+          <span className="hidden sm:inline text-[10px] font-black tracking-widest uppercase bg-slate-800 text-slate-300 px-2.5 py-1 rounded-lg shrink-0">
             ÚLTIMA ACCIÓN
           </span>
           {lastAction ? (
             <div className="flex items-center gap-2 text-xs font-bold text-white truncate">
               <span className="text-amber-400 font-mono">#{lastAction.playerNum}</span>
-              <span className="truncate">{lastAction.description}</span>
-              <span className="font-mono text-[11px] text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+              <span className="hidden sm:inline truncate">{lastAction.description}</span>
+              <span className="font-mono text-[11px] text-slate-300 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
                 {lastAction.rawCode}
               </span>
             </div>
@@ -608,7 +660,7 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
             title="Deshacer inmediatamente la última acción (Ctrl+Z o Backspace)"
           >
             <RotateCcw className="w-3.5 h-3.5 text-rose-400" />
-            <span>↶ DESHACER</span>
+            <span className="sm:hidden">↶</span><span className="hidden sm:inline">↶ DESHACER</span>
           </button>
 
           {/* KEYBOARD SHORTCUTS TOGGLE */}
