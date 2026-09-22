@@ -449,6 +449,11 @@ export default function App() {
         homeRotation: targetAction?.rotationHome ? [...targetAction.rotationHome] : prev.homeRotation,
         awayRotation: targetAction?.rotationAway ? [...targetAction.rotationAway] : prev.awayRotation,
         server: restoredServer,
+        liberoReplacements: targetAction
+          ? (targetAction.liberoReplacements
+              ? JSON.parse(JSON.stringify(targetAction.liberoReplacements))
+              : {})
+          : prev.liberoReplacements,
       };
 
       try {
