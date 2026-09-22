@@ -283,6 +283,9 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
       rotationAway: [...(match.awayRotation || [1, 2, 3, 4, 5, 6])],
       servingTeam: match.server.team,
       serverNum: match.server.playerNum,
+      liberoReplacements: match.liberoReplacements
+        ? JSON.parse(JSON.stringify(match.liberoReplacements))
+        : undefined,
       description: desc,
     };
 
