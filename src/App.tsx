@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { applyRallyWinner, pointWinnerFromAction, rotateClockwise } from './utils/matchRotationEngine';
+import { evaluateSetCompletion, matchWinnerFromSets } from './utils/matchSetEngine';
 import { MatchData, Player, ScoutCodeAction, TeamSide, ClientUser, TrialInfo, RallyDetection, UserRole, TrainingEvidenceContext } from './types';
 import { sampleMatchData } from './data/sampleMatch';
 import { ResearchTab } from './components/ResearchTab';
@@ -338,13 +339,27 @@ export default function App() {
         rallyState = applyRallyWinner(rallyState, winner);
       }
 
+      const setCompletion = evaluateSetCompletion(curSet, updatedSets[setIdx].scoreHome, updatedSets[setIdx].scoreAway);
+      if (setCompletion.isComplete && setCompletion.winner) {
+        updatedSets[setIdx].winner = setCompletion.winner;
+      }
+      const matchWinner = matchWinnerFromSets(updatedSets);
+      const shouldPrepareNextSet = setCompletion.isComplete && !matchWinner && curSet < 5;
+
       const updatedMatch = {
         ...prev,
-        sets: updatedSets,
+        sets: shouldPrepareNextSet
+          ? [...updatedSets, { setNumber: curSet + 1, scoreHome: 0, scoreAway: 0 }]
+          : updatedSets,
         actions: updatedActions,
         homeRotation: rallyState.homeRotation,
         awayRotation: rallyState.awayRotation,
         server: rallyState.server,
+        currentSet: shouldPrepareNextSet ? curSet + 1 : curSet,
+        isPrepared: shouldPrepareNextSet ? false : prev.isPrepared,
+        winner: matchWinner ?? prev.winner,
+        isFinished: Boolean(matchWinner) || prev.isFinished,
+        status: matchWinner ? 'finished' : (shouldPrepareNextSet ? 'prepared' : prev.status),
       };
 
       try {
