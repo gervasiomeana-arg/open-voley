@@ -644,11 +644,11 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       
       {/* MEDIA MODE SWITCHER BAR */}
-      <div className="bg-slate-900 p-2 rounded-3xl border border-slate-800 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="flex items-center gap-3 pl-3">
+      <div className="bg-slate-900 p-2 rounded-2xl sm:rounded-3xl border border-slate-800 shadow-xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-3">
+        <div className="hidden sm:flex items-center gap-3 pl-3">
           <div className="w-9 h-9 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
             🎬
           </div>
@@ -658,53 +658,53 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0 snap-x">
           <button
             onClick={() => setActiveMediaTab('video_cuts')}
-            className={`flex-1 sm:flex-none px-4 py-2.5 rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition ${
+            className={`shrink-0 sm:flex-none px-3 sm:px-4 py-2.5 rounded-xl sm:rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition snap-start ${
               activeMediaTab === 'video_cuts'
                 ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20 scale-[1.02]'
                 : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700'
             }`}
           >
             <Film className="w-4 h-4" />
-            <span>Sincronización & Cortes de Video</span>
+            <span className="sm:hidden">Video</span><span className="hidden sm:inline">Sincronización & Cortes de Video</span>
           </button>
 
           <button
             onClick={() => setActiveMediaTab('smart_editor')}
-            className={`flex-1 sm:flex-none px-4 py-2.5 rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition ${
+            className={`shrink-0 sm:flex-none px-3 sm:px-4 py-2.5 rounded-xl sm:rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition snap-start ${
               activeMediaTab === 'smart_editor'
                 ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 scale-[1.02]'
                 : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700'
             }`}
           >
             <Scissors className="w-4 h-4" />
-            <span>Editor Deportivo Inteligente</span>
+            <span className="sm:hidden">Editor</span><span className="hidden sm:inline">Editor Deportivo Inteligente</span>
           </button>
 
           <button
             onClick={() => setActiveMediaTab('library')}
-            className={`flex-1 sm:flex-none px-4 py-2.5 rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition ${
+            className={`shrink-0 sm:flex-none px-3 sm:px-4 py-2.5 rounded-xl sm:rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition snap-start ${
               activeMediaTab === 'library'
                 ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/30 scale-[1.02]'
                 : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700'
             }`}
           >
             <FolderOpen className="w-4 h-4" />
-            <span>Biblioteca de Montajes</span>
+            <span className="sm:hidden">Biblioteca</span><span className="hidden sm:inline">Biblioteca de Montajes</span>
           </button>
 
           <button
             onClick={() => setActiveMediaTab('media_studio')}
-            className={`flex-1 sm:flex-none px-4 py-2.5 rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition ${
+            className={`shrink-0 sm:flex-none px-3 sm:px-4 py-2.5 rounded-xl sm:rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition snap-start ${
               activeMediaTab === 'media_studio'
                 ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-slate-950 shadow-lg shadow-orange-500/30 scale-[1.02]'
                 : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700'
             }`}
           >
             <Instagram className="w-4 h-4 text-rose-500" />
-            <span>📸 Tarjetas Redes & Telestrator de Fotos</span>
+            <span className="sm:hidden">Media</span><span className="hidden sm:inline">📸 Tarjetas Redes & Telestrator de Fotos</span>
           </button>
         </div>
       </div>
@@ -739,7 +739,7 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
           initialMontageId={libraryMontageId}
         />
       ) : (
-        <div className="bg-slate-900 text-white p-4 sm:p-6 rounded-3xl shadow-xl border border-slate-800 space-y-6 animate-fadeIn">
+        <div className="bg-slate-900 text-white p-3 sm:p-6 rounded-2xl sm:rounded-3xl shadow-xl border border-slate-800 space-y-4 sm:space-y-6 animate-fadeIn">
           
           {/* Top Header */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
@@ -757,7 +757,7 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
             </div>
 
             {/* Action buttons */}
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
               {/* Preset Example Match Button */}
               <button
                 onClick={handleLoadPanamExample}
@@ -842,21 +842,21 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
             }}
             onDragLeave={() => setIsDraggingFile(false)}
             onDrop={handleDrop}
-            className={`relative bg-black rounded-3xl overflow-hidden min-h-[340px] sm:min-h-[440px] aspect-video border shadow-2xl flex items-center justify-center group ${
+            className={`relative bg-black rounded-3xl overflow-hidden min-h-[210px] sm:min-h-[440px] aspect-video border shadow-2xl flex items-center justify-center group ${
               isDraggingFile ? 'border-amber-400 ring-2 ring-amber-400/50' : 'border-slate-800'
             }`}
           >
             {/* IF NO VIDEO IS LOADED: Clean Upload Dropzone with Example Promo */}
             {!videoSrc && (
-              <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center space-y-4">
+              <div className="w-full h-full flex flex-col items-center justify-center p-4 sm:p-8 text-center space-y-3 sm:space-y-4">
                 <div 
                   onClick={() => fileInputRef.current?.click()}
                   className="w-20 h-20 rounded-3xl bg-slate-900 border-2 border-dashed border-emerald-500/60 flex items-center justify-center text-emerald-400 shadow-xl hover:scale-105 transition transform cursor-pointer"
                 >
-                  <Upload className="w-10 h-10" />
+                  <Upload className="w-7 h-7 sm:w-10 sm:h-10" />
                 </div>
                 <div className="space-y-1 max-w-md">
-                  <h3 className="text-lg font-black text-white">
+                  <h3 className="text-sm sm:text-lg font-black text-white">
                     Arrastra aquí el video de tu partido o cárgalo desde YouTube
                   </h3>
                   <p className="text-xs text-slate-400">
