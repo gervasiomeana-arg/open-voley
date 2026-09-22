@@ -24,6 +24,7 @@ interface VolleyballScoutModeProps {
   onScoreChange: (homeScore: number, awayScore: number) => void;
   onRotateTeam: (team: TeamSide) => void;
   onSubstitutePlayer: (team: TeamSide, playerOut: number, playerIn: number) => void;
+  onLiberoReplacement: (team: TeamSide, liberoNum: number, replacedPlayerNum: number | null) => void;
   onSelectAction?: (id: string) => void;
 }
 
@@ -107,6 +108,7 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
   onScoreChange,
   onRotateTeam,
   onSubstitutePlayer,
+  onLiberoReplacement,
   onSelectAction,
 }) => {
   // Active team being scouted
@@ -140,13 +142,18 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
     // Court positions P1..P6
     const court = rotation.map((pNum, index) => {
       const posZone = index + 1; // 1 to 6
-      const found = list.find((p) => p.number === pNum);
+      const liberoReplacement = match.liberoReplacements?.[activeTeam];
+      const physicalNum = liberoReplacement?.replacedPlayerNum === pNum
+        ? liberoReplacement.liberoNum
+        : pNum;
+      const found = list.find((p) => p.number === physicalNum);
       return {
         zoneIndex: posZone,
+        rotationalPlayerNum: pNum,
         player: found || {
           id: `tmp_${activeTeam}_${pNum}`,
-          number: pNum,
-          name: `Jugador ${pNum}`,
+          number: physicalNum,
+          name: `Jugador ${physicalNum}`,
           position: 'OH' as const,
           team: activeTeam,
           starter: true,
@@ -833,10 +840,16 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
                   <button
                     key={benchP.id}
                     type="button"
-                    disabled={isLibero}
                     onClick={() => {
                       if (substitutionOut == null) {
                         triggerConfirmation('Primero toca el jugador de cancha que sale');
+                        return;
+                      }
+                      if (isLibero) {
+                        onLiberoReplacement(activeTeam, benchP.number, substitutionOut);
+                        setSubstitutionOut(null);
+                        setStagedPlayerId(benchP.id);
+                        triggerConfirmation(`🟣 Líbero #${benchP.number} entra por #${substitutionOut}`);
                         return;
                       }
                       onSubstitutePlayer(activeTeam, substitutionOut, benchP.number);
@@ -846,10 +859,10 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
                     }}
                     className={`px-3 py-1.5 rounded-xl font-bold text-xs shrink-0 flex items-center gap-1.5 border transition ${
                       isLibero
-                        ? 'bg-slate-950/80 text-purple-300 border-purple-900/60 cursor-not-allowed'
+                        ? 'bg-purple-500/10 text-purple-300 border-purple-700 hover:bg-purple-500/20'
                         : 'bg-slate-950/80 text-emerald-200 border-slate-700 hover:bg-emerald-500/10'
                     }`}
-                    title={isLibero ? 'Líbero: tendrá un flujo específico' : 'Selecciona antes el jugador de cancha que sale'}
+                    title={isLibero ? 'Reemplazo de líbero: sólo zona trasera y nunca como sacador' : 'Selecciona antes el jugador de cancha que sale'}
                   >
                     <span className="font-mono font-black">#{benchP.number}</span>
                     <span>{isLibero ? 'Líbero' : 'Entra'}</span>
@@ -857,6 +870,21 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
                 );
               })}
             </div>
+          )}
+          {match.liberoReplacements?.[activeTeam] && (
+            <button
+              type="button"
+              onClick={() => {
+                const replacement = match.liberoReplacements?.[activeTeam];
+                if (!replacement) return;
+                onLiberoReplacement(activeTeam, replacement.liberoNum, null);
+                setStagedPlayerId(null);
+                triggerConfirmation(`🟣 Sale Líbero #${replacement.liberoNum}`);
+              }}
+              className="mt-2 px-3 py-2 rounded-xl text-xs font-black bg-purple-500/10 text-purple-300 border border-purple-700"
+            >
+              SALIR LÍBERO
+            </button>
           )}
 
         </div>

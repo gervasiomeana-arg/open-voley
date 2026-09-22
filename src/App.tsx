@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { applyRallyWinner, pointWinnerFromAction, rotateClockwise } from './utils/matchRotationEngine';
 import { evaluateSetCompletion, matchWinnerFromSets } from './utils/matchSetEngine';
 import { applySubstitution } from './utils/matchSubstitutionEngine';
+import { applyLiberoReplacement, normalizeLiberoReplacements } from './utils/liberoEngine';
 import { MatchData, Player, ScoutCodeAction, TeamSide, ClientUser, TrialInfo, RallyDetection, UserRole, TrainingEvidenceContext } from './types';
 import { sampleMatchData } from './data/sampleMatch';
 import { ResearchTab } from './components/ResearchTab';
@@ -352,6 +353,14 @@ export default function App() {
         rallyState = applyRallyWinner(rallyState, winner);
       }
 
+      const provisionalMatch = {
+        ...prev,
+        homeRotation: rallyState.homeRotation,
+        awayRotation: rallyState.awayRotation,
+        server: rallyState.server,
+      };
+      const liberoReplacements = normalizeLiberoReplacements(provisionalMatch);
+
       const setCompletion = evaluateSetCompletion(curSet, updatedSets[setIdx].scoreHome, updatedSets[setIdx].scoreAway);
       if (setCompletion.isComplete && setCompletion.winner) {
         updatedSets[setIdx].winner = setCompletion.winner;
@@ -368,6 +377,7 @@ export default function App() {
         homeRotation: rallyState.homeRotation,
         awayRotation: rallyState.awayRotation,
         server: rallyState.server,
+        liberoReplacements,
         currentSet: shouldPrepareNextSet ? curSet + 1 : curSet,
         isPrepared: shouldPrepareNextSet ? false : prev.isPrepared,
         winner: matchWinner ?? prev.winner,
@@ -534,6 +544,18 @@ export default function App() {
       } catch {
         // local persistence is best-effort; state remains authoritative.
       }
+      return updatedMatch;
+    });
+  };
+
+  const handleLiberoReplacement = (team: TeamSide, liberoNum: number, replacedPlayerNum: number | null) => {
+    setMatch((prev) => {
+      const replacements = replacedPlayerNum == null
+        ? { ...(prev.liberoReplacements || {}), [team]: undefined }
+        : applyLiberoReplacement(prev, team, liberoNum, replacedPlayerNum);
+      if (!replacements) return prev;
+      const updatedMatch = { ...prev, liberoReplacements: replacements };
+      saveCurrentMatch(updatedMatch);
       return updatedMatch;
     });
   };
@@ -1243,6 +1265,7 @@ export default function App() {
                   onSetScoreWinner={() => {}}
                   onRotateTeam={handleRotateTeam}
                   onSubstitutePlayer={handleSubstitutePlayer}
+                  onLiberoReplacement={handleLiberoReplacement}
                   onUpdatePlayers={handleUpdatePlayers}
                   onUpdateTeamName={handleUpdateTeamName}
                   selectedActionId={selectedActionId}

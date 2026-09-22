@@ -43,6 +43,7 @@ interface UnifiedTacticalHubProps {
   onSetScoreWinner: (winner: TeamSide) => void;
   onRotateTeam: (team: TeamSide) => void;
   onSubstitutePlayer: (team: TeamSide, playerOut: number, playerIn: number) => void;
+  onLiberoReplacement: (team: TeamSide, liberoNum: number, replacedPlayerNum: number | null) => void;
   onUpdatePlayers: (team: TeamSide, players: Player[]) => void;
   onUpdateTeamName: (team: TeamSide, newName: string) => void;
   selectedActionId: string | null;
@@ -90,6 +91,7 @@ export const UnifiedTacticalHub: React.FC<UnifiedTacticalHubProps> = ({
   onSetScoreWinner,
   onRotateTeam,
   onSubstitutePlayer,
+  onLiberoReplacement,
   onUpdatePlayers,
   onUpdateTeamName,
   selectedActionId,
@@ -484,6 +486,7 @@ export const UnifiedTacticalHub: React.FC<UnifiedTacticalHubProps> = ({
           onScoreChange={onScoreChange}
           onRotateTeam={onRotateTeam}
           onSubstitutePlayer={onSubstitutePlayer}
+          onLiberoReplacement={onLiberoReplacement}
           onSelectAction={onSelectAction}
         />
       ) : (

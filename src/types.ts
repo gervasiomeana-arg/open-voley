@@ -99,6 +99,8 @@ export interface MatchData {
   homeRotation: number[]; // player numbers in positions [P1, P2, P3, P4, P5, P6]
   awayRotation: number[];
   server: { team: TeamSide; playerNum: number };
+  /** Physical libero replacement; rotation itself always keeps the rotational player. */
+  liberoReplacements?: Partial<Record<TeamSide, { liberoNum: number; replacedPlayerNum: number }>>;
   winner?: TeamSide;
   isFinished?: boolean;
   isPrepared?: boolean;
