@@ -639,7 +639,7 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
       )}
 
       {/* 3. CENTRAL AREA: LARGE 2D VOLLEYBALL COURT (VISUAL FOCUS) */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-6 shadow-2xl space-y-4">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-2.5 sm:p-6 shadow-2xl space-y-3 sm:space-y-4">
         
         {/* Court Header: Active Team & Selected Player Status */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
@@ -679,17 +679,17 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
               className="text-[11px] font-bold text-slate-400 hover:text-white bg-slate-800 px-2.5 py-1 rounded-xl border border-slate-700 flex items-center gap-1 transition cursor-pointer"
             >
               <ArrowRightLeft className="w-3 h-3 text-amber-400" />
-              <span>Cambiar a {activeTeam === 'home' ? 'Rival' : 'Local'} (Tab)</span>
+              <span className="sm:hidden">Cambiar</span><span className="hidden sm:inline">Cambiar a {activeTeam === 'home' ? 'Rival' : 'Local'} (Tab)</span>
             </button>
           </div>
 
           <div className="flex items-center gap-2 text-xs">
-            <span className="text-slate-400">Jugador Seleccionado:</span>
+            <span className="hidden sm:inline text-slate-400">Jugador Seleccionado:</span>
             {selectedPlayer ? (
               <span className="font-mono font-black text-white bg-blue-600 px-3 py-1 rounded-xl shadow-sm flex items-center gap-1.5">
                 <span>#{selectedPlayer.number}</span>
-                <span>{selectedPlayer.name}</span>
-                <span className="text-[10px] opacity-80">({selectedPlayer.position})</span>
+                <span className="hidden sm:inline">{selectedPlayer.name}</span>
+                <span className="hidden sm:inline text-[10px] opacity-80">({selectedPlayer.position})</span>
               </span>
             ) : (
               <span className="text-amber-400 italic">Toca un jugador en cancha</span>
@@ -698,20 +698,20 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
         </div>
 
         {/* THE VISUAL COURT CANVAS WITH 6 LARGE TACTICAL PLAYER BUTTONS */}
-        <div className="bg-[#1b4332] p-4 sm:p-6 rounded-3xl border-4 border-[#081c15] shadow-inner relative overflow-hidden">
+        <div className="bg-[#1b4332] p-2 sm:p-6 rounded-2xl sm:rounded-3xl border-2 sm:border-4 border-[#081c15] shadow-inner relative overflow-hidden">
           
           {/* Surface & Court Lines */}
-          <div className="bg-[#ea580c] border-4 border-white rounded-2xl p-4 sm:p-6 shadow-2xl relative">
+          <div className="bg-[#ea580c] border-2 sm:border-4 border-white rounded-xl sm:rounded-2xl p-2.5 sm:p-6 shadow-2xl relative">
             
             {/* Net at Top */}
-            <div className="w-full h-3 bg-slate-200 border-b-2 border-slate-400 rounded-full mb-4 sm:mb-6 flex items-center justify-center shadow-md">
-              <span className="text-[9px] sm:text-[10px] text-slate-900 font-black uppercase tracking-widest px-3 bg-white rounded-full border border-slate-300">
+            <div className="w-full h-2 sm:h-3 bg-slate-200 border-b-2 border-slate-400 rounded-full mb-2.5 sm:mb-6 flex items-center justify-center shadow-md">
+              <span className="hidden sm:inline text-[10px] text-slate-900 font-black uppercase tracking-widest px-3 bg-white rounded-full border border-slate-300">
                 RED / NET (ZONA DE RED)
               </span>
             </div>
 
             {/* FRONT ROW PLAYERS: P4 (Left attack), P3 (Center), P2 (Right attack) */}
-            <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
+            <div className="grid grid-cols-3 gap-1.5 sm:gap-4 mb-2.5 sm:mb-6">
               {[
                 { posZone: 4, label: 'P4 • Ataque Izquierdo' },
                 { posZone: 3, label: 'P3 • Central' },
@@ -727,24 +727,24 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
                     onClick={() => {
                       if (player) setStagedPlayerId(player.id);
                     }}
-                    className={`rounded-2xl p-3 sm:p-4 text-left transition transform duration-150 active:scale-95 shadow-xl border-2 flex flex-col justify-between h-28 sm:h-32 cursor-pointer ${
+                    className={`rounded-xl sm:rounded-2xl p-2 sm:p-4 text-center sm:text-left transition transform duration-150 active:scale-95 shadow-xl border-2 flex flex-col items-center sm:items-stretch justify-center sm:justify-between h-20 sm:h-32 cursor-pointer ${
                       isSelected
                         ? 'bg-blue-600 text-white border-white ring-4 ring-blue-400/60 scale-[1.03]'
                         : 'bg-[#fef3c7] hover:bg-[#fde68a] text-slate-950 border-amber-300'
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className={`text-2xl sm:text-3xl font-black font-mono leading-none ${isSelected ? 'text-white' : 'text-slate-900'}`}>
+                    <div className="flex items-center justify-center sm:justify-between w-full">
+                      <span className={`text-3xl sm:text-3xl font-black font-mono leading-none ${isSelected ? 'text-white' : 'text-slate-900'}`}>
                         #{player?.number || posZone}
                       </span>
-                      <span className={`text-[10px] sm:text-xs font-black uppercase px-2 py-0.5 rounded-md ${
+                      <span className={`hidden sm:inline text-xs font-black uppercase px-2 py-0.5 rounded-md ${
                         isSelected ? 'bg-blue-800 text-blue-100' : 'bg-amber-200 text-amber-900 font-mono'
                       }`}>
                         {player?.position || 'JUG'}
                       </span>
                     </div>
 
-                    <div>
+                    <div className="hidden sm:block">
                       <div className={`font-black text-xs sm:text-sm truncate ${isSelected ? 'text-white' : 'text-slate-950'}`}>
                         {player?.name ? player.name.split(' ')[0] : `Jugador ${posZone}`}
                       </div>
@@ -759,13 +759,13 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
 
             {/* 3m Attack Line Divider */}
             <div className="w-full border-t-2 border-dashed border-white/90 my-3 sm:my-4 relative">
-              <span className="absolute right-3 -top-2.5 text-[9px] bg-[#ea580c] text-white font-mono font-bold px-1.5">
+              <span className="hidden sm:block absolute right-3 -top-2.5 text-[9px] bg-[#ea580c] text-white font-mono font-bold px-1.5">
                 LÍNEA 3 METROS (ZAGA)
               </span>
             </div>
 
             {/* BACK ROW PLAYERS: P5 (Left defense), P6 (Center back), P1 (Serve / Right back) */}
-            <div className="grid grid-cols-3 gap-3 sm:gap-4">
+            <div className="grid grid-cols-3 gap-1.5 sm:gap-4">
               {[
                 { posZone: 5, label: 'P5 • Defensa Izq' },
                 { posZone: 6, label: 'P6 • Fondo Centro' },
@@ -781,24 +781,24 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
                     onClick={() => {
                       if (player) setStagedPlayerId(player.id);
                     }}
-                    className={`rounded-2xl p-3 sm:p-4 text-left transition transform duration-150 active:scale-95 shadow-xl border-2 flex flex-col justify-between h-28 sm:h-32 cursor-pointer ${
+                    className={`rounded-xl sm:rounded-2xl p-2 sm:p-4 text-center sm:text-left transition transform duration-150 active:scale-95 shadow-xl border-2 flex flex-col items-center sm:items-stretch justify-center sm:justify-between h-20 sm:h-32 cursor-pointer ${
                       isSelected
                         ? 'bg-blue-600 text-white border-white ring-4 ring-blue-400/60 scale-[1.03]'
                         : 'bg-[#fef3c7] hover:bg-[#fde68a] text-slate-950 border-amber-300'
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className={`text-2xl sm:text-3xl font-black font-mono leading-none ${isSelected ? 'text-white' : 'text-slate-900'}`}>
+                    <div className="flex items-center justify-center sm:justify-between w-full">
+                      <span className={`text-3xl sm:text-3xl font-black font-mono leading-none ${isSelected ? 'text-white' : 'text-slate-900'}`}>
                         #{player?.number || posZone}
                       </span>
-                      <span className={`text-[10px] sm:text-xs font-black uppercase px-2 py-0.5 rounded-md ${
+                      <span className={`hidden sm:inline text-xs font-black uppercase px-2 py-0.5 rounded-md ${
                         isSelected ? 'bg-blue-800 text-blue-100' : 'bg-amber-200 text-amber-900 font-mono'
                       }`}>
                         {player?.position || 'JUG'}
                       </span>
                     </div>
 
-                    <div>
+                    <div className="hidden sm:block">
                       <div className={`font-black text-xs sm:text-sm truncate ${isSelected ? 'text-white' : 'text-slate-950'}`}>
                         {player?.name ? player.name.split(' ')[0] : `Jugador ${posZone}`}
                       </div>
@@ -811,7 +811,7 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
               })}
             </div>
 
-            <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1">
+            <div className="hidden sm:flex mt-3 items-center gap-2 overflow-x-auto pb-1">
               <span className="text-[10px] font-black uppercase text-slate-500 shrink-0">Sustituir:</span>
               {activePlayers.court.map(({ player, zoneIndex }) => (
                 <button
@@ -833,7 +833,7 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
 
           {/* Bench & Libero Quick Switchers */}
           {activePlayers.bench.length > 0 && (
-            <div className="mt-4 flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar">
+            <div className="hidden sm:flex mt-4 items-center gap-2 overflow-x-auto pb-1 custom-scrollbar">
               <span className="text-[11px] font-black text-emerald-200 shrink-0 uppercase tracking-wider">
                 Suplentes / Líberos:
               </span>
@@ -884,7 +884,7 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
                 setStagedPlayerId(null);
                 triggerConfirmation(`🟣 Sale Líbero #${replacement.liberoNum}`);
               }}
-              className="mt-2 px-3 py-2 rounded-xl text-xs font-black bg-purple-500/10 text-purple-300 border border-purple-700"
+              className="hidden sm:block mt-2 px-3 py-2 rounded-xl text-xs font-black bg-purple-500/10 text-purple-300 border border-purple-700"
             >
               SALIR LÍBERO
             </button>
@@ -907,7 +907,7 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
               </span>
             </div>
 
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2.5">
+            <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5 sm:gap-2.5">
               {SKILLS.map((skill) => {
                 const isActive = stagedSkill === skill.id;
                 return (
@@ -921,15 +921,15 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
                         setStagedSkill(skill.id);
                       }
                     }}
-                    className={`py-3 px-2 rounded-2xl font-black text-xs sm:text-sm flex flex-col items-center justify-center gap-1 transition active:scale-95 border cursor-pointer ${
+                    className={`py-2.5 sm:py-3 px-1.5 sm:px-2 rounded-xl sm:rounded-2xl font-black text-[10px] sm:text-sm flex flex-col items-center justify-center gap-1 transition active:scale-95 border cursor-pointer min-h-[58px] sm:min-h-0 ${
                       isActive
                         ? 'bg-gradient-to-b from-amber-400 to-amber-500 text-slate-950 border-amber-300 shadow-xl shadow-amber-500/20 scale-[1.02] ring-2 ring-amber-400/50'
                         : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
                     }`}
                   >
-                    <span className="text-xl sm:text-2xl leading-none">{skill.icon}</span>
+                    <span className="text-lg sm:text-2xl leading-none">{skill.icon}</span>
                     <span className="tracking-tight">{skill.label}</span>
-                    <span className={`text-[10px] font-mono ${isActive ? 'text-slate-900 font-extrabold' : 'text-slate-500'}`}>
+                    <span className={`hidden sm:inline text-[10px] font-mono ${isActive ? 'text-slate-900 font-extrabold' : 'text-slate-500'}`}>
                       ({skill.key})
                     </span>
                   </button>
@@ -945,7 +945,7 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
                 <span className="w-2 h-2 rounded-full bg-cyan-400" />
                 Contexto opcional
               </span>
-              <span className="text-[11px] text-slate-500">
+              <span className="hidden sm:inline text-[11px] text-slate-500">
                 Si no lo sabes, no marques nada. OPEN VOLEY no completa datos por su cuenta.
               </span>
             </div>
