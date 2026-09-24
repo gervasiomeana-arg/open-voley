@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { MatchData, Player, ScoutCodeAction, TeamSide, VolleySkill, EvaluationSymbol } from '../types';
 import { isTerminalScoutAction, nextScoutStep } from '../utils/scoutRallyAssist';
+import { canLiberoReplace } from '../utils/liberoEngine';
 import { 
   RotateCcw, 
   RotateCw, 
@@ -162,7 +163,8 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
     });
 
     // Bench players
-    const bench = list.filter((p) => !rotation.includes(p.number));
+    const onCourtNumbers = new Set(court.map(({ player }) => player.number));
+    const bench = list.filter((p) => !onCourtNumbers.has(p.number) && !rotation.includes(p.number));
 
     return { court, bench };
   }, [activeTeam, match]);
@@ -324,10 +326,10 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
   useEffect(() => {
     if (stagedSkill !== 'S') return;
     setActiveTeam(match.server.team);
-    const roster = match.server.team === 'home' ? match.homeRoster : match.awayRoster;
+    const roster = match.server.team === 'home' ? match.homePlayers : match.awayPlayers;
     const server = roster.find((p) => p.number === match.server.playerNum);
     if (server) setStagedPlayerId(server.id);
-  }, [stagedSkill, match.server.team, match.server.playerNum, match.homeRoster, match.awayRoster]);
+  }, [stagedSkill, match.server.team, match.server.playerNum, match.homePlayers, match.awayPlayers]);
 
   // Immediate Undo without modal
   const handleUndo = useCallback(() => {
@@ -743,7 +745,7 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
             </div>
 
             <button
-              onClick={() => setActiveTeam((prev) => (prev === 'home' ? 'away' : 'home'))}
+              onClick={() => { setActiveTeam((prev) => (prev === 'home' ? 'away' : 'home')); setSubstitutionOut(null); setStagedPlayerId(null); }}
               className="text-[11px] font-bold text-slate-400 hover:text-white bg-slate-800 px-2.5 py-1 rounded-xl border border-slate-700 flex items-center gap-1 transition cursor-pointer"
             >
               <ArrowRightLeft className="w-3 h-3 text-amber-400" />
@@ -879,14 +881,21 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
               })}
             </div>
 
-            <div className="hidden sm:flex mt-3 items-center gap-2 overflow-x-auto pb-1">
-              <span className="text-[10px] font-black uppercase text-slate-500 shrink-0">Sustituir:</span>
+            <div className="mt-3 space-y-2">
+              <span className="text-[10px] font-black uppercase text-emerald-200">1. Elegí quién sale de cancha:</span>
+              <div className="grid grid-cols-3 sm:flex gap-1.5 sm:overflow-x-auto pb-1">
               {activePlayers.court.map(({ player, zoneIndex }) => (
                 <button
                   key={`sub-out-${activeTeam}-${player.number}`}
                   type="button"
-                  onClick={() => setSubstitutionOut((prev) => prev === player.number ? null : player.number)}
-                  className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black border shrink-0 ${
+                  onClick={() => {
+                    if (player.position === 'L') {
+                      triggerConfirmation('Para retirar al líbero usá SALIR LÍBERO');
+                      return;
+                    }
+                    setSubstitutionOut((prev) => prev === player.number ? null : player.number);
+                  }}
+                  className={`px-2 py-2 rounded-lg text-[10px] font-black border shrink-0 ${
                     substitutionOut === player.number
                       ? 'bg-rose-500 text-white border-rose-300'
                       : 'bg-slate-950 text-slate-400 border-slate-800'
@@ -895,15 +904,16 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
                   P{zoneIndex} #{player.number} SALE
                 </button>
               ))}
+              </div>
             </div>
 
           </div>
 
           {/* Bench & Libero Quick Switchers */}
           {activePlayers.bench.length > 0 && (
-            <div className="hidden sm:flex mt-4 items-center gap-2 overflow-x-auto pb-1 custom-scrollbar">
+            <div className="flex flex-wrap mt-3 items-center gap-2 pb-1">
               <span className="text-[11px] font-black text-emerald-200 shrink-0 uppercase tracking-wider">
-                Suplentes / Líberos:
+                2. Elegí quien entra (suplentes / líberos):
               </span>
               {activePlayers.bench.map((benchP) => {
                 const isLibero = benchP.position === 'L';
@@ -917,6 +927,10 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
                         return;
                       }
                       if (isLibero) {
+                        if (!canLiberoReplace(match, activeTeam, substitutionOut)) {
+                          triggerConfirmation('El líbero solo puede entrar por P5, P6 o P1 cuando su equipo no saca');
+                          return;
+                        }
                         onLiberoReplacement(activeTeam, benchP.number, substitutionOut);
                         setSubstitutionOut(null);
                         setStagedPlayerId(benchP.id);
@@ -952,7 +966,7 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
                 setStagedPlayerId(null);
                 triggerConfirmation(`🟣 Sale Líbero #${replacement.liberoNum}`);
               }}
-              className="hidden sm:block mt-2 px-3 py-2 rounded-xl text-xs font-black bg-purple-500/10 text-purple-300 border border-purple-700"
+              className="block mt-2 px-3 py-2 rounded-xl text-xs font-black bg-purple-500/10 text-purple-300 border border-purple-700"
             >
               SALIR LÍBERO
             </button>
