@@ -227,6 +227,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             const Icon = item.icon;
             const isActive = activeTab === item.id;
             const isAiTab = item.id === 'ai';
+            const isSettingsTab = item.id === 'settings';
 
             return (
               <button
@@ -237,18 +238,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   isActive
                     ? isAiTab
                       ? 'bg-purple-500 text-white font-black shadow-lg shadow-purple-500/25'
-                      : 'bg-amber-500 text-slate-950 font-black shadow-lg shadow-amber-500/20'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-800/70'
+                      : isSettingsTab
+                        ? 'bg-emerald-500 text-slate-950 font-black shadow-lg shadow-emerald-500/25'
+                        : 'bg-amber-500 text-slate-950 font-black shadow-lg shadow-amber-500/20'
+                    : isSettingsTab
+                      ? 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/15 bg-emerald-500/10 border border-emerald-500/30 shadow-sm shadow-emerald-900/20'
+                      : 'text-slate-300 hover:text-white hover:bg-slate-800/70'
                 } ${isCollapsed && !isMobileOpen ? 'justify-center px-2' : ''}`}
               >
                 <div className={`p-1.5 rounded-xl transition-all shrink-0 ${
                   isActive
                     ? isAiTab
                       ? 'bg-purple-900/40 text-white'
-                      : 'bg-black/10 text-slate-950'
+                      : isSettingsTab
+                        ? 'bg-emerald-950/20 text-slate-950'
+                        : 'bg-black/10 text-slate-950'
                     : isAiTab
                       ? 'text-purple-400 group-hover:text-purple-300'
-                      : 'text-slate-400 group-hover:text-amber-400'
+                      : isSettingsTab
+                        ? 'text-emerald-400 group-hover:text-emerald-300 bg-emerald-500/20'
+                        : 'text-slate-400 group-hover:text-amber-400'
                 }`}>
                   <Icon className="w-4 h-4 transition-transform group-hover:scale-110" />
                 </div>
@@ -274,7 +283,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {/* Collapsed active dot */}
                 {isCollapsed && !isMobileOpen && isActive && (
                   <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full ring-2 ring-slate-900 ${
-                    isAiTab ? 'bg-purple-400 animate-pulse' : 'bg-amber-400 animate-pulse'
+                    isAiTab
+                      ? 'bg-purple-400 animate-pulse'
+                      : isSettingsTab
+                        ? 'bg-emerald-400 animate-pulse'
+                        : 'bg-amber-400 animate-pulse'
                   }`} />
                 )}
               </button>

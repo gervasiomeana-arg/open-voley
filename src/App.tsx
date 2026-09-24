@@ -895,7 +895,7 @@ export default function App() {
       title: '8. Configuración',
       subtitle: 'Preferencias de scouting, exportaciones oficiales .DVW, respaldos y cuenta',
       icon: Settings,
-      color: 'text-slate-400',
+      color: 'text-emerald-400',
     },
   };
 
