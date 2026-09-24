@@ -48,6 +48,7 @@ import {
 } from './services/teamStorage';
 import { getAuthenticatedSession, logoutAuthenticatedSession } from './services/authSession';
 import { enrichActionsWithRallyContext } from './utils/rallyContext';
+import { correctMatchRoster } from './utils/matchRosterCorrection';
 import { 
   Menu, 
   Download, 
@@ -571,10 +572,7 @@ export default function App() {
   };
 
   const handleUpdatePlayers = (team: TeamSide, players: Player[]) => {
-    setMatch((prev) => ({
-      ...prev,
-      [team === 'home' ? 'homePlayers' : 'awayPlayers']: players,
-    }));
+    setMatch((prev) => correctMatchRoster(prev, team, players));
   };
 
   const handleUpdateTeamName = (team: TeamSide, newName: string) => {

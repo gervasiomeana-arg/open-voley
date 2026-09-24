@@ -126,6 +126,8 @@ export const UnifiedTacticalHub: React.FC<UnifiedTacticalHubProps> = ({
   const [editingPlayerTeam, setEditingPlayerTeam] = useState<TeamSide>('home');
   const [playerFormData, setPlayerFormData] = useState<Partial<Player>>({});
   const [activeSidePanel, setActiveSidePanel] = useState<'home' | 'away' | 'console'>('console');
+  const [quickRosterSide, setQuickRosterSide] = useState<TeamSide | null>(null);
+  const [playerFormError, setPlayerFormError] = useState('');
   const [substituteTargetPos, setSubstituteTargetPos] = useState<{ team: TeamSide; zone: number; currentNum: number } | null>(null);
 
   // Command Console state
@@ -245,6 +247,7 @@ export const UnifiedTacticalHub: React.FC<UnifiedTacticalHubProps> = ({
   const handleOpenAddPlayer = (team: TeamSide) => {
     const currentList = team === 'home' ? match.homePlayers : match.awayPlayers;
     setEditingPlayerTeam(team);
+    setPlayerFormError('');
     setPlayerFormData({
       id: `p_${Date.now()}`,
       number: currentList.length ? Math.max(...currentList.map((p) => p.number)) + 1 : 1,
@@ -266,6 +269,7 @@ export const UnifiedTacticalHub: React.FC<UnifiedTacticalHubProps> = ({
 
   const handleOpenEditPlayer = (player: Player) => {
     setEditingPlayerTeam(player.team);
+    setPlayerFormError('');
     setPlayerFormData({ ...player });
     setIsEditingPlayerModal(true);
   };
@@ -292,6 +296,14 @@ export const UnifiedTacticalHub: React.FC<UnifiedTacticalHubProps> = ({
     };
 
     const targetList = editingPlayerTeam === 'home' ? match.homePlayers : match.awayPlayers;
+    if (!Number.isInteger(newPlayer.number) || newPlayer.number < 1 || newPlayer.number > 99) {
+      setPlayerFormError('Ingresá un número de camiseta entre 1 y 99.');
+      return;
+    }
+    if (targetList.some((p) => p.id !== newPlayer.id && p.number === newPlayer.number)) {
+      setPlayerFormError('Ese número ya está asignado en este equipo.');
+      return;
+    }
     const exists = targetList.some((p) => p.id === newPlayer.id);
     const updated = exists
       ? targetList.map((p) => (p.id === newPlayer.id ? newPlayer : p))
@@ -462,6 +474,39 @@ export const UnifiedTacticalHub: React.FC<UnifiedTacticalHubProps> = ({
           </button>
         </div>
       </div>
+
+      {scoutViewMode === 'quick_touch' && (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold text-slate-300 mr-auto">Corregir plantel durante el partido</span>
+            {(['home', 'away'] as const).map((side) => (
+              <button
+                key={side}
+                type="button"
+                onClick={() => setQuickRosterSide(quickRosterSide === side ? null : side)}
+                aria-expanded={quickRosterSide === side}
+                className={`px-3 py-2 rounded-xl text-xs font-bold border ${quickRosterSide === side ? 'bg-amber-500 text-slate-950 border-amber-500' : 'bg-slate-800 text-white border-slate-700'}`}
+              >
+                {side === 'home' ? 'Local' : 'Rival'} · {side === 'home' ? match.homePlayers.length : match.awayPlayers.length}
+              </button>
+            ))}
+          </div>
+          {quickRosterSide && (
+            <div className="space-y-2">
+              <button type="button" onClick={() => handleOpenAddPlayer(quickRosterSide)} className="w-full p-2.5 bg-emerald-500 text-slate-950 rounded-xl text-xs font-bold flex items-center justify-center gap-2">
+                <UserPlus className="w-4 h-4" /> Agregar jugador a {quickRosterSide === 'home' ? match.homeTeamName : match.awayTeamName}
+              </button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-52 overflow-y-auto">
+                {(quickRosterSide === 'home' ? match.homePlayers : match.awayPlayers).map((player) => (
+                  <button key={player.id} type="button" onClick={() => handleOpenEditPlayer(player)} className="flex items-center justify-between text-left bg-slate-950 border border-slate-700 text-white rounded-xl px-3 py-2 text-xs">
+                    <span className="truncate">#{player.number} · {player.name}</span><Edit3 className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* RENDER ACTIVE MODE */}
       {scoutViewMode === 'quick_touch' ? (
@@ -1422,6 +1467,9 @@ export const UnifiedTacticalHub: React.FC<UnifiedTacticalHubProps> = ({
 
       </div>
 
+      </>
+      )}
+
       {/* 3. MODAL FOR ADDING / EDITING PLAYER EXPEDIENT */}
       {isEditingPlayerModal && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
@@ -1450,6 +1498,7 @@ export const UnifiedTacticalHub: React.FC<UnifiedTacticalHubProps> = ({
             </div>
 
             <form onSubmit={handleSavePlayerForm} className="space-y-4 text-xs">
+              {playerFormError && <p role="alert" className="text-rose-400 font-bold">{playerFormError}</p>}
               <div className="grid grid-cols-12 gap-3">
                 <div className="col-span-3">
                   <label className="text-slate-300 font-bold block mb-1">Dorsal #</label>
@@ -1579,9 +1628,6 @@ export const UnifiedTacticalHub: React.FC<UnifiedTacticalHubProps> = ({
           </div>
         </div>
       )}
-      </>
-      )}
-
     </div>
   );
 };

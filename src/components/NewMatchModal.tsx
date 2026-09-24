@@ -134,7 +134,10 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({
 
   // Selected player IDs for home team
   const [selectedHomePlayerIds, setSelectedHomePlayerIds] = useState<string[]>([]);
+  const [selectedAwayPlayerIds, setSelectedAwayPlayerIds] = useState<string[]>([]);
+  const [rosterSide, setRosterSide] = useState<TeamSide>('home');
   const [isEditingRoster, setIsEditingRoster] = useState(false);
+  const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
   const [newPlayerNumber, setNewPlayerNumber] = useState<number>(1);
   const [newPlayerName, setNewPlayerName] = useState('');
   const [newPlayerPosition, setNewPlayerPosition] = useState<Player['position']>('OH');
@@ -180,9 +183,22 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({
 
   useEffect(() => {
     if (selectedAwayTeam?.players) {
+      setSelectedAwayPlayerIds(selectedAwayTeam.players.map((p) => p.id));
       setAwayRotation(getInitialRotation(selectedAwayTeam));
     }
   }, [selectedAwayTeam?.id]);
+
+  const rosterTeam = rosterSide === 'home' ? selectedHomeTeam : selectedAwayTeam;
+  const selectedRosterIds = rosterSide === 'home' ? selectedHomePlayerIds : selectedAwayPlayerIds;
+  const setSelectedRosterIds = rosterSide === 'home' ? setSelectedHomePlayerIds : setSelectedAwayPlayerIds;
+
+  const handleEditPlayer = (player: Player) => {
+    setEditingPlayerId(player.id);
+    setNewPlayerNumber(player.number);
+    setNewPlayerName(player.name);
+    setNewPlayerPosition(player.position);
+    setIsEditingRoster(true);
+  };
 
   // Load draft on mount if exists
   useEffect(() => {
@@ -216,6 +232,7 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({
         videoMode,
         youtubeUrl,
         selectedHomePlayerIds,
+        selectedAwayPlayerIds,
         timestamp: Date.now(),
       };
       localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draftData));
@@ -234,6 +251,7 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({
     videoMode,
     youtubeUrl,
     selectedHomePlayerIds,
+    selectedAwayPlayerIds,
   ]);
 
   const handleRestoreDraft = () => {
@@ -250,6 +268,7 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({
         if (draft.videoMode) setVideoMode(draft.videoMode);
         if (draft.youtubeUrl) setYoutubeUrl(draft.youtubeUrl);
         if (draft.selectedHomePlayerIds) setSelectedHomePlayerIds(draft.selectedHomePlayerIds);
+        if (draft.selectedAwayPlayerIds) setSelectedAwayPlayerIds(draft.selectedAwayPlayerIds);
         if (draft.currentStep) setCurrentStep(draft.currentStep);
       }
     } catch {
@@ -296,6 +315,7 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({
     if (srcMatch.homePlayers && srcMatch.homePlayers.length > 0) {
       setSelectedHomePlayerIds(srcMatch.homePlayers.map((p) => p.id));
     }
+    if (srcMatch.awayPlayers) setSelectedAwayPlayerIds(srcMatch.awayPlayers.map((p) => p.id));
     if (srcMatch.homeRotation && srcMatch.homeRotation.length === 6) {
       setHomeRotation(srcMatch.homeRotation);
     }
@@ -323,6 +343,7 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({
     // Roster is fully selected
     const homePlayerIds = selectedHomeTeam.players.map((p) => p.id);
     setSelectedHomePlayerIds(homePlayerIds);
+    setSelectedAwayPlayerIds(selectedAwayTeam.players.map((p) => p.id));
     setMatchDate(new Date().toISOString().split('T')[0]);
 
     // Jump straight to ready
@@ -445,22 +466,28 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({
     setDuplicateOpponentWarning(null);
   };
 
-  // Add player quickly in Step 4
+  // Add or edit a player on the team currently shown in Step 4.
   const handleAddQuickPlayer = () => {
-    if (!newPlayerName.trim() || !selectedHomeTeam) return;
+    if (!newPlayerName.trim() || !rosterTeam) return;
+
+    if (rosterTeam.players.some((p) => p.number === newPlayerNumber && p.id !== editingPlayerId)) return;
 
     const newPlayer: Player = {
-      id: `p_custom_${Date.now()}`,
+      id: editingPlayerId || `p_custom_${Date.now()}`,
       number: newPlayerNumber,
       name: newPlayerName.trim(),
       position: newPlayerPosition,
-      team: 'home',
-      starter: selectedHomePlayerIds.length < 6,
+      team: rosterSide,
+      starter: editingPlayerId
+        ? rosterTeam.players.find((p) => p.id === editingPlayerId)?.starter ?? false
+        : selectedRosterIds.length < 6,
     };
 
-    const updatedPlayers = [...selectedHomeTeam.players, newPlayer];
+    const updatedPlayers = editingPlayerId
+      ? rosterTeam.players.map((p) => p.id === editingPlayerId ? { ...p, ...newPlayer } : p)
+      : [...rosterTeam.players, newPlayer];
     const updatedTeam: SavedTeam = {
-      ...selectedHomeTeam,
+      ...rosterTeam,
       players: updatedPlayers,
       updatedAt: new Date().toISOString(),
     };
@@ -468,7 +495,8 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({
     saveTeam(updatedTeam);
     if (onTeamsUpdated) onTeamsUpdated();
 
-    setSelectedHomePlayerIds((prev) => [...prev, newPlayer.id]);
+    if (!editingPlayerId) setSelectedRosterIds((prev) => [...prev, newPlayer.id]);
+    setEditingPlayerId(null);
     setNewPlayerName('');
     setNewPlayerNumber(newPlayerNumber + 1);
   };
@@ -484,15 +512,17 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({
       .filter((p) => selectedHomePlayerIds.includes(p.id))
       .map((p) => ({ ...p, team: 'home' as TeamSide }));
 
-    // Away players (all from selected rival)
-    const activeAwayPlayers: Player[] = (selectedAwayTeam.players || []).map((p) => ({
-      ...p,
-      team: 'away' as TeamSide,
-    }));
+    const activeAwayPlayers: Player[] = (selectedAwayTeam.players || [])
+      .filter((p) => selectedAwayPlayerIds.includes(p.id))
+      .map((p) => ({ ...p, team: 'away' as TeamSide }));
 
     // Ensure initial rotations are valid numbers
-    const validHomeRot = homeRotation.length === 6 ? homeRotation : getInitialRotation(selectedHomeTeam);
-    const validAwayRot = awayRotation.length === 6 ? awayRotation : getInitialRotation(selectedAwayTeam);
+    const hasValidRotation = (rotation: number[], players: Player[]) =>
+      rotation.length === 6 && rotation.every((number) => players.some((p) => p.number === number && p.position !== 'L'));
+    const validHomeRot = hasValidRotation(homeRotation, activeHomePlayers)
+      ? homeRotation : getInitialRotation({ ...selectedHomeTeam, players: activeHomePlayers });
+    const validAwayRot = hasValidRotation(awayRotation, activeAwayPlayers)
+      ? awayRotation : getInitialRotation({ ...selectedAwayTeam, players: activeAwayPlayers });
 
     const newMatch: MatchData = {
       id: `match_${Date.now()}`,
@@ -511,8 +541,8 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({
         { setNumber: 4, scoreHome: 0, scoreAway: 0 },
         { setNumber: 5, scoreHome: 0, scoreAway: 0 },
       ],
-      homePlayers: activeHomePlayers.length > 0 ? activeHomePlayers : (selectedHomeTeam.players || []).map((p) => ({ ...p, team: 'home' as TeamSide })),
-      awayPlayers: activeAwayPlayers.length > 0 ? activeAwayPlayers : (selectedAwayTeam.players || []).map((p) => ({ ...p, team: 'away' as TeamSide })),
+      homePlayers: activeHomePlayers,
+      awayPlayers: activeAwayPlayers,
       actions: [],
       homeRotation: validHomeRot,
       awayRotation: validAwayRot,
@@ -1139,8 +1169,27 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({
                   ¿Qué jugadoras participan?
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Plantilla de <strong>{selectedHomeTeam?.name}</strong> cargada automáticamente.
+                  Elegí las convocadas y editá las jugadoras de cada equipo.
                 </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2" role="group" aria-label="Equipo cuya plantilla se edita">
+                {(['home', 'away'] as const).map((side) => (
+                  <button
+                    key={side}
+                    type="button"
+                    onClick={() => {
+                      setRosterSide(side);
+                      setIsEditingRoster(false);
+                      setEditingPlayerId(null);
+                      setNewPlayerName('');
+                    }}
+                    aria-pressed={rosterSide === side}
+                    className={`p-2.5 rounded-xl border text-xs font-bold text-left truncate ${rosterSide === side ? 'border-amber-500 bg-amber-500/15 text-white' : 'border-slate-700 bg-slate-950 text-slate-400'}`}
+                  >
+                    {side === 'home' ? 'Mi equipo' : 'Rival'}: {side === 'home' ? selectedHomeTeam?.name : selectedAwayTeam?.name}
+                  </button>
+                ))}
               </div>
 
               {/* Roster Controls: USAR PLANTILLA HABITUAL */}
@@ -1148,7 +1197,7 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({
                 <div className="flex items-center gap-2 text-xs">
                   <span className="w-2 h-2 rounded-full bg-emerald-400" />
                   <span className="font-bold text-white">
-                    {selectedHomePlayerIds.length} de {selectedHomeTeam?.players.length || 0} convocadas
+                    {selectedRosterIds.length} de {rosterTeam?.players.length || 0} convocadas
                   </span>
                 </div>
 
@@ -1156,14 +1205,14 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      if (selectedHomeTeam?.players) {
-                        setSelectedHomePlayerIds(selectedHomeTeam.players.map((p) => p.id));
+                      if (rosterTeam?.players) {
+                        setSelectedRosterIds(rosterTeam.players.map((p) => p.id));
                       }
                     }}
                     className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs px-3.5 py-1.5 rounded-xl shadow transition cursor-pointer flex items-center gap-1.5"
                   >
                     <Check className="w-3.5 h-3.5 stroke-[3]" />
-                    <span>[ Usar Plantilla Habitual ]</span>
+                    <span>Convocar a todas</span>
                   </button>
 
                   <button
@@ -1181,7 +1230,7 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({
               {isEditingRoster && (
                 <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-2.5 animate-in fade-in">
                   <div className="text-xs font-bold text-slate-300">
-                    + Agregar Jugadora a {selectedHomeTeam?.name}
+                    {editingPlayerId ? 'Editar jugadora' : '+ Agregar jugadora'} de {rosterTeam?.name}
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
                     <div>
@@ -1222,25 +1271,33 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({
                     <button
                       type="button"
                       onClick={handleAddQuickPlayer}
-                      disabled={!newPlayerName.trim()}
+                      disabled={!newPlayerName.trim() || rosterTeam?.players.some((p) => p.number === newPlayerNumber && p.id !== editingPlayerId)}
                       className="bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-bold text-xs px-3 py-1 rounded-xl transition cursor-pointer"
                     >
-                      + Agregar y Convocar
+                      {editingPlayerId ? 'Guardar cambios' : '+ Agregar y convocar'}
                     </button>
                   </div>
+                  {rosterTeam?.players.some((p) => p.number === newPlayerNumber && p.id !== editingPlayerId) && (
+                    <p className="text-xs text-amber-400">Ese número ya pertenece a otra jugadora del equipo.</p>
+                  )}
+                  {editingPlayerId && (
+                    <button type="button" className="text-xs text-slate-400 underline" onClick={() => { setEditingPlayerId(null); setNewPlayerName(''); }}>
+                      Cancelar edición
+                    </button>
+                  )}
                 </div>
               )}
 
               {/* Roster Cards with Checkboxes */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
-                {(selectedHomeTeam?.players || []).map((player) => {
-                  const isChecked = selectedHomePlayerIds.includes(player.id);
+                {(rosterTeam?.players || []).map((player) => {
+                  const isChecked = selectedRosterIds.includes(player.id);
 
                   return (
                     <div
                       key={player.id}
                       onClick={() => {
-                        setSelectedHomePlayerIds((prev) =>
+                        setSelectedRosterIds((prev) =>
                           prev.includes(player.id)
                             ? prev.filter((id) => id !== player.id)
                             : [...prev, player.id]
@@ -1282,10 +1339,21 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({
                       >
                         {isChecked && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                       </div>
+                      <button
+                        type="button"
+                        aria-label={`Editar ${player.name}`}
+                        onClick={(event) => { event.stopPropagation(); handleEditPlayer(player); }}
+                        className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-700"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   );
                 })}
               </div>
+              {selectedRosterIds.length === 0 && (
+                <p className="text-xs text-amber-400" role="alert">Convocá al menos una jugadora de {rosterTeam?.name} para continuar.</p>
+              )}
 
             </div>
           )}
@@ -1346,7 +1414,7 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({
                         {selectedAwayTeam?.name}
                       </span>
                       <span className="text-[11px] text-slate-400 block">
-                        {selectedAwayTeam?.players?.length || 0} jugadoras
+                        {selectedAwayPlayerIds.length} convocadas
                       </span>
                     </div>
                     <div className="w-11 h-11 rounded-xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 font-black text-lg">
@@ -1646,9 +1714,12 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({
                 type="button"
                 onClick={() => {
                   if (selectedHomePlayerIds.length === 0) {
-                    if (selectedHomeTeam?.players) {
-                      setSelectedHomePlayerIds(selectedHomeTeam.players.map((p) => p.id));
-                    }
+                    setRosterSide('home');
+                    return;
+                  }
+                  if (selectedAwayPlayerIds.length === 0) {
+                    setRosterSide('away');
+                    return;
                   }
                   setCurrentStep(5);
                 }}
