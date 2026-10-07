@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { MatchData, Player, ScoutCodeAction, TeamSide, VolleySkill, EvaluationSymbol } from '../types';
 import { isTerminalScoutAction, nextScoutStep } from '../utils/scoutRallyAssist';
-import { canLiberoReplace } from '../utils/liberoEngine';
 import { 
   RotateCcw, 
   RotateCw, 
@@ -109,7 +108,6 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
   onScoreChange,
   onRotateTeam,
   onSubstitutePlayer,
-  onLiberoReplacement,
   onSelectAction,
 }) => {
   // Active team being scouted
@@ -143,18 +141,15 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
     // Court positions P1..P6
     const court = rotation.map((pNum, index) => {
       const posZone = index + 1; // 1 to 6
-      const liberoReplacement = match.liberoReplacements?.[activeTeam];
-      const physicalNum = liberoReplacement?.replacedPlayerNum === pNum
-        ? liberoReplacement.liberoNum
-        : pNum;
-      const found = list.find((p) => p.number === physicalNum);
+      // Scouting keeps the rotational six visible; liberos are selected separately.
+      const found = list.find((p) => p.number === pNum);
       return {
         zoneIndex: posZone,
         rotationalPlayerNum: pNum,
         player: found || {
           id: `tmp_${activeTeam}_${pNum}`,
-          number: physicalNum,
-          name: `Jugador ${physicalNum}`,
+          number: pNum,
+          name: `Jugador ${pNum}`,
           position: 'OH' as const,
           team: activeTeam,
           starter: true,
@@ -164,9 +159,10 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
 
     // Bench players
     const onCourtNumbers = new Set(court.map(({ player }) => player.number));
-    const bench = list.filter((p) => !onCourtNumbers.has(p.number) && !rotation.includes(p.number));
+    const bench = list.filter((p) => p.position !== 'L' && !onCourtNumbers.has(p.number) && !rotation.includes(p.number));
+    const liberos = list.filter((p) => p.position === 'L');
 
-    return { court, bench };
+    return { court, bench, liberos };
   }, [activeTeam, match]);
 
   // Selected player entity (defaults to front left attacker P4 or first available)
@@ -889,10 +885,6 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
                   key={`sub-out-${activeTeam}-${player.number}`}
                   type="button"
                   onClick={() => {
-                    if (player.position === 'L') {
-                      triggerConfirmation('Para retirar al líbero usá SALIR LÍBERO');
-                      return;
-                    }
                     setSubstitutionOut((prev) => prev === player.number ? null : player.number);
                   }}
                   className={`px-2 py-2 rounded-lg text-[10px] font-black border shrink-0 ${
@@ -909,67 +901,60 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
 
           </div>
 
-          {/* Bench & Libero Quick Switchers */}
+          {/* Libero scouting never changes the six-player rotation. */}
+          {activePlayers.liberos.length > 0 && (
+            <div className="mt-3 rounded-xl bg-purple-950/40 border border-purple-500/40 p-3 space-y-2">
+              <div className="text-xs font-black text-purple-200">Líberos · Seleccionar para registrar una acción</div>
+              <div className="flex flex-wrap gap-2">
+                {activePlayers.liberos.map((libero) => (
+                  <button
+                    key={libero.id}
+                    type="button"
+                    aria-pressed={selectedPlayer?.id === libero.id}
+                    aria-label={`Seleccionar líbero #${libero.number} ${libero.name}`}
+                    onClick={() => {
+                      setStagedPlayerId(libero.id);
+                      setSubstitutionOut(null);
+                      // Leave service mode so the server synchronization cannot override this selection.
+                      if (stagedSkill === 'S' || stagedSkill === 'A' || stagedSkill === 'B') setStagedSkill('R');
+                    }}
+                    className={`min-h-11 px-4 py-2 rounded-xl font-black text-sm border transition ${selectedPlayer?.id === libero.id
+                      ? 'bg-purple-500 border-white text-white ring-2 ring-purple-300'
+                      : 'bg-slate-950 border-purple-500 text-purple-200 hover:bg-purple-900'}`}
+                  >
+                    L #{libero.number}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Regular substitutions remain separate from libero action selection. */}
           {activePlayers.bench.length > 0 && (
             <div className="flex flex-wrap mt-3 items-center gap-2 pb-1">
               <span className="text-[11px] font-black text-emerald-200 shrink-0 uppercase tracking-wider">
-                2. Elegí quien entra (suplentes / líberos):
+                2. Elegí el suplente que entra:
               </span>
-              {activePlayers.bench.map((benchP) => {
-                const isLibero = benchP.position === 'L';
-                return (
-                  <button
-                    key={benchP.id}
-                    type="button"
-                    onClick={() => {
-                      if (substitutionOut == null) {
-                        triggerConfirmation('Primero toca el jugador de cancha que sale');
-                        return;
-                      }
-                      if (isLibero) {
-                        if (!canLiberoReplace(match, activeTeam, substitutionOut)) {
-                          triggerConfirmation('El líbero solo puede entrar por P5, P6 o P1 cuando su equipo no saca');
-                          return;
-                        }
-                        onLiberoReplacement(activeTeam, benchP.number, substitutionOut);
-                        setSubstitutionOut(null);
-                        setStagedPlayerId(benchP.id);
-                        triggerConfirmation(`🟣 Líbero #${benchP.number} entra por #${substitutionOut}`);
-                        return;
-                      }
-                      onSubstitutePlayer(activeTeam, substitutionOut, benchP.number);
-                      setSubstitutionOut(null);
-                      setStagedPlayerId(benchP.id);
-                      triggerConfirmation(`🔄 #${substitutionOut} → #${benchP.number}`);
-                    }}
-                    className={`px-3 py-1.5 rounded-xl font-bold text-xs shrink-0 flex items-center gap-1.5 border transition ${
-                      isLibero
-                        ? 'bg-purple-500/10 text-purple-300 border-purple-700 hover:bg-purple-500/20'
-                        : 'bg-slate-950/80 text-emerald-200 border-slate-700 hover:bg-emerald-500/10'
-                    }`}
-                    title={isLibero ? 'Reemplazo de líbero: sólo zona trasera y nunca como sacador' : 'Selecciona antes el jugador de cancha que sale'}
-                  >
-                    <span className="font-mono font-black">#{benchP.number}</span>
-                    <span>{isLibero ? 'Líbero' : 'Entra'}</span>
-                  </button>
-                );
-              })}
+              {activePlayers.bench.map((benchP) => (
+                <button
+                  key={benchP.id}
+                  type="button"
+                  onClick={() => {
+                    if (substitutionOut == null) {
+                      triggerConfirmation('Primero toca el jugador de cancha que sale');
+                      return;
+                    }
+                    onSubstitutePlayer(activeTeam, substitutionOut, benchP.number);
+                    setSubstitutionOut(null);
+                    setStagedPlayerId(benchP.id);
+                    triggerConfirmation(`🔄 #${substitutionOut} → #${benchP.number}`);
+                  }}
+                  className="px-3 py-1.5 rounded-xl font-bold text-xs border bg-slate-950/80 text-emerald-200 border-slate-700 hover:bg-emerald-500/10"
+                >
+                  #{benchP.number} Entra
+                </button>
+              ))}
             </div>
-          )}
-          {match.liberoReplacements?.[activeTeam] && (
-            <button
-              type="button"
-              onClick={() => {
-                const replacement = match.liberoReplacements?.[activeTeam];
-                if (!replacement) return;
-                onLiberoReplacement(activeTeam, replacement.liberoNum, null);
-                setStagedPlayerId(null);
-                triggerConfirmation(`🟣 Sale Líbero #${replacement.liberoNum}`);
-              }}
-              className="block mt-2 px-3 py-2 rounded-xl text-xs font-black bg-purple-500/10 text-purple-300 border border-purple-700"
-            >
-              SALIR LÍBERO
-            </button>
           )}
 
         </div>
