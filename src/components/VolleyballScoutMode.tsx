@@ -119,7 +119,12 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
 
   // Optional context: one tap when the analyst has the information, never required.
   const [selectedTargetZone, setSelectedTargetZone] = useState<number | null>(null);
+  const [selectedServeOriginZone, setSelectedServeOriginZone] = useState<1 | 6 | 5 | null>(null);
   const [selectedServeType, setSelectedServeType] = useState<ScoutCodeAction['serveType'] | null>(null);
+
+  useEffect(() => {
+    setSelectedServeOriginZone(null);
+  }, [stagedSkill, activeTeam]);
   
   // Visual quick confirmation toast (ephemeral, disappears in 1200ms)
   const [quickConfirmation, setQuickConfirmation] = useState<string | null>(null);
@@ -263,7 +268,8 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
       skill: stagedSkill,
       evaluation: evalSymbol,
       // Capture only context that is known at tap time. Never invent a destination zone.
-      startZone: inferredZone,
+      // P1 identifies the rotational server, not the location along the service line.
+      startZone: stagedSkill === 'S' ? (selectedServeOriginZone ?? undefined) : inferredZone,
       endZone: selectedTargetZone ?? undefined,
       serveType: stagedSkill === 'S' ? (selectedServeType ?? undefined) : undefined,
       receptionContext:
@@ -304,6 +310,7 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
     // The analyst can always override team/skill manually.
     const next = nextScoutStep(activeTeam, stagedSkill, evalSymbol);
     setSelectedTargetZone(null);
+    setSelectedServeOriginZone(null);
     if (stagedSkill === 'S') setSelectedServeType(null);
     if (next) {
       setActiveTeam(next.team);
@@ -315,7 +322,7 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
       setStagedSkill('S');
       setStagedPlayerId(null);
     }
-  }, [selectedPlayer, stagedSkill, activeTeam, match, homeScore, awayScore, activePlayers, onAddAction, onScoreChange, selectedTargetZone, selectedServeType, servingPlayer]);
+  }, [selectedPlayer, stagedSkill, activeTeam, match, homeScore, awayScore, activePlayers, onAddAction, onScoreChange, selectedTargetZone, selectedServeOriginZone, selectedServeType, servingPlayer]);
 
   // After a terminal rally, App.tsx may rotate and change service.
   // Keep Scout aligned with the authoritative server and preselect the physical P1.
@@ -1055,6 +1062,25 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
             </div>
 
             {stagedSkill === 'S' && (
+              <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Zona de origen del saque">
+                <span className="text-[11px] font-bold text-slate-400 mr-1">Desde dónde saca:</span>
+                {([1, 6, 5] as const).map((zone) => (
+                  <button
+                    key={zone}
+                    type="button"
+                    aria-pressed={selectedServeOriginZone === zone}
+                    onClick={() => setSelectedServeOriginZone((prev) => prev === zone ? null : zone)}
+                    className={`w-11 h-11 rounded-xl text-xs font-black border transition ${selectedServeOriginZone === zone
+                      ? 'bg-cyan-500 text-slate-950 border-cyan-300'
+                      : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white'}`}
+                  >
+                    Z{zone}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {stagedSkill === 'S' && (
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[11px] font-bold text-slate-400 mr-1">Tipo de saque:</span>
                 {[
@@ -1082,14 +1108,15 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
             {['S', 'A', 'E', 'D', 'F'].includes(stagedSkill) && (
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[11px] font-bold text-slate-400 mr-1">
-                  Zona destino:
+                  Zona destino (1–9):
                 </span>
-                {[1, 2, 3, 4, 5, 6].map((zone) => (
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((zone) => (
                   <button
                     key={zone}
                     type="button"
+                    aria-pressed={selectedTargetZone === zone}
                     onClick={() => setSelectedTargetZone((prev) => prev === zone ? null : zone)}
-                    className={`w-9 h-9 rounded-xl text-xs font-black border transition ${
+                    className={`w-11 h-11 rounded-xl text-xs font-black border transition ${
                       selectedTargetZone === zone
                         ? 'bg-amber-400 text-slate-950 border-amber-200'
                         : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white'
