@@ -180,6 +180,7 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
       const found = allPlayers.find((p) => p.id === stagedPlayerId);
       if (found) return found;
     }
+    if (stagedSkill === 'R') return null;
     // Default to court position P4 (attack left) or P1 (serve) or first available
     return activePlayers.court[3]?.player || activePlayers.court[0]?.player || allPlayers[0] || {
       id: `tmp_${activeTeam}_1`,
@@ -189,7 +190,7 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
       team: activeTeam,
       starter: true,
     };
-  }, [stagedPlayerId, activePlayers, activeTeam, match]);
+  }, [stagedPlayerId, stagedSkill, activePlayers, activeTeam, match]);
 
   // Service is rule-driven: the server is always P1 of the serving team.
   const servingPlayer = useMemo(() => {
@@ -211,6 +212,16 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
     setActiveTeam(match.server.team);
     setStagedPlayerId(servingPlayer.id);
   }, [stagedSkill, match.server.team, match.server.playerNum, servingPlayer.id]);
+
+  const selectScoutPlayer = (team: TeamSide, player: Player) => {
+    setActiveTeam(team);
+    setStagedPlayerId(player.id);
+    setSubstitutionOut(null);
+    if ((stagedSkill === 'S' && (team !== match.server.team || player.id !== servingPlayer.id)) ||
+        (player.position === 'L' && (stagedSkill === 'A' || stagedSkill === 'B'))) {
+      setStagedSkill('R');
+    }
+  };
 
   // Last registered action in the match
   const lastAction = useMemo(() => {
@@ -711,260 +722,98 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
         </div>
       )}
 
-      {/* 3. CENTRAL AREA: LARGE 2D VOLLEYBALL COURT (VISUAL FOCUS) */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-2.5 sm:p-6 shadow-2xl space-y-3 sm:space-y-4">
-        
-        {/* Court Header: Active Team & Selected Player Status */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
-          <div className="flex items-center gap-3">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
-          {(['home', 'away'] as TeamSide[]).map((side) => {
-            const rotation = side === 'home' ? match.homeRotation : match.awayRotation;
-            const isServing = match.server.team === side;
-            return (
-              <div key={side} className={`rounded-xl border px-3 py-2 ${isServing ? 'border-amber-400/70 bg-amber-500/10' : 'border-slate-800 bg-slate-950/60'}`}>
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <span className="text-[10px] font-black uppercase text-slate-300 truncate">
-                    {side === 'home' ? match.homeTeamName : match.awayTeamName}
-                  </span>
-                  {isServing && <span className="text-[10px] font-black text-amber-400">🏐 SAQUE #{rotation[0]}</span>}
-                </div>
-                <div className="grid grid-cols-6 gap-1">
-                  {rotation.map((num, idx) => (
-                    <div key={`${side}-rot-${idx}`} className={`rounded-md px-1 py-1 text-center font-mono text-[10px] font-black ${isServing && idx === 0 ? 'bg-amber-400 text-slate-950' : 'bg-slate-800 text-slate-200'}`}>
-                      <span className="block text-[8px] opacity-60">P{idx + 1}</span>#{num}
+      {/* Compact scoreboard: both rotational sixes and separate libero selectors. */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 sm:p-4 shadow-2xl space-y-3 max-w-4xl mx-auto">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2">
+          <span className="text-xs font-black text-white">Rotaciones · Ambos equipos</span>
+          <span className="text-xs font-bold text-white bg-blue-600 px-3 py-1 rounded-lg">
+            {activeTeam === 'home' ? match.homeTeamName : match.awayTeamName} · {selectedPlayer ? `#${selectedPlayer.number}` : 'Elegí receptor'}
+          </span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_190px_minmax(0,1fr)] gap-3 items-start">
+          <div className="sm:col-start-2 sm:row-start-1 w-full max-w-[240px] mx-auto space-y-2 bg-slate-950 border border-slate-700 rounded-xl p-2">
+            {(['home', 'away'] as const).map((team) => {
+              const players = team === 'home' ? match.homePlayers : match.awayPlayers;
+              const rotation = team === 'home' ? match.homeRotation : match.awayRotation;
+              const positions = team === 'home' ? [1, 6, 5, 2, 3, 4] : [4, 3, 2, 5, 6, 1];
+              return (
+                <React.Fragment key={team}>
+                  {team === 'away' && <div className="h-1 bg-white rounded-full" aria-label="Red entre equipos" />}
+                  <div className="space-y-1.5">
+                    <div className={`text-[10px] font-black truncate ${team === 'home' ? 'text-blue-300' : 'text-fuchsia-300'}`}>
+                      {team === 'home' ? match.homeTeamName : match.awayTeamName}
                     </div>
-                  ))}
+                    <div className="grid grid-cols-3 gap-1">
+                      {positions.map((position) => {
+                        const num = rotation[position - 1];
+                        const player = players.find((p) => p.number === num) || { id: `tmp_${team}_${num}`, number: num, name: `Jugador ${num}`, team, position: 'OH' as const, starter: true };
+                        const selected = activeTeam === team && selectedPlayer?.id === player.id;
+                        const serving = team === match.server.team && position === 1;
+                        return (
+                          <button key={position} type="button" onClick={() => selectScoutPlayer(team, player)}
+                            aria-label={`Seleccionar ${team === 'home' ? match.homeTeamName : match.awayTeamName} P${position} #${num}`}
+                            aria-pressed={selected}
+                            className={`min-h-11 rounded-xl border-2 text-white flex flex-col items-center justify-center ${team === 'home' ? 'bg-blue-600' : 'bg-fuchsia-600'} ${selected ? 'border-white ring-2 ring-amber-400' : 'border-transparent'}`}
+                          >
+                            <span className="text-[8px] leading-none opacity-80">P{position}{serving ? ' · 🏐' : ''}</span>
+                            <span className="font-mono text-lg font-black leading-tight">{num}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="flex flex-wrap gap-1" role="group" aria-label={`Líberos de ${team === 'home' ? match.homeTeamName : match.awayTeamName}`}>
+                      {players.filter((p) => p.position === 'L').map((libero) => (
+                        <button key={libero.id} type="button" onClick={() => selectScoutPlayer(team, libero)}
+                          aria-label={`Seleccionar líbero ${team === 'home' ? match.homeTeamName : match.awayTeamName} #${libero.number} ${libero.name}`}
+                          aria-pressed={activeTeam === team && selectedPlayer?.id === libero.id}
+                          className={`min-h-11 px-3 rounded-lg border text-xs font-black ${activeTeam === team && selectedPlayer?.id === libero.id ? 'bg-purple-500 border-white text-white' : 'bg-purple-950 border-purple-500 text-purple-200'}`}
+                        >L {libero.number}</button>
+                      ))}
+                    </div>
+                  </div>
+                </React.Fragment>
+              );
+            })}
+          </div>
+          {(['home', 'away'] as const).map((team) => {
+            const players = team === 'home' ? match.homePlayers : match.awayPlayers;
+            const rotation = team === 'home' ? match.homeRotation : match.awayRotation;
+            return (
+              <div key={team} className={`hidden sm:block rounded-xl border border-slate-700 overflow-hidden ${team === 'home' ? 'sm:col-start-1' : 'sm:col-start-3'} sm:row-start-1`}>
+                <div className={`text-xs font-black text-white px-2 py-2 ${team === 'home' ? 'bg-blue-600' : 'bg-fuchsia-600'}`}>{team === 'home' ? match.homeTeamName : match.awayTeamName}</div>
+                <div className="max-h-72 overflow-y-auto p-1 space-y-1">
+                  {players.map((player) => {
+                    const position = rotation.indexOf(player.number) + 1;
+                    const available = position > 0 || player.position === 'L';
+                    return <button key={player.id} type="button" disabled={!available} onClick={() => selectScoutPlayer(team, player)} className={`w-full text-left text-[11px] flex items-center gap-2 px-2 py-1.5 rounded-lg ${activeTeam === team && selectedPlayer?.id === player.id ? 'bg-blue-700 text-white' : available ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-500'}`}>
+                      <span className="font-mono font-black">{player.number}</span><span className="truncate flex-1">{player.name}</span><span>{player.position === 'L' ? 'L' : position ? `P${position}` : ''}</span>
+                    </button>;
+                  })}
                 </div>
               </div>
             );
           })}
         </div>
-            <div className="flex items-center gap-2">
-              <span className={`w-3 h-3 rounded-full ${activeTeam === 'home' ? 'bg-amber-400' : 'bg-cyan-400'}`} />
-              <span className="font-black text-sm text-white">
-                Cancha Activa: {activeTeam === 'home' ? match.homeTeamName : match.awayTeamName}
-              </span>
-            </div>
-
-            <button
-              onClick={() => { setActiveTeam((prev) => (prev === 'home' ? 'away' : 'home')); setSubstitutionOut(null); setStagedPlayerId(null); }}
-              className="text-[11px] font-bold text-slate-400 hover:text-white bg-slate-800 px-2.5 py-1 rounded-xl border border-slate-700 flex items-center gap-1 transition cursor-pointer"
-            >
-              <ArrowRightLeft className="w-3 h-3 text-amber-400" />
-              <span className="sm:hidden">Cambiar</span><span className="hidden sm:inline">Cambiar a {activeTeam === 'home' ? 'Rival' : 'Local'} (Tab)</span>
-            </button>
+        <details className="text-xs bg-slate-950 rounded-xl border border-slate-800 p-2">
+          <summary className="cursor-pointer font-bold text-slate-300">Cambios de jugadores · {activeTeam === 'home' ? match.homeTeamName : match.awayTeamName}</summary>
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {activePlayers.court.map(({ player, zoneIndex }) => <button key={zoneIndex} type="button" onClick={() => setSubstitutionOut(player.number)} className={`px-2 py-2 rounded-lg border ${substitutionOut === player.number ? 'bg-rose-500 text-white border-rose-300' : 'text-slate-300 border-slate-700'}`}>P{zoneIndex} #{player.number} sale</button>)}
           </div>
-
-          <div className="flex items-center gap-2 text-xs">
-            <span className="hidden sm:inline text-slate-400">Jugador Seleccionado:</span>
-            {selectedPlayer ? (
-              <span className="font-mono font-black text-white bg-blue-600 px-3 py-1 rounded-xl shadow-sm flex items-center gap-1.5">
-                <span>#{selectedPlayer.number}</span>
-                <span className="hidden sm:inline">{selectedPlayer.name}</span>
-                <span className="hidden sm:inline text-[10px] opacity-80">({selectedPlayer.position})</span>
-              </span>
-            ) : (
-              <span className="text-amber-400 italic">Toca un jugador en cancha</span>
-            )}
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {activePlayers.bench.map((player) => <button key={player.id} type="button" onClick={() => {
+              if (substitutionOut == null) { triggerConfirmation('Elegí primero quién sale'); return; }
+              onSubstitutePlayer(activeTeam, substitutionOut, player.number);
+              setSubstitutionOut(null); setStagedPlayerId(player.id);
+            }} className="px-2 py-2 rounded-lg border border-emerald-500 text-emerald-300">#{player.number} entra</button>)}
           </div>
-        </div>
+        </details>
 
-        {/* THE VISUAL COURT CANVAS WITH 6 LARGE TACTICAL PLAYER BUTTONS */}
-        <div className="bg-[#1b4332] p-2 sm:p-6 rounded-2xl sm:rounded-3xl border-2 sm:border-4 border-[#081c15] shadow-inner relative overflow-hidden">
-          
-          {/* Surface & Court Lines */}
-          <div className="bg-[#ea580c] border-2 sm:border-4 border-white rounded-xl sm:rounded-2xl p-2.5 sm:p-6 shadow-2xl relative">
-            
-            {/* Net at Top */}
-            <div className="w-full h-2 sm:h-3 bg-slate-200 border-b-2 border-slate-400 rounded-full mb-2.5 sm:mb-6 flex items-center justify-center shadow-md">
-              <span className="hidden sm:inline text-[10px] text-slate-900 font-black uppercase tracking-widest px-3 bg-white rounded-full border border-slate-300">
-                RED / NET (ZONA DE RED)
-              </span>
-            </div>
-
-            {/* FRONT ROW PLAYERS: P4 (Left attack), P3 (Center), P2 (Right attack) */}
-            <div className="grid grid-cols-3 gap-1.5 sm:gap-4 mb-2.5 sm:mb-6">
-              {[
-                { posZone: 4, label: 'P4 • Ataque Izquierdo' },
-                { posZone: 3, label: 'P3 • Central' },
-                { posZone: 2, label: 'P2 • Opuesto / Armador' },
-              ].map(({ posZone, label }) => {
-                const item = activePlayers.court[posZone - 1];
-                const player = item?.player;
-                const isSelected = selectedPlayer?.id === player?.id;
-
-                return (
-                  <button
-                    key={`front_p_${posZone}`}
-                    onClick={() => {
-                      if (player) setStagedPlayerId(player.id);
-                    }}
-                    className={`rounded-xl sm:rounded-2xl p-2 sm:p-4 text-center sm:text-left transition transform duration-150 active:scale-95 shadow-xl border-2 flex flex-col items-center sm:items-stretch justify-center sm:justify-between h-20 sm:h-32 cursor-pointer ${
-                      isSelected
-                        ? 'bg-blue-600 text-white border-white ring-4 ring-blue-400/60 scale-[1.03]'
-                        : 'bg-[#fef3c7] hover:bg-[#fde68a] text-slate-950 border-amber-300'
-                    }`}
-                  >
-                    <div className="flex items-center justify-center sm:justify-between w-full">
-                      <span className={`text-3xl sm:text-3xl font-black font-mono leading-none ${isSelected ? 'text-white' : 'text-slate-900'}`}>
-                        #{player?.number || posZone}
-                      </span>
-                      <span className={`hidden sm:inline text-xs font-black uppercase px-2 py-0.5 rounded-md ${
-                        isSelected ? 'bg-blue-800 text-blue-100' : 'bg-amber-200 text-amber-900 font-mono'
-                      }`}>
-                        {player?.position || 'JUG'}
-                      </span>
-                    </div>
-
-                    <div className="hidden sm:block">
-                      <div className={`font-black text-xs sm:text-sm truncate ${isSelected ? 'text-white' : 'text-slate-950'}`}>
-                        {player?.name ? player.name.split(' ')[0] : `Jugador ${posZone}`}
-                      </div>
-                      <div className={`text-[10px] font-bold mt-0.5 ${isSelected ? 'text-blue-200' : 'text-amber-800/90'}`}>
-                        {label}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* 3m Attack Line Divider */}
-            <div className="w-full border-t-2 border-dashed border-white/90 my-3 sm:my-4 relative">
-              <span className="hidden sm:block absolute right-3 -top-2.5 text-[9px] bg-[#ea580c] text-white font-mono font-bold px-1.5">
-                LÍNEA 3 METROS (ZAGA)
-              </span>
-            </div>
-
-            {/* BACK ROW PLAYERS: P5 (Left defense), P6 (Center back), P1 (Serve / Right back) */}
-            <div className="grid grid-cols-3 gap-1.5 sm:gap-4">
-              {[
-                { posZone: 5, label: 'P5 • Defensa Izq' },
-                { posZone: 6, label: 'P6 • Fondo Centro' },
-                { posZone: 1, label: 'P1 • Saque / Defensa' },
-              ].map(({ posZone, label }) => {
-                const item = activePlayers.court[posZone - 1];
-                const player = item?.player;
-                const isSelected = selectedPlayer?.id === player?.id;
-
-                return (
-                  <button
-                    key={`back_p_${posZone}`}
-                    onClick={() => {
-                      if (player) setStagedPlayerId(player.id);
-                    }}
-                    className={`rounded-xl sm:rounded-2xl p-2 sm:p-4 text-center sm:text-left transition transform duration-150 active:scale-95 shadow-xl border-2 flex flex-col items-center sm:items-stretch justify-center sm:justify-between h-20 sm:h-32 cursor-pointer ${
-                      isSelected
-                        ? 'bg-blue-600 text-white border-white ring-4 ring-blue-400/60 scale-[1.03]'
-                        : 'bg-[#fef3c7] hover:bg-[#fde68a] text-slate-950 border-amber-300'
-                    }`}
-                  >
-                    <div className="flex items-center justify-center sm:justify-between w-full">
-                      <span className={`text-3xl sm:text-3xl font-black font-mono leading-none ${isSelected ? 'text-white' : 'text-slate-900'}`}>
-                        #{player?.number || posZone}
-                      </span>
-                      <span className={`hidden sm:inline text-xs font-black uppercase px-2 py-0.5 rounded-md ${
-                        isSelected ? 'bg-blue-800 text-blue-100' : 'bg-amber-200 text-amber-900 font-mono'
-                      }`}>
-                        {player?.position || 'JUG'}
-                      </span>
-                    </div>
-
-                    <div className="hidden sm:block">
-                      <div className={`font-black text-xs sm:text-sm truncate ${isSelected ? 'text-white' : 'text-slate-950'}`}>
-                        {player?.name ? player.name.split(' ')[0] : `Jugador ${posZone}`}
-                      </div>
-                      <div className={`text-[10px] font-bold mt-0.5 ${isSelected ? 'text-blue-200' : 'text-amber-800/90'}`}>
-                        {label}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="mt-3 space-y-2">
-              <span className="text-[10px] font-black uppercase text-emerald-200">1. Elegí quién sale de cancha:</span>
-              <div className="grid grid-cols-3 sm:flex gap-1.5 sm:overflow-x-auto pb-1">
-              {activePlayers.court.map(({ player, zoneIndex }) => (
-                <button
-                  key={`sub-out-${activeTeam}-${player.number}`}
-                  type="button"
-                  onClick={() => {
-                    setSubstitutionOut((prev) => prev === player.number ? null : player.number);
-                  }}
-                  className={`px-2 py-2 rounded-lg text-[10px] font-black border shrink-0 ${
-                    substitutionOut === player.number
-                      ? 'bg-rose-500 text-white border-rose-300'
-                      : 'bg-slate-950 text-slate-400 border-slate-800'
-                  }`}
-                >
-                  P{zoneIndex} #{player.number} SALE
-                </button>
-              ))}
-              </div>
-            </div>
-
+        {stagedSkill === 'R' && (
+          <div className="rounded-xl border border-cyan-500/40 bg-cyan-500/10 p-3 text-xs text-cyan-100" role="status">
+            <strong>Recepción · {activeTeam === 'home' ? match.homeTeamName : match.awayTeamName}</strong>
+            <p className="mt-1">{selectedPlayer ? `Receptor #${selectedPlayer.number}: elegí la evaluación para registrar.` : 'Tocá el número del receptor o del líbero y después elegí la evaluación.'}</p>
           </div>
-
-          {/* Libero scouting never changes the six-player rotation. */}
-          {activePlayers.liberos.length > 0 && (
-            <div className="mt-3 rounded-xl bg-purple-950/40 border border-purple-500/40 p-3 space-y-2">
-              <div className="text-xs font-black text-purple-200">Líberos · Seleccionar para registrar una acción</div>
-              <div className="flex flex-wrap gap-2">
-                {activePlayers.liberos.map((libero) => (
-                  <button
-                    key={libero.id}
-                    type="button"
-                    aria-pressed={selectedPlayer?.id === libero.id}
-                    aria-label={`Seleccionar líbero #${libero.number} ${libero.name}`}
-                    onClick={() => {
-                      setStagedPlayerId(libero.id);
-                      setSubstitutionOut(null);
-                      // Leave service mode so the server synchronization cannot override this selection.
-                      if (stagedSkill === 'S' || stagedSkill === 'A' || stagedSkill === 'B') setStagedSkill('R');
-                    }}
-                    className={`min-h-11 px-4 py-2 rounded-xl font-black text-sm border transition ${selectedPlayer?.id === libero.id
-                      ? 'bg-purple-500 border-white text-white ring-2 ring-purple-300'
-                      : 'bg-slate-950 border-purple-500 text-purple-200 hover:bg-purple-900'}`}
-                  >
-                    L #{libero.number}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Regular substitutions remain separate from libero action selection. */}
-          {activePlayers.bench.length > 0 && (
-            <div className="flex flex-wrap mt-3 items-center gap-2 pb-1">
-              <span className="text-[11px] font-black text-emerald-200 shrink-0 uppercase tracking-wider">
-                2. Elegí el suplente que entra:
-              </span>
-              {activePlayers.bench.map((benchP) => (
-                <button
-                  key={benchP.id}
-                  type="button"
-                  onClick={() => {
-                    if (substitutionOut == null) {
-                      triggerConfirmation('Primero toca el jugador de cancha que sale');
-                      return;
-                    }
-                    onSubstitutePlayer(activeTeam, substitutionOut, benchP.number);
-                    setSubstitutionOut(null);
-                    setStagedPlayerId(benchP.id);
-                    triggerConfirmation(`🔄 #${substitutionOut} → #${benchP.number}`);
-                  }}
-                  className="px-3 py-1.5 rounded-xl font-bold text-xs border bg-slate-950/80 text-emerald-200 border-slate-700 hover:bg-emerald-500/10"
-                >
-                  #{benchP.number} Entra
-                </button>
-              ))}
-            </div>
-          )}
-
-        </div>
+        )}
 
         {/* 4. FAST 2-STEP REGISTRATION CONTROLS */}
         <div className="space-y-4 pt-2">
@@ -1034,8 +883,9 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
               {currentOutcomes.map((opt) => (
                 <button
                   key={opt.symbol}
+                  disabled={!selectedPlayer}
                   onClick={() => handleCommitAction(opt.symbol)}
-                  className={`${opt.colorClass} border-2 py-3 sm:py-4 px-2 sm:px-3 rounded-xl sm:rounded-2xl font-black transition transform active:scale-95 shadow-xl flex flex-col items-center justify-center gap-1 cursor-pointer min-h-[58px]`}
+                  className={`disabled:opacity-40 disabled:cursor-not-allowed ${opt.colorClass} border-2 py-3 sm:py-4 px-2 sm:px-3 rounded-xl sm:rounded-2xl font-black transition transform active:scale-95 shadow-xl flex flex-col items-center justify-center gap-1 cursor-pointer min-h-[58px]`}
                 >
                   <div className="flex items-center gap-1.5">
                     <span className="text-xl sm:text-2xl font-mono leading-none">{opt.symbol}</span>
