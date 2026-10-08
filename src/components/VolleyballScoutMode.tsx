@@ -1,3 +1,4 @@
+import { useScoutButtons, evaluationForKey } from '../utils/scoutButtonPreferences';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { MatchData, Player, ScoutCodeAction, TeamSide, VolleySkill, EvaluationSymbol } from '../types';
 import { isTerminalScoutAction, nextScoutStep } from '../utils/scoutRallyAssist';
@@ -62,42 +63,42 @@ const SKILL_OUTCOMES: Record<VolleySkill, OutcomeOption[]> = {
     { symbol: '#', label: 'PUNTO', sublabel: 'Remate ganador', key: 'P', colorClass: 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-400', isPoint: true },
     { symbol: '+', label: 'CONTINUIDAD', sublabel: 'Balón en juego', key: 'C', colorClass: 'bg-cyan-600 hover:bg-cyan-500 text-white border-cyan-400' },
     { symbol: '/', label: 'BLOQUEADO', sublabel: 'Bloqueado por rival', key: '/', colorClass: 'bg-purple-600 hover:bg-purple-500 text-white border-purple-400' },
-    { symbol: '=', label: 'ERROR', sublabel: 'Fuera / Red', key: 'E', colorClass: 'bg-rose-600 hover:bg-rose-500 text-white border-rose-400', isError: true },
+    { symbol: '=', label: 'ERROR', sublabel: 'Fuera / Red', key: 'X', colorClass: 'bg-rose-600 hover:bg-rose-500 text-white border-rose-400', isError: true },
   ],
   R: [
     { symbol: '#', label: 'PERFECTA', sublabel: 'A la cabeza del armador', key: 'P', colorClass: 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-400' },
     { symbol: '+', label: 'POSITIVA', sublabel: 'Ataque con opciones', key: 'C', colorClass: 'bg-teal-600 hover:bg-teal-500 text-white border-teal-400' },
     { symbol: '!', label: 'NEUTRA', sublabel: 'Balón forzado', key: 'N', colorClass: 'bg-amber-600 hover:bg-amber-500 text-slate-950 border-amber-400' },
     { symbol: '-', label: 'NEGATIVA', sublabel: 'Pase de emergencia', key: '-', colorClass: 'bg-orange-600 hover:bg-orange-500 text-white border-orange-400' },
-    { symbol: '=', label: 'ERROR', sublabel: 'Ace rival directo', key: 'E', colorClass: 'bg-rose-600 hover:bg-rose-500 text-white border-rose-400', isError: true },
+    { symbol: '=', label: 'ERROR', sublabel: 'Ace rival directo', key: 'X', colorClass: 'bg-rose-600 hover:bg-rose-500 text-white border-rose-400', isError: true },
   ],
   S: [
     { symbol: '#', label: 'ACE / PUNTO', sublabel: 'Punto directo de saque', key: 'P', colorClass: 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-400', isPoint: true },
     { symbol: '+', label: 'POSITIVO', sublabel: 'Complica recepción rival', key: 'C', colorClass: 'bg-teal-600 hover:bg-teal-500 text-white border-teal-400' },
     { symbol: '!', label: 'CONTINUIDAD', sublabel: 'Saque neutro en juego', key: 'N', colorClass: 'bg-amber-600 hover:bg-amber-500 text-slate-950 border-amber-400' },
     { symbol: '-', label: 'NEGATIVO', sublabel: 'Saque fácil / regalado', key: '-', colorClass: 'bg-orange-600 hover:bg-orange-500 text-white border-orange-400' },
-    { symbol: '=', label: 'ERROR', sublabel: 'Saque a la red o fuera', key: 'E', colorClass: 'bg-rose-600 hover:bg-rose-500 text-white border-rose-400', isError: true },
+    { symbol: '=', label: 'ERROR', sublabel: 'Saque a la red o fuera', key: 'X', colorClass: 'bg-rose-600 hover:bg-rose-500 text-white border-rose-400', isError: true },
   ],
   B: [
     { symbol: '#', label: 'PUNTO', sublabel: 'Bloqueo directo al piso', key: 'P', colorClass: 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-400', isPoint: true },
     { symbol: '+', label: 'CONTINUIDAD', sublabel: 'Toque / Rebote positivo', key: 'C', colorClass: 'bg-teal-600 hover:bg-teal-500 text-white border-teal-400' },
-    { symbol: '=', label: 'ERROR / INVASIÓN', sublabel: 'Toque de red / afuera', key: 'E', colorClass: 'bg-rose-600 hover:bg-rose-500 text-white border-rose-400', isError: true },
+    { symbol: '=', label: 'ERROR / INVASIÓN', sublabel: 'Toque de red / afuera', key: 'X', colorClass: 'bg-rose-600 hover:bg-rose-500 text-white border-rose-400', isError: true },
   ],
   D: [
     { symbol: '#', label: 'PERFECTA', sublabel: 'Defensa al armador', key: 'P', colorClass: 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-400' },
     { symbol: '+', label: 'POSITIVA', sublabel: 'Contraataque armado', key: 'C', colorClass: 'bg-teal-600 hover:bg-teal-500 text-white border-teal-400' },
     { symbol: '!', label: 'CONTINUIDAD', sublabel: 'Balón libre en juego', key: 'N', colorClass: 'bg-amber-600 hover:bg-amber-500 text-slate-950 border-amber-400' },
-    { symbol: '=', label: 'ERROR', sublabel: 'Defensa fallida', key: 'E', colorClass: 'bg-rose-600 hover:bg-rose-500 text-white border-rose-400', isError: true },
+    { symbol: '=', label: 'ERROR', sublabel: 'Defensa fallida', key: 'X', colorClass: 'bg-rose-600 hover:bg-rose-500 text-white border-rose-400', isError: true },
   ],
   E: [
     { symbol: '#', label: 'PERFECTO', sublabel: 'Atacante mano a mano', key: 'P', colorClass: 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-400' },
     { symbol: '+', label: 'POSITIVO', sublabel: 'Pase preciso con bloqueo', key: 'C', colorClass: 'bg-teal-600 hover:bg-teal-500 text-white border-teal-400' },
-    { symbol: '=', label: 'ERROR', sublabel: 'Doble golpe / invasión', key: 'E', colorClass: 'bg-rose-600 hover:bg-rose-500 text-white border-rose-400', isError: true },
+    { symbol: '=', label: 'ERROR', sublabel: 'Doble golpe / invasión', key: 'X', colorClass: 'bg-rose-600 hover:bg-rose-500 text-white border-rose-400', isError: true },
   ],
   F: [
     { symbol: '#', label: 'PERFECTA', sublabel: 'Entrega perfecta', key: 'P', colorClass: 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-400' },
     { symbol: '+', label: 'POSITIVA', sublabel: 'Entrega controlada', key: 'C', colorClass: 'bg-teal-600 hover:bg-teal-500 text-white border-teal-400' },
-    { symbol: '=', label: 'ERROR', sublabel: 'Error no forzado', key: 'E', colorClass: 'bg-rose-600 hover:bg-rose-500 text-white border-rose-400', isError: true },
+    { symbol: '=', label: 'ERROR', sublabel: 'Error no forzado', key: 'X', colorClass: 'bg-rose-600 hover:bg-rose-500 text-white border-rose-400', isError: true },
   ],
 };
 
@@ -357,6 +358,8 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
     triggerConfirmation(`↶ Acción Deshecha: #${last.playerNum} ${last.rawCode}`);
   }, [match.actions, homeScore, awayScore, onDeleteAction, onScoreChange]);
 
+  const scoutButtons = useScoutButtons();
+
   // Fast keyboard shortcuts listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -372,6 +375,8 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
         handleUndo();
         return;
       }
+
+      if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
 
       // Switch Team: Tab
       if (e.key === 'Tab') {
@@ -403,45 +408,20 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
       if (upperKey === 'B') { setStagedSkill('B'); return; }
       if (upperKey === 'D') { setStagedSkill('D'); return; }
 
-      // Outward Outcomes: P (# Punto), C (+ Continuidad), N/! (Neutro), - (Negativo), / (Bloqueado), X/= (Error)
-      if (upperKey === 'P' || e.key === '#') {
+      const evaluation = evaluationForKey(e.key, scoutButtons);
+      if (evaluation && SKILL_OUTCOMES[stagedSkill].some(option => option.symbol === evaluation)) {
         e.preventDefault();
-        handleCommitAction('#');
-        return;
-      }
-      if (upperKey === 'C' || e.key === '+') {
-        e.preventDefault();
-        handleCommitAction('+');
-        return;
-      }
-      if (upperKey === 'N' || e.key === '!') {
-        e.preventDefault();
-        handleCommitAction('!');
-        return;
-      }
-      if (e.key === '-') {
-        e.preventDefault();
-        handleCommitAction('-');
-        return;
-      }
-      if (e.key === '/') {
-        e.preventDefault();
-        handleCommitAction('/');
-        return;
-      }
-      if (upperKey === 'X' || e.key === '=') {
-        e.preventDefault();
-        handleCommitAction('=');
-        return;
+        handleCommitAction(evaluation);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activePlayers, handleUndo, handleCommitAction]);
+  }, [activePlayers, handleUndo, handleCommitAction, scoutButtons, stagedSkill]);
 
   // Current outcomes available for the selected skill
-  const currentOutcomes = SKILL_OUTCOMES[stagedSkill] || SKILL_OUTCOMES.A;
+  const currentOutcomes = [...(SKILL_OUTCOMES[stagedSkill] || SKILL_OUTCOMES.A)]
+    .sort((a, b) => scoutButtons.order.indexOf(a.symbol) - scoutButtons.order.indexOf(b.symbol));
 
   return (
     <div className="space-y-4 select-none animate-fadeIn">
@@ -716,8 +696,8 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] font-mono">
             <div><strong className="text-white">1 .. 6:</strong> Jugador P1 .. P6</div>
             <div><strong className="text-amber-300">S, R, E, A, B, D:</strong> Fundamento</div>
-            <div><strong className="text-emerald-400">P / #:</strong> Punto | <strong className="text-cyan-400">C / +:</strong> Continuidad</div>
-            <div><strong className="text-rose-400">X / =:</strong> Error | <strong className="text-white">Ctrl+Z:</strong> Deshacer</div>
+            <div className="col-span-2 flex flex-wrap gap-3">{currentOutcomes.map(option => <span key={option.symbol}><strong className="text-amber-300">{scoutButtons.keys[option.symbol]} / {option.symbol}:</strong> {option.label}</span>)}</div>
+            <div><strong className="text-white">Ctrl+Z:</strong> Deshacer</div>
           </div>
         </div>
       )}
@@ -892,7 +872,7 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
                     <span className="text-[11px] sm:text-base tracking-tight">{opt.label}</span>
                   </div>
                   <span className="hidden sm:block text-[10px] tracking-tight opacity-90 text-center truncate w-full">
-                    {opt.sublabel} ({opt.key})
+                    {opt.sublabel} ({scoutButtons.keys[opt.symbol]})
                   </span>
                 </button>
               ))}
