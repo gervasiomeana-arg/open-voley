@@ -20,9 +20,10 @@ export const CompactScoutPanel: React.FC<{
         <strong className="text-sm">Scout simple</strong>
         <button type="button" onClick={onClose} className="min-h-11 rounded-lg bg-slate-800 px-3 text-xs font-bold">Volver al panel</button>
       </div>
-      <div className="flex items-center justify-between gap-2 rounded-xl bg-slate-900 px-2 py-1 text-xs">
-        <span className="min-w-0 truncate text-blue-300">{match.homeTeamName}</span><strong className="shrink-0 text-base">{set.scoreHome} – {set.scoreAway}</strong><span className="min-w-0 truncate text-fuchsia-300">{match.awayTeamName}</span>
-        <span className="shrink-0 text-[10px]">Set {match.currentSet}</span>
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-xl bg-slate-900 px-2 py-1 text-xs">
+        <span className="min-w-0 break-words whitespace-normal font-bold text-blue-300">{match.homeTeamName}</span>
+        <div className="text-center"><strong className="block text-base">{set.scoreHome} – {set.scoreAway}</strong><span className="text-[10px]">Set {match.currentSet}</span></div>
+        <span className="min-w-0 break-words whitespace-normal text-right font-bold text-fuchsia-300">{match.awayTeamName}</span>
       </div>
       <div className="flex min-h-0 flex-col gap-1">
         <CourtViewControls view={view} onView={onView} onSwap={onSwap} />
