@@ -61,10 +61,12 @@ interface OutcomeOption {
   isError?: boolean;
 }
 
-const SKILL_OUTCOMES: Record<VolleySkill, OutcomeOption[]> = {
+export const SKILL_OUTCOMES: Record<VolleySkill, OutcomeOption[]> = {
   A: [
     { symbol: '#', label: 'PUNTO', sublabel: 'Remate ganador', key: 'P', colorClass: 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-400', isPoint: true },
-    { symbol: '+', label: 'CONTINUIDAD', sublabel: 'Balón en juego', key: 'C', colorClass: 'bg-cyan-600 hover:bg-cyan-500 text-white border-cyan-400' },
+    { symbol: '+', label: 'POSITIVO', sublabel: 'Complica la defensa rival', key: 'C', colorClass: 'bg-teal-600 hover:bg-teal-500 text-white border-teal-400' },
+    { symbol: '!', label: 'CONTINUIDAD', sublabel: 'Ataque neutro en juego', key: 'N', colorClass: 'bg-amber-600 hover:bg-amber-500 text-slate-950 border-amber-400' },
+    { symbol: '-', label: 'NEGATIVO', sublabel: 'Ataque fácil para el rival', key: '-', colorClass: 'bg-orange-600 hover:bg-orange-500 text-white border-orange-400' },
     { symbol: '/', label: 'BLOQUEADO', sublabel: 'Bloqueado por rival', key: '/', colorClass: 'bg-purple-600 hover:bg-purple-500 text-white border-purple-400' },
     { symbol: '=', label: 'ERROR', sublabel: 'Fuera / Red', key: 'X', colorClass: 'bg-rose-600 hover:bg-rose-500 text-white border-rose-400', isError: true },
   ],
@@ -116,8 +118,8 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
 }) => {
   // Active team being scouted
   const [activeTeam, setActiveTeam] = useState<TeamSide>('home');
-  const courtView = useCourtView(typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches ? 'side' : 'back');
-  const [compactView, setCompactView] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches);
+  const courtView = useCourtView(typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches ? 'side' : 'back');
+  const [compactView, setCompactView] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches);
   useEffect(() => {
     if (!compactView) return;
     const before = document.body.style.overflow;
@@ -463,7 +465,7 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
       <div className="sm:hidden sticky top-[98px] z-30 -mx-1 bg-slate-950/95 backdrop-blur-xl border border-slate-800 rounded-xl px-2 py-1.5 shadow-2xl">
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5">
           <div className="min-w-0">
-            <div className="text-[9px] font-black uppercase text-amber-400 truncate">{match.homeTeamName}</div>
+            <div className="text-[9px] font-black uppercase text-amber-400 break-words whitespace-normal">{match.homeTeamName}</div>
             <div className="flex items-center gap-1">
               <button
                 type="button"
@@ -491,7 +493,7 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
           </div>
 
           <div className="min-w-0 flex flex-col items-end">
-            <div className="text-[9px] font-black uppercase text-cyan-400 truncate max-w-full">{match.awayTeamName}</div>
+            <div className="text-[9px] font-black uppercase text-cyan-400 break-words whitespace-normal max-w-full">{match.awayTeamName}</div>
             <div className="flex items-center gap-1">
               <button
                 type="button"
@@ -528,7 +530,7 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
               <span className={`w-2.5 h-2.5 rounded-full ${activeTeam === 'home' ? 'bg-amber-400 animate-pulse' : 'bg-slate-600'}`} />
               <span className="text-[10px] font-black tracking-wider uppercase text-amber-400">EQUIPO LOCAL</span>
             </div>
-            <div className="text-lg sm:text-xl font-black text-white truncate max-w-[180px]">
+            <div className="max-w-full break-words whitespace-normal text-base sm:text-lg font-black text-white">
               {match.homeTeamName}
             </div>
             <div className="text-[11px] text-slate-400 font-semibold">
@@ -655,7 +657,7 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
               <span className="text-[10px] font-black tracking-wider uppercase text-cyan-400">EQUIPO RIVAL</span>
               <span className={`w-2.5 h-2.5 rounded-full ${activeTeam === 'away' ? 'bg-cyan-400 animate-pulse' : 'bg-slate-600'}`} />
             </div>
-            <div className="text-lg sm:text-xl font-black text-white truncate max-w-[180px]">
+            <div className="max-w-full break-words whitespace-normal text-base sm:text-lg font-black text-white">
               {match.awayTeamName}
             </div>
             <div className="text-[11px] text-slate-400 font-semibold">
@@ -733,12 +735,12 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2">
           <span className="text-xs font-black text-white">Rotaciones · Ambos equipos</span>
           <span className="text-[10px] text-amber-200">A · Armador en amarillo claro · L · Líberos afuera</span>
-          <span className="text-xs font-bold text-white bg-blue-600 px-3 py-1 rounded-lg">
+          <span className="min-w-0 max-w-full break-words whitespace-normal text-xs font-bold text-white bg-blue-600 px-3 py-1 rounded-lg">
             {activeTeam === 'home' ? match.homeTeamName : match.awayTeamName} · {selectedPlayer ? `#${selectedPlayer.number}` : 'Elegí receptor'}
           </span>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(280px,2fr)_minmax(0,1fr)] gap-3 items-start">
-          <div className="sm:col-start-2 sm:row-start-1 w-full mx-auto space-y-2 bg-slate-950 border border-slate-700 rounded-xl p-2">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(280px,2fr)_minmax(0,1fr)] gap-3 items-start">
+          <div className="lg:col-start-2 lg:row-start-1 w-full mx-auto space-y-2 bg-slate-950 border border-slate-700 rounded-xl p-2">
             <CourtViewControls view={courtView.view} onView={courtView.onView} onSwap={courtView.onSwap} />
             <div className={courtView.view === 'side' ? 'h-52' : 'h-80'}><CourtRotationView match={match} activeTeam={activeTeam} selectedPlayer={selectedPlayer} onPlayer={selectScoutPlayer} view={courtView.view} swapped={courtView.swapped} /></div>
           </div>
@@ -747,7 +749,7 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
             const rotation = team === 'home' ? match.homeRotation : match.awayRotation;
             const players = [...(rawPlayers || [])].sort((a, b) => a.number - b.number);
             return (
-              <div key={team} className={`hidden sm:block rounded-xl border border-slate-700 overflow-hidden ${team === 'home' ? 'sm:col-start-1' : 'sm:col-start-3'} sm:row-start-1`}>
+              <div key={team} className={`hidden lg:block min-w-0 rounded-xl border border-slate-700 overflow-hidden ${team === 'home' ? 'lg:col-start-1' : 'lg:col-start-3'} lg:row-start-1`}>
                 <div className={`text-xs font-black text-white px-2.5 py-2 flex items-center justify-between ${team === 'home' ? 'bg-blue-600' : 'bg-fuchsia-600'}`}>
                   <span>{team === 'home' ? match.homeTeamName : match.awayTeamName}</span>
                   <span className="text-[10px] font-bold opacity-90">Plantel</span>
@@ -880,7 +882,7 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
                 ? 'grid-cols-3'
                 : currentOutcomes.length === 4
                 ? 'grid-cols-2 sm:grid-cols-4'
-                : 'grid-cols-3 sm:grid-cols-5'
+                : currentOutcomes.length === 6 ? 'grid-cols-3' : 'grid-cols-3 sm:grid-cols-5'
             }`}>
               {currentOutcomes.map((opt) => (
                 <button
