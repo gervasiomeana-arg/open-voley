@@ -707,6 +707,7 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 sm:p-4 shadow-2xl space-y-3 max-w-4xl mx-auto">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2">
           <span className="text-xs font-black text-white">Rotaciones · Ambos equipos</span>
+          <span className="text-[10px] text-amber-200">A · Armador en amarillo claro · L · Líberos afuera</span>
           <span className="text-xs font-bold text-white bg-blue-600 px-3 py-1 rounded-lg">
             {activeTeam === 'home' ? match.homeTeamName : match.awayTeamName} · {selectedPlayer ? `#${selectedPlayer.number}` : 'Elegí receptor'}
           </span>
@@ -732,11 +733,11 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
                         const serving = team === match.server.team && position === 1;
                         return (
                           <button key={position} type="button" onClick={() => selectScoutPlayer(team, player)}
-                            aria-label={`Seleccionar ${team === 'home' ? match.homeTeamName : match.awayTeamName} P${position} #${num}`}
+                            aria-label={`Seleccionar ${team === 'home' ? match.homeTeamName : match.awayTeamName} P${position} #${num}${player.position === 'S' ? ', armador' : ''}`}
                             aria-pressed={selected}
-                            className={`min-h-11 rounded-xl border-2 text-white flex flex-col items-center justify-center ${team === 'home' ? 'bg-blue-600' : 'bg-fuchsia-600'} ${selected ? 'border-white ring-2 ring-amber-400' : 'border-transparent'}`}
+                            className={`min-h-11 rounded-xl border-2 text-white flex flex-col items-center justify-center ${player.position === 'S' ? 'bg-amber-100 !text-slate-950' : team === 'home' ? 'bg-blue-600' : 'bg-fuchsia-600'} ${selected ? 'border-white ring-2 ring-amber-400' : 'border-transparent'}`}
                           >
-                            <span className="text-[8px] leading-none opacity-80">P{position}{serving ? ' · 🏐' : ''}</span>
+                            <span className="text-[8px] leading-none opacity-80">P{position}{player.position === 'S' ? ' · A' : ''}{serving ? ' · 🏐' : ''}</span>
                             <span className="font-mono text-lg font-black leading-tight">{num}</span>
                           </button>
                         );
