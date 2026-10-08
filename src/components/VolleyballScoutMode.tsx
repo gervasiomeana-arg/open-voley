@@ -1,3 +1,4 @@
+import { TargetZoneCourt } from './TargetZoneCourt';
 import { useScoutButtons, evaluationForKey } from '../utils/scoutButtonPreferences';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { MatchData, Player, ScoutCodeAction, TeamSide, VolleySkill, EvaluationSymbol } from '../types';
@@ -936,36 +937,7 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
             )}
 
             {['S', 'A', 'E', 'D', 'F'].includes(stagedSkill) && (
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[11px] font-bold text-slate-400 mr-1">
-                  Zona destino (1–9):
-                </span>
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((zone) => (
-                  <button
-                    key={zone}
-                    type="button"
-                    aria-pressed={selectedTargetZone === zone}
-                    onClick={() => setSelectedTargetZone((prev) => prev === zone ? null : zone)}
-                    className={`w-11 h-11 rounded-xl text-xs font-black border transition ${
-                      selectedTargetZone === zone
-                        ? 'bg-amber-400 text-slate-950 border-amber-200'
-                        : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white'
-                    }`}
-                    title={`Zona destino ${zone}`}
-                  >
-                    Z{zone}
-                  </button>
-                ))}
-                {selectedTargetZone && (
-                  <button
-                    type="button"
-                    onClick={() => setSelectedTargetZone(null)}
-                    className="px-2 py-1 text-[10px] text-slate-500 hover:text-white"
-                  >
-                    Limpiar
-                  </button>
-                )}
-              </div>
+              <TargetZoneCourt selectedZone={selectedTargetZone} onSelect={setSelectedTargetZone} />
             )}
           </div>
 
