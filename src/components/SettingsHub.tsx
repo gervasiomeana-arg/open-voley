@@ -1,3 +1,4 @@
+import { DEFAULT_SCOUT_BUTTONS, readScoutButtons, saveScoutButtons, validateScoutButtons, ScoutButtonPreferences } from '../utils/scoutButtonPreferences';
 import React, { useState } from 'react';
 import { MatchData, ClientUser, TrialInfo } from '../types';
 import { generateDVWV2 } from './ExportImportModal';
@@ -47,6 +48,19 @@ export const SettingsHub: React.FC<SettingsHubProps> = ({
 }) => {
   const [activeSection, setActiveSection] = useState<'general' | 'export' | 'account' | 'research'>('general');
   const [copiedBackup, setCopiedBackup] = useState(false);
+  const [scoutButtons, setScoutButtons] = useState<ScoutButtonPreferences>(readScoutButtons);
+  const [buttonMessage, setButtonMessage] = useState('');
+  const buttonError = validateScoutButtons(scoutButtons);
+  const persistButtons = (value: ScoutButtonPreferences) => {
+    try {
+      saveScoutButtons(value);
+      setScoutButtons(readScoutButtons());
+      setButtonMessage('Preferencias guardadas en este navegador.');
+    } catch {
+      setButtonMessage('No se pudo guardar. Revisá las teclas y el almacenamiento del navegador.');
+    }
+  };
+
 
   // Download JSON Backup
   const handleDownloadBackup = () => {
@@ -184,6 +198,34 @@ export const SettingsHub: React.FC<SettingsHubProps> = ({
                   Habilitado
                 </span>
               </div>
+            </div>
+
+            <div className="space-y-3 border-t border-slate-700 pt-4">
+              <h4 className="font-bold text-white">Botones de evaluación y teclas</h4>
+              <p className="text-xs text-slate-400">Elegí una tecla y el orden de los botones. Se aplica al scout rápido en este navegador. Los símbolos y su significado se conservan según el fundamento.</p>
+              <p className="text-xs text-slate-400">A, R, S, B, E y D están reservadas para fundamentos; 1–6 para posiciones. También podés registrar usando el símbolo original.</p>
+              {scoutButtons.order.map((symbol, index) => (
+                <div key={symbol} className="flex items-center gap-3 rounded-xl bg-slate-800 p-3">
+                  <label className="flex flex-1 items-center gap-3 text-white">
+                    <span className="w-6 text-center text-xl font-black">{symbol}</span>
+                    <span className="text-xs">Tecla</span>
+                    <input aria-label={`Tecla para ${symbol}`} maxLength={1} value={scoutButtons.keys[symbol]}
+                      onChange={event => { setButtonMessage(''); setScoutButtons({ ...scoutButtons, keys: { ...scoutButtons.keys, [symbol]: event.target.value.toUpperCase() } }); }}
+                      className="w-14 rounded-lg border border-slate-600 bg-slate-950 p-2 text-center" />
+                  </label>
+                  {[-1, 1].map(delta => (
+                    <button key={delta} type="button" aria-label={`${delta < 0 ? 'Subir' : 'Bajar'} ${symbol}`} disabled={index + delta < 0 || index + delta >= scoutButtons.order.length}
+                      onClick={() => { const order = [...scoutButtons.order]; [order[index], order[index + delta]] = [order[index + delta], order[index]]; setScoutButtons({ ...scoutButtons, order }); setButtonMessage(''); }}
+                      className="min-h-11 min-w-11 rounded-lg bg-slate-700 text-white disabled:opacity-30">{delta < 0 ? '↑' : '↓'}</button>
+                  ))}
+                </div>
+              ))}
+              {buttonError && <p role="alert" className="text-xs text-amber-400">{buttonError}</p>}
+              <div className="flex flex-wrap gap-2">
+                <button type="button" disabled={!!buttonError} onClick={() => persistButtons(scoutButtons)} className="rounded-xl bg-amber-500 px-4 py-3 text-xs font-bold text-slate-950 disabled:opacity-40">Guardar botones</button>
+                <button type="button" onClick={() => persistButtons(DEFAULT_SCOUT_BUTTONS)} className="rounded-xl bg-slate-700 px-4 py-3 text-xs font-bold text-white">Restaurar originales</button>
+              </div>
+              {buttonMessage && <p role="status" className="text-xs text-slate-300">{buttonMessage}</p>}
             </div>
 
             <div className="pt-2">
