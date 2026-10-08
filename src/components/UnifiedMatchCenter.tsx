@@ -71,7 +71,9 @@ export const UnifiedMatchCenter: React.FC<UnifiedMatchCenterProps> = ({
   }, [match]);
 
   const teamFilteredStats = useMemo(() => {
-    return playerStatsList.filter((p) => p.team === selectedTeamSide);
+    return [...playerStatsList.filter((p) => p.team === selectedTeamSide)].sort(
+      (a, b) => a.playerNum - b.playerNum
+    );
   }, [playerStatsList, selectedTeamSide]);
 
   // Aggregate metrics
@@ -485,7 +487,7 @@ export const UnifiedMatchCenter: React.FC<UnifiedMatchCenterProps> = ({
 
                     <div className="flex items-center gap-4 text-xs font-mono">
                       <span>Ataque: <strong>{st.attKillPct}%</strong></span>
-                      <span>Pts: <strong className="text-amber-400">{st.attPts + st.blockPts + st.serveAce}</strong></span>
+                      <span>Puntos Totales: <strong className="text-amber-400 font-bold">{st.attPts + st.blockPts + st.serveAce} pts</strong></span>
                       <span className="text-amber-400 font-bold">Ver 360 →</span>
                     </div>
                   </div>

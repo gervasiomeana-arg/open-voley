@@ -34,11 +34,11 @@ export const PlayerVideoInbox: React.FC = () => {
 
   return (
     <div className="space-y-3 sm:space-y-5">
-      <div className="bg-slate-900 border border-cyan-500/20 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
+      <div className="bg-slate-900 border border-red-500/30 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xl">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <div className="text-[10px] uppercase tracking-widest font-black text-cyan-300 flex items-center gap-2">
-              <Inbox className="w-4 h-4" /> Portal del Jugador
+            <div className="text-[10px] uppercase tracking-widest font-black text-red-400 flex items-center gap-2">
+              <Inbox className="w-4 h-4 text-red-400" /> Portal del Jugador
             </div>
             <h1 className="text-xl sm:text-2xl font-black text-white mt-1">Mis Videos</h1>
             <p className="text-[11px] sm:text-xs text-slate-400 mt-1 max-w-2xl">

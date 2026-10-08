@@ -467,7 +467,9 @@ export const TeamsHub: React.FC<TeamsHubProps> = ({
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-800/60">
-                        {(currentTeam.players || []).map((player) => (
+                        {[...(currentTeam.players || [])]
+                          .sort((a, b) => a.number - b.number)
+                          .map((player) => (
                           <tr key={player.id} className="hover:bg-slate-800/40 transition">
                             <td className="p-3 text-center">
                               <span className="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-slate-800 text-amber-400 font-mono font-black border border-slate-700">

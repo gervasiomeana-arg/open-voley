@@ -890,7 +890,7 @@ export default function App() {
       title: '7. Mis Videos',
       subtitle: 'Montajes y devoluciones técnicas publicados específicamente para tu cuenta',
       icon: Inbox,
-      color: 'text-cyan-400',
+      color: 'text-red-400',
     },
     settings: {
       title: '8. Configuración',
@@ -1658,16 +1658,24 @@ export default function App() {
                   isActive
                     ? item.id === 'ai'
                       ? 'text-purple-400 font-black'
-                      : 'text-amber-400 font-black'
-                    : 'text-slate-400 hover:text-slate-200'
+                      : item.id === 'my-videos'
+                        ? 'text-red-400 font-black'
+                        : 'text-amber-400 font-black'
+                    : item.id === 'my-videos'
+                      ? 'text-red-400/90 hover:text-red-300'
+                      : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
                 <div className={`p-1 rounded-lg transition-transform ${
                   isActive 
                     ? item.id === 'ai' 
                       ? 'bg-purple-500/20 scale-110' 
-                      : 'bg-amber-500/20 scale-110' 
-                    : ''
+                      : item.id === 'my-videos'
+                        ? 'bg-red-500/20 scale-110'
+                        : 'bg-amber-500/20 scale-110' 
+                    : item.id === 'my-videos'
+                      ? 'bg-red-500/10'
+                      : ''
                 }`}>
                   <Icon className="w-4 h-4" />
                 </div>

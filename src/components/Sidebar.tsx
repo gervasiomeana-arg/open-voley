@@ -228,6 +228,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             const isActive = activeTab === item.id;
             const isAiTab = item.id === 'ai';
             const isSettingsTab = item.id === 'settings';
+            const isVideosTab = item.id === 'my-videos';
 
             return (
               <button
@@ -240,10 +241,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       ? 'bg-purple-500 text-white font-black shadow-lg shadow-purple-500/25'
                       : isSettingsTab
                         ? 'bg-emerald-500 text-slate-950 font-black shadow-lg shadow-emerald-500/25'
-                        : 'bg-amber-500 text-slate-950 font-black shadow-lg shadow-amber-500/20'
+                        : isVideosTab
+                          ? 'bg-red-600 text-white font-black shadow-lg shadow-red-600/25'
+                          : 'bg-amber-500 text-slate-950 font-black shadow-lg shadow-amber-500/20'
                     : isSettingsTab
                       ? 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/15 bg-emerald-500/10 border border-emerald-500/30 shadow-sm shadow-emerald-900/20'
-                      : 'text-slate-300 hover:text-white hover:bg-slate-800/70'
+                      : isVideosTab
+                        ? 'text-red-400 hover:text-red-300 hover:bg-red-500/15 bg-red-500/10 border border-red-500/30 shadow-sm shadow-red-900/20'
+                        : 'text-slate-300 hover:text-white hover:bg-slate-800/70'
                 } ${isCollapsed && !isMobileOpen ? 'justify-center px-2' : ''}`}
               >
                 <div className={`p-1.5 rounded-xl transition-all shrink-0 ${
@@ -252,12 +257,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       ? 'bg-purple-900/40 text-white'
                       : isSettingsTab
                         ? 'bg-emerald-950/20 text-slate-950'
-                        : 'bg-black/10 text-slate-950'
+                        : isVideosTab
+                          ? 'bg-red-950/30 text-white'
+                          : 'bg-black/10 text-slate-950'
                     : isAiTab
                       ? 'text-purple-400 group-hover:text-purple-300'
                       : isSettingsTab
                         ? 'text-emerald-400 group-hover:text-emerald-300 bg-emerald-500/20'
-                        : 'text-slate-400 group-hover:text-amber-400'
+                        : isVideosTab
+                          ? 'text-red-400 group-hover:text-red-300 bg-red-500/20'
+                          : 'text-slate-400 group-hover:text-amber-400'
                 }`}>
                   <Icon className="w-4 h-4 transition-transform group-hover:scale-110" />
                 </div>
@@ -287,7 +296,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       ? 'bg-purple-400 animate-pulse'
                       : isSettingsTab
                         ? 'bg-emerald-400 animate-pulse'
-                        : 'bg-amber-400 animate-pulse'
+                        : isVideosTab
+                          ? 'bg-red-400 animate-pulse'
+                          : 'bg-amber-400 animate-pulse'
                   }`} />
                 )}
               </button>

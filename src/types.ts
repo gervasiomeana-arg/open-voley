@@ -114,6 +114,7 @@ export interface PlayerStats {
   name: string;
   position: string;
   team: TeamSide;
+  totalPoints?: number; // Puntos Totales (Ataque + Bloqueo + Saque)
   // Serve
   serveTotal: number;
   serveAce: number;

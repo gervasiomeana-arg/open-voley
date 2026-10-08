@@ -396,7 +396,10 @@ export function calculatePlayerStats(players: Player[] = [], actions: ScoutCodeA
   const safePlayers = Array.isArray(players) ? players : [];
   const safeActions = Array.isArray(actions) ? actions : [];
 
-  return safePlayers.map((player) => {
+  // Sort players by number ascending
+  const sortedPlayers = [...safePlayers].sort((a, b) => (a.number ?? 0) - (b.number ?? 0));
+
+  return sortedPlayers.map((player) => {
     const playerActions = safeActions.filter((a) => a && a.team === player.team && a.playerNum === player.number);
 
     // Serves
@@ -430,11 +433,15 @@ export function calculatePlayerStats(players: Player[] = [], actions: ScoutCodeA
     const digs = playerActions.filter((a) => a.skill === 'D');
     const digTotal = digs.length;
 
+    // Total Points (Ataque + Bloqueo + Saque)
+    const totalPoints = attPts + blockPts + serveAce;
+
     return {
       playerNum: player.number,
       name: player.name,
       position: player.position,
       team: player.team,
+      totalPoints,
       serveTotal,
       serveAce,
       serveErr,

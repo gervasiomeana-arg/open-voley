@@ -178,11 +178,25 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
 
     // Bench players
     const onCourtNumbers = new Set(court.map(({ player }) => player.number));
-    const bench = list.filter((p) => p.position !== 'L' && !onCourtNumbers.has(p.number) && !rotation.includes(p.number));
-    const liberos = list.filter((p) => p.position === 'L');
+    const bench = list
+      .filter((p) => p.position !== 'L' && !onCourtNumbers.has(p.number) && !rotation.includes(p.number))
+      .sort((a, b) => a.number - b.number);
+    const liberos = list.filter((p) => p.position === 'L').sort((a, b) => a.number - b.number);
 
     return { court, bench, liberos };
   }, [activeTeam, match]);
+
+  // Points scored by each player in the match (Attacks #, Blocks #, Service Aces #)
+  const playerPointsMap = useMemo(() => {
+    const map = new Map<string, number>();
+    (match.actions || []).forEach((a) => {
+      if (a && a.evaluation === '#' && (a.skill === 'A' || a.skill === 'B' || a.skill === 'S')) {
+        const key = `${a.team}_${a.playerNum}`;
+        map.set(key, (map.get(key) || 0) + 1);
+      }
+    });
+    return map;
+  }, [match.actions]);
 
   // Selected player entity (defaults to front left attacker P4 or first available)
   const selectedPlayer = useMemo(() => {
@@ -729,18 +743,48 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
             <div className={courtView.view === 'side' ? 'h-52' : 'h-80'}><CourtRotationView match={match} activeTeam={activeTeam} selectedPlayer={selectedPlayer} onPlayer={selectScoutPlayer} view={courtView.view} swapped={courtView.swapped} /></div>
           </div>
           {(['home', 'away'] as const).map((team) => {
-            const players = team === 'home' ? match.homePlayers : match.awayPlayers;
+            const rawPlayers = team === 'home' ? match.homePlayers : match.awayPlayers;
             const rotation = team === 'home' ? match.homeRotation : match.awayRotation;
+            const players = [...(rawPlayers || [])].sort((a, b) => a.number - b.number);
             return (
               <div key={team} className={`hidden sm:block rounded-xl border border-slate-700 overflow-hidden ${team === 'home' ? 'sm:col-start-1' : 'sm:col-start-3'} sm:row-start-1`}>
-                <div className={`text-xs font-black text-white px-2 py-2 ${team === 'home' ? 'bg-blue-600' : 'bg-fuchsia-600'}`}>{team === 'home' ? match.homeTeamName : match.awayTeamName}</div>
-                <div className="max-h-72 overflow-y-auto p-1 space-y-1">
+                <div className={`text-xs font-black text-white px-2.5 py-2 flex items-center justify-between ${team === 'home' ? 'bg-blue-600' : 'bg-fuchsia-600'}`}>
+                  <span>{team === 'home' ? match.homeTeamName : match.awayTeamName}</span>
+                  <span className="text-[10px] font-bold opacity-90">Plantel</span>
+                </div>
+                <div className="max-h-72 overflow-y-auto p-1.5 space-y-1 custom-scrollbar">
                   {players.map((player) => {
                     const position = rotation.indexOf(player.number) + 1;
                     const available = position > 0 || player.position === 'L';
-                    return <button key={player.id} type="button" disabled={!available} onClick={() => selectScoutPlayer(team, player)} className={`w-full text-left text-[11px] flex items-center gap-2 px-2 py-1.5 rounded-lg ${activeTeam === team && selectedPlayer?.id === player.id ? 'bg-blue-700 text-white' : available ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-500'}`}>
-                      <span className="font-mono font-black">{player.number}</span><span className="truncate flex-1">{player.name}</span><span>{player.position === 'L' ? 'L' : position ? `P${position}` : ''}</span>
-                    </button>;
+                    const pts = playerPointsMap.get(`${team}_${player.number}`) || 0;
+                    return (
+                      <button
+                        key={player.id}
+                        type="button"
+                        disabled={!available}
+                        onClick={() => selectScoutPlayer(team, player)}
+                        className={`w-full text-left text-[11px] flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg transition ${
+                          activeTeam === team && selectedPlayer?.id === player.id
+                            ? 'bg-blue-700 text-white font-bold ring-1 ring-white/50'
+                            : available
+                              ? 'text-slate-200 hover:bg-slate-800'
+                              : 'text-slate-500 hover:bg-slate-900/50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="font-mono font-black text-amber-400 w-5 text-center">#{player.number}</span>
+                          <span className="truncate">{player.name}</span>
+                          <span className="text-[9px] text-slate-400 font-mono">
+                            {player.position === 'L' ? 'L' : position ? `P${position}` : player.position}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="font-mono font-bold text-emerald-400 text-[10px] bg-slate-900 px-1.5 py-0.5 rounded border border-slate-700" title="Puntos totales anotados">
+                            {pts} pts
+                          </span>
+                        </div>
+                      </button>
+                    );
                   })}
                 </div>
               </div>
@@ -753,11 +797,16 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
             {activePlayers.court.map(({ player, zoneIndex }) => <button key={zoneIndex} type="button" onClick={() => setSubstitutionOut(player.number)} className={`px-2 py-2 rounded-lg border ${substitutionOut === player.number ? 'bg-rose-500 text-white border-rose-300' : 'text-slate-300 border-slate-700'}`}>P{zoneIndex} #{player.number} sale</button>)}
           </div>
           <div className="flex flex-wrap gap-1.5 mt-2">
-            {activePlayers.bench.map((player) => <button key={player.id} type="button" onClick={() => {
-              if (substitutionOut == null) { triggerConfirmation('Elegí primero quién sale'); return; }
-              onSubstitutePlayer(activeTeam, substitutionOut, player.number);
-              setSubstitutionOut(null); setStagedPlayerId(player.id);
-            }} className="px-2 py-2 rounded-lg border border-emerald-500 text-emerald-300">#{player.number} entra</button>)}
+            {[...activePlayers.bench].sort((a, b) => a.number - b.number).map((player) => (
+              <button key={player.id} type="button" onClick={() => {
+                if (substitutionOut == null) { triggerConfirmation('Elegí primero quién sale'); return; }
+                onSubstitutePlayer(activeTeam, substitutionOut, player.number);
+                setSubstitutionOut(null); setStagedPlayerId(player.id);
+              }} className="px-2 py-2 rounded-lg border border-emerald-500 text-emerald-300 flex items-center gap-1">
+                <span>#{player.number} entra</span>
+                <span className="text-[10px] text-emerald-400 font-mono">({playerPointsMap.get(`${activeTeam}_${player.number}`) || 0} pts)</span>
+              </button>
+            ))}
           </div>
         </details>
 

@@ -1290,7 +1290,9 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({
 
               {/* Roster Cards with Checkboxes */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
-                {(rosterTeam?.players || []).map((player) => {
+                {[...(rosterTeam?.players || [])]
+                  .sort((a, b) => a.number - b.number)
+                  .map((player) => {
                   const isChecked = selectedRosterIds.includes(player.id);
 
                   return (

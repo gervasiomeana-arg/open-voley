@@ -497,11 +497,27 @@ export const UnifiedTacticalHub: React.FC<UnifiedTacticalHubProps> = ({
                 <UserPlus className="w-4 h-4" /> Agregar jugador a {quickRosterSide === 'home' ? match.homeTeamName : match.awayTeamName}
               </button>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-52 overflow-y-auto">
-                {(quickRosterSide === 'home' ? match.homePlayers : match.awayPlayers).map((player) => (
-                  <button key={player.id} type="button" onClick={() => handleOpenEditPlayer(player)} className="flex items-center justify-between text-left bg-slate-950 border border-slate-700 text-white rounded-xl px-3 py-2 text-xs">
-                    <span className="truncate">#{player.number} · {player.name}</span><Edit3 className="w-3.5 h-3.5 shrink-0 text-amber-400" />
-                  </button>
-                ))}
+                {[...(quickRosterSide === 'home' ? match.homePlayers : match.awayPlayers)]
+                  .sort((a, b) => a.number - b.number)
+                  .map((player) => {
+                    const pts = (match.actions || []).filter(
+                      (a) => a && a.team === quickRosterSide && a.playerNum === player.number && a.evaluation === '#' && (a.skill === 'A' || a.skill === 'B' || a.skill === 'S')
+                    ).length;
+                    return (
+                      <button key={player.id} type="button" onClick={() => handleOpenEditPlayer(player)} className="flex items-center justify-between text-left bg-slate-950 border border-slate-700 text-white rounded-xl px-3 py-2 text-xs">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="font-mono font-black text-amber-400">#{player.number}</span>
+                          <span className="truncate">{player.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-[10px] font-mono font-bold text-emerald-400 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">
+                            {pts} pts
+                          </span>
+                          <Edit3 className="w-3.5 h-3.5 text-amber-400" />
+                        </div>
+                      </button>
+                    );
+                  })}
               </div>
             </div>
           )}
@@ -1396,43 +1412,51 @@ export const UnifiedTacticalHub: React.FC<UnifiedTacticalHubProps> = ({
 
               {/* Players List */}
               <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1 custom-scrollbar">
-                {(activeSidePanel === 'home' ? match.homePlayers : match.awayPlayers).map((player) => {
-                  const isStarter = (activeSidePanel === 'home' ? match.homeRotation : match.awayRotation).includes(player.number);
-                  const isSelected = selectedPlayerForProfile?.id === player.id;
+                {[...(activeSidePanel === 'home' ? match.homePlayers : match.awayPlayers)]
+                  .sort((a, b) => a.number - b.number)
+                  .map((player) => {
+                    const isStarter = (activeSidePanel === 'home' ? match.homeRotation : match.awayRotation).includes(player.number);
+                    const isSelected = selectedPlayerForProfile?.id === player.id;
+                    const totalPts = (match.actions || []).filter(
+                      (a) => a && a.team === activeSidePanel && a.playerNum === player.number && a.evaluation === '#' && (a.skill === 'A' || a.skill === 'B' || a.skill === 'S')
+                    ).length;
 
-                  return (
-                    <div
-                      key={player.id}
-                      onClick={() => setSelectedPlayerForProfile(player)}
-                      className={`p-3 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 ${
-                        isSelected
-                          ? 'bg-purple-950/40 border-purple-500 shadow-md ring-1 ring-purple-500/50'
-                          : 'bg-slate-950 border-slate-800/80 hover:border-slate-700'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-8 h-8 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center font-black text-emerald-400 text-xs font-mono shrink-0">
-                          #{player.number}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-white text-xs truncate">{player.name}</span>
-                            {isStarter && (
-                              <span className="bg-amber-500/20 text-amber-300 text-[9px] font-bold px-1 py-0.2 rounded border border-amber-500/30 shrink-0">
-                                EN CANCHA
-                              </span>
-                            )}
+                    return (
+                      <div
+                        key={player.id}
+                        onClick={() => setSelectedPlayerForProfile(player)}
+                        className={`p-3 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 ${
+                          isSelected
+                            ? 'bg-purple-950/40 border-purple-500 shadow-md ring-1 ring-purple-500/50'
+                            : 'bg-slate-950 border-slate-800/80 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-8 h-8 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center font-black text-amber-400 text-xs font-mono shrink-0">
+                            #{player.number}
                           </div>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            {getPositionBadge(player.position)}
-                            {player.spikeReachCm && (
-                              <span className="text-[10px] text-slate-400 font-mono">
-                                Salto: {player.spikeReachCm}cm
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-white text-xs truncate">{player.name}</span>
+                              {isStarter && (
+                                <span className="bg-amber-500/20 text-amber-300 text-[9px] font-bold px-1 py-0.2 rounded border border-amber-500/30 shrink-0">
+                                  EN CANCHA
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              {getPositionBadge(player.position)}
+                              <span className="text-[10px] font-mono font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.2 rounded border border-amber-500/20">
+                                Puntos Totales: {totalPts}
                               </span>
-                            )}
+                              {player.spikeReachCm && (
+                                <span className="text-[10px] text-slate-400 font-mono">
+                                  Salto: {player.spikeReachCm}cm
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
 
                       <div className="flex items-center gap-1.5 shrink-0">
                         <button
