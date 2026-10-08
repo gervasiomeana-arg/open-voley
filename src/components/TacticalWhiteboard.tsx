@@ -111,6 +111,7 @@ export const TacticalWhiteboard: React.FC<{ match: MatchData }> = ({ match }) =>
         <button type="button" className={button} disabled={!board.strokes.length} onClick={() => change({ ...board, strokes: [] })}>Borrar trazos</button>
         <button type="button" className={button} onClick={() => change(initialWhiteboard(match))}>Formación actual</button>
       </div>
+      <p className="text-xs text-amber-200">A · Armador en amarillo claro · L · Líberos fuera de la cancha</p>
       <div className="flex justify-between gap-2 text-xs font-bold"><span className="text-blue-300">● {match.homeTeamName}</span><span className="text-pink-300">● {match.awayTeamName}</span></div>
       <svg ref={svg} viewBox="0 0 360 640" aria-label="Pizarra de vóley con jugadores de ambos equipos y pelota" className="mx-auto w-full max-w-[440px] rounded-2xl bg-sky-900" style={{touchAction: 'none', userSelect: 'none'}} onPointerDown={begin} onPointerMove={move} onPointerUp={e => finish(e)} onPointerCancel={e => finish(e, true)} onLostPointerCapture={e => { if (gesture.current?.pointer === e.pointerId) finish(e, true); }}>
         <defs>{COLORS.map((c,i) => <marker key={c} id={`whiteboard-arrow-${i}`} markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill={c} /></marker>)}</defs>
@@ -119,13 +120,16 @@ export const TacticalWhiteboard: React.FC<{ match: MatchData }> = ({ match }) =>
         <path d="M28 320 H332" stroke="#0f172a" strokeWidth="10" /><path d="M28 320 H332" stroke="white" strokeWidth="2" strokeDasharray="4 4" />
         <text x="180" y="42" textAnchor="middle" fill="#93c5fd" fontSize="13">{match.homeTeamName.slice(0, 28)}</text><text x="180" y="607" textAnchor="middle" fill="#f9a8d4" fontSize="13">{match.awayTeamName.slice(0, 28)}</text>
         <g pointerEvents="none">{board.strokes.map((s,i) => <path key={i} d={s.points.map((p,j) => `${j ? 'L' : 'M'}${p.x},${p.y}`).join(' ')} fill="none" stroke={s.color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" markerEnd={s.arrow ? `url(#whiteboard-arrow-${COLORS.indexOf(s.color)})` : undefined} />)}</g>
-        {board.tokens.map(t => <g key={t.id} data-token={t.id} transform={`translate(${t.x} ${t.y})`} role="button" tabIndex={0} aria-label={`${t.team === 'ball' ? 'Pelota' : `${t.team === 'home' ? match.homeTeamName : match.awayTeamName} ${t.label}`}. Usá las flechas del teclado para mover.`} style={{cursor: tool === 'move' ? 'grab' : 'crosshair'}} onKeyDown={event => {
+        {board.tokens.map(t => {
+          const setter = t.team !== 'ball' && (t.team === 'home' ? match.homePlayers : match.awayPlayers).some(p => p.position === 'S' && String(p.number) === t.label);
+          return <g key={t.id} data-token={t.id} transform={`translate(${t.x} ${t.y})`} role="button" tabIndex={0} aria-label={`${t.team === 'ball' ? 'Pelota' : `${t.team === 'home' ? match.homeTeamName : match.awayTeamName} ${t.label}${setter ? ', armador' : ''}`}. Usá las flechas del teclado para mover.`} style={{cursor: tool === 'move' ? 'grab' : 'crosshair'}} onKeyDown={event => {
           const delta: Record<string, Point> = {ArrowUp:{x:0,y:-10}, ArrowDown:{x:0,y:10}, ArrowLeft:{x:-10,y:0}, ArrowRight:{x:10,y:0}};
           const d = delta[event.key]; if (!d) return; event.preventDefault(); change({ ...board, tokens: board.tokens.map(item => item.id === t.id ? {...item, x:clamp(item.x+d.x,22,338), y:clamp(item.y+d.y,22,618)} : item) });
         }}>
-          <circle r="22" fill="transparent" /><circle r={t.team === 'ball' ? 15 : 19} fill={t.team === 'ball' ? '#fef08a' : t.team === 'home' ? '#2563eb' : '#db2777'} stroke="white" strokeWidth="2" />
-          {t.team === 'ball' ? <path d="M-12 -6 Q6 -10 13 5 M-5 -14 Q-10 5 7 13 M-13 7 Q4 2 7 -12" fill="none" stroke="#a16207" strokeWidth="2" pointerEvents="none" /> : <text textAnchor="middle" y="5" fill="white" fontWeight="bold" fontSize={t.label.length > 2 ? 12 : 16} pointerEvents="none">{t.label}</text>}
-        </g>)}
+          <circle r="22" fill="transparent" /><circle r={t.team === 'ball' ? 15 : 19} fill={t.team === 'ball' ? '#fef08a' : setter ? '#fef3c7' : t.team === 'home' ? '#2563eb' : '#db2777'} stroke="white" strokeWidth="2" />
+          {t.team === 'ball' ? <path d="M-12 -6 Q6 -10 13 5 M-5 -14 Q-10 5 7 13 M-13 7 Q4 2 7 -12" fill="none" stroke="#a16207" strokeWidth="2" pointerEvents="none" /> : <text textAnchor="middle" y="5" fill={setter ? '#0f172a' : 'white'} fontWeight="bold" fontSize={t.label.length > 2 ? 12 : 16} pointerEvents="none">{t.label}</text>}
+          {setter && <g pointerEvents="none"><rect x="8" y="-26" width="15" height="14" rx="4" fill="#0f172a" /><text x="15.5" y="-15" textAnchor="middle" fill="#fde68a" fontSize="10" fontWeight="bold">A</text></g>}
+        </g>; })}
       </svg>
       <p role="status" className="text-xs text-slate-400">{saveMessage}</p>
       <p className="text-xs text-slate-400">La pizarra es independiente del registro del partido. “Formación actual” vuelve a cargar las rotaciones y limpia el dibujo; podés deshacerlo.</p>
