@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MatchData, TeamSide } from '../types';
+import { MatchData, TeamSide, PlayerStats } from '../types';
 import { calculatePlayerStats } from '../utils/codeParser';
 import { 
   Award, 
@@ -12,6 +12,26 @@ import {
   Info,
   ChevronDown
 } from 'lucide-react';
+
+export const playerTotalPoints = (stats: PlayerStats) => stats.attPts + stats.serveAce + stats.blockPts;
+
+export function sortedBoxScore(match: MatchData, team: TeamSide): PlayerStats[] {
+  const players = team === 'home' ? match.homePlayers : match.awayPlayers;
+  return calculatePlayerStats(players, match.actions).sort((a, b) => a.playerNum - b.playerNum);
+}
+
+export function boxScoreTotals(rows: PlayerStats[]) {
+  const sum = (field: keyof PlayerStats) => rows.reduce((total, row) => total + Number(row[field] || 0), 0);
+  const attack = sum('attTotal'), reception = sum('recTotal');
+  return {
+    points: rows.reduce((total, row) => total + playerTotalPoints(row), 0),
+    attTotal: attack, attPts: sum('attPts'), attErr: sum('attErr'), attBlocked: sum('attBlocked'),
+    attEffPct: attack ? Math.round((sum('attPts') - sum('attErr') - sum('attBlocked')) / attack * 100) : 0,
+    recTotal: reception, recPosPct: reception ? Math.round(sum('recPositive') / reception * 100) : 0,
+    recPerfPct: reception ? Math.round(sum('recPerfect') / reception * 100) : 0,
+    serveTotal: sum('serveTotal'), serveAce: sum('serveAce'), serveErr: sum('serveErr'), blockPts: sum('blockPts'),
+  };
+}
 
 interface BoxScoreReportProps {
   match: MatchData;
@@ -75,10 +95,11 @@ export const BoxScoreReport: React.FC<BoxScoreReportProps> = ({
     }
   };
 
-  const homeStats = calculatePlayerStats(match.homePlayers, match.actions);
-  const awayStats = calculatePlayerStats(match.awayPlayers, match.actions);
+  const homeStats = sortedBoxScore(match, 'home');
+  const awayStats = sortedBoxScore(match, 'away');
 
   const activeStats = selectedTeamTab === 'home' ? homeStats : awayStats;
+  const totals = boxScoreTotals(activeStats);
   const teamName = selectedTeamTab === 'home' ? match.homeTeamName : match.awayTeamName;
 
   // Print function
@@ -92,6 +113,7 @@ export const BoxScoreReport: React.FC<BoxScoreReportProps> = ({
       'Numero',
       'Nombre',
       'Posicion',
+      'Puntos Totales',
       'Saque Tot',
       'Saque Aces',
       'Saque Err',
@@ -108,8 +130,9 @@ export const BoxScoreReport: React.FC<BoxScoreReportProps> = ({
 
     const rows = activeStats.map((s) => [
       s.playerNum,
-      `"${s.name}"`,
+      `"${s.name.replace(/"/g, '""')}"`,
       s.position,
+      playerTotalPoints(s),
       s.serveTotal,
       s.serveAce,
       s.serveErr,
@@ -123,6 +146,8 @@ export const BoxScoreReport: React.FC<BoxScoreReportProps> = ({
       `${s.attEffPct}%`,
       s.blockPts,
     ]);
+
+    rows.push(['', '"TOTAL EQUIPO"', '', totals.points, totals.serveTotal, totals.serveAce, totals.serveErr, totals.recTotal, `${totals.recPosPct}%`, `${totals.recPerfPct}%`, totals.attTotal, totals.attPts, totals.attErr, totals.attBlocked, `${totals.attEffPct}%`, totals.blockPts]);
 
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
@@ -269,8 +294,13 @@ export const BoxScoreReport: React.FC<BoxScoreReportProps> = ({
         </div>
       </div>
 
+      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-emerald-950">
+        <span className="text-xs font-bold">Puntos totales de jugadores · {teamName}: </span><strong className="text-xl">{totals.points}</strong>
+        <p className="text-[11px] mt-1">Ataque {totals.attPts} + Saque {totals.serveAce} + Bloqueo {totals.blockPts}. El marcador del equipo también suma los errores del rival.</p>
+      </div>
+
       {/* Mobile stats cards: avoid forcing a desktop table into a phone width */}
-      <div className="sm:hidden space-y-2">
+      <div className="sm:hidden print:hidden space-y-2">
         {activeStats.map((s) => (
           <div key={`mobile-${s.playerNum}`} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
             <div className="flex items-center justify-between gap-2">
@@ -280,7 +310,7 @@ export const BoxScoreReport: React.FC<BoxScoreReportProps> = ({
               </div>
               <div className="text-right">
                 <div className="text-[10px] uppercase font-bold text-slate-400">Puntos</div>
-                <div className="text-lg font-black text-slate-900">{s.attPts + s.serveAce + s.blockPts}</div>
+                <div className="text-lg font-black text-slate-900">{playerTotalPoints(s)}</div>
               </div>
             </div>
             <div className="grid grid-cols-4 gap-1.5 mt-3 text-center">
@@ -306,12 +336,12 @@ export const BoxScoreReport: React.FC<BoxScoreReportProps> = ({
       </div>
 
       {/* Stats Table */}
-      <div className="hidden sm:block overflow-x-auto">
+      <div className="hidden sm:block print:block overflow-x-auto">
         <table className="w-full text-left text-xs border-collapse">
           <thead>
             {/* Super Header */}
             <tr className="bg-slate-900 text-white uppercase text-[10px] tracking-wider">
-              <th colSpan={3} className="p-2 rounded-tl-lg border-r border-slate-800">
+              <th colSpan={4} className="p-2 rounded-tl-lg border-r border-slate-800">
                 Jugador
               </th>
               {columnsConfig.attack && (
@@ -339,7 +369,8 @@ export const BoxScoreReport: React.FC<BoxScoreReportProps> = ({
             <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
               <th className="p-2">#</th>
               <th className="p-2">Nombre</th>
-              <th className="p-2 border-r border-slate-200">Pos</th>
+              <th className="p-2">Pos</th>
+              <th className="p-2 text-center border-r border-slate-200 text-emerald-800" title="Ataques ganadores + aces + bloqueos ganadores">Puntos totales</th>
 
               {columnsConfig.attack && (
                 <>
@@ -387,7 +418,8 @@ export const BoxScoreReport: React.FC<BoxScoreReportProps> = ({
                       </span>
                     )}
                   </td>
-                  <td className="p-2 text-slate-500 font-mono border-r border-slate-200">{s.position}</td>
+                  <td className="p-2 text-slate-500 font-mono">{s.position}</td>
+                  <td className="p-2 text-center font-mono font-black bg-emerald-50 text-emerald-800 border-r border-slate-200">{playerTotalPoints(s)}</td>
 
                   {/* Attack */}
                   {columnsConfig.attack && (
@@ -430,12 +462,23 @@ export const BoxScoreReport: React.FC<BoxScoreReportProps> = ({
               );
             })}
           </tbody>
+          <tfoot className="border-t-2 border-slate-300 bg-slate-100 text-slate-900 font-bold">
+            <tr>
+              <th colSpan={3} className="p-2">TOTAL EQUIPO</th>
+              <td className="p-2 text-center bg-emerald-100 text-emerald-900 border-r border-slate-200">{totals.points}</td>
+              {columnsConfig.attack && <>{[totals.attTotal, totals.attPts, totals.attErr, totals.attBlocked, `${totals.attEffPct}%`].map((value, i) => <td key={`attack-${i}`} className="p-2 text-center">{value}</td>)}</>}
+              {columnsConfig.reception && <>{[totals.recTotal, `${totals.recPosPct}%`, `${totals.recPerfPct}%`].map((value, i) => <td key={`reception-${i}`} className="p-2 text-center">{value}</td>)}</>}
+              {columnsConfig.serve && <>{[totals.serveTotal, totals.serveAce, totals.serveErr].map((value, i) => <td key={`serve-${i}`} className="p-2 text-center">{value}</td>)}</>}
+              {columnsConfig.block && <td className="p-2 text-center">{totals.blockPts}</td>}
+            </tr>
+          </tfoot>
         </table>
       </div>
 
       {/* Formulas Explanation Footer (Low contrast, secondary info) */}
       <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-[11px] text-slate-500 space-y-0.5">
         <div className="font-bold text-slate-700">Fórmulas estadísticas utilizadas:</div>
+        <div>• <strong>Puntos totales:</strong> Ataques ganadores [#] + Aces [#] + Bloqueos ganadores [#].</div>
         <div>• <strong>Eficiencia de Ataque (Efic %):</strong> ((Puntos - Errores - Ataques Bloqueados) / Total de Ataques) × 100</div>
         <div>• <strong>Recepción Positiva (Pos %):</strong> ((Pases Perfectos [#] + Pases Positivos [+]) / Total de Recepciones) × 100</div>
       </div>
