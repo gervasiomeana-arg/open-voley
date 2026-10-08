@@ -1,3 +1,4 @@
+import { CourtRotationView, CourtViewControls, useCourtView } from './CourtRotationView';
 import { CompactScoutPanel } from './CompactScoutPanel';
 import { TargetZoneCourt } from './TargetZoneCourt';
 import { useScoutButtons, evaluationForKey } from '../utils/scoutButtonPreferences';
@@ -115,6 +116,7 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
 }) => {
   // Active team being scouted
   const [activeTeam, setActiveTeam] = useState<TeamSide>('home');
+  const courtView = useCourtView(typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches ? 'side' : 'back');
   const [compactView, setCompactView] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches);
   useEffect(() => {
     if (!compactView) return;
@@ -429,7 +431,7 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
   const currentOutcomes = [...(SKILL_OUTCOMES[stagedSkill] || SKILL_OUTCOMES.A)]
     .sort((a, b) => scoutButtons.order.indexOf(a.symbol) - scoutButtons.order.indexOf(b.symbol));
 
-  if (compactView) return <CompactScoutPanel match={match} activeTeam={activeTeam} selectedPlayer={selectedPlayer} skill={stagedSkill} outcomes={currentOutcomes} onPlayer={selectScoutPlayer} onSkill={setStagedSkill} onEvaluate={handleCommitAction} onUndo={handleUndo} onClose={() => setCompactView(false)} confirmation={quickConfirmation} />;
+  if (compactView) return <CompactScoutPanel match={match} activeTeam={activeTeam} selectedPlayer={selectedPlayer} skill={stagedSkill} outcomes={currentOutcomes} onPlayer={selectScoutPlayer} onSkill={setStagedSkill} onEvaluate={handleCommitAction} onUndo={handleUndo} onClose={() => setCompactView(false)} confirmation={quickConfirmation} {...courtView} />;
 
   return (
     <>
@@ -721,50 +723,10 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
             {activeTeam === 'home' ? match.homeTeamName : match.awayTeamName} · {selectedPlayer ? `#${selectedPlayer.number}` : 'Elegí receptor'}
           </span>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_190px_minmax(0,1fr)] gap-3 items-start">
-          <div className="sm:col-start-2 sm:row-start-1 w-full max-w-[240px] mx-auto space-y-2 bg-slate-950 border border-slate-700 rounded-xl p-2">
-            {(['home', 'away'] as const).map((team) => {
-              const players = team === 'home' ? match.homePlayers : match.awayPlayers;
-              const rotation = team === 'home' ? match.homeRotation : match.awayRotation;
-              const positions = team === 'home' ? [1, 6, 5, 2, 3, 4] : [4, 3, 2, 5, 6, 1];
-              return (
-                <React.Fragment key={team}>
-                  {team === 'away' && <div className="h-1 bg-white rounded-full" aria-label="Red entre equipos" />}
-                  <div className="space-y-1.5">
-                    <div className={`text-[10px] font-black truncate ${team === 'home' ? 'text-blue-300' : 'text-fuchsia-300'}`}>
-                      {team === 'home' ? match.homeTeamName : match.awayTeamName}
-                    </div>
-                    <div className="grid grid-cols-3 gap-1">
-                      {positions.map((position) => {
-                        const num = rotation[position - 1];
-                        const player = players.find((p) => p.number === num) || { id: `tmp_${team}_${num}`, number: num, name: `Jugador ${num}`, team, position: 'OH' as const, starter: true };
-                        const selected = activeTeam === team && selectedPlayer?.id === player.id;
-                        const serving = team === match.server.team && position === 1;
-                        return (
-                          <button key={position} type="button" onClick={() => selectScoutPlayer(team, player)}
-                            aria-label={`Seleccionar ${team === 'home' ? match.homeTeamName : match.awayTeamName} P${position} #${num}${player.position === 'S' ? ', armador' : ''}`}
-                            aria-pressed={selected}
-                            className={`min-h-11 rounded-xl border-2 text-white flex flex-col items-center justify-center ${player.position === 'S' ? 'bg-amber-100 !text-slate-950' : team === 'home' ? 'bg-blue-600' : 'bg-fuchsia-600'} ${selected ? 'border-white ring-2 ring-amber-400' : 'border-transparent'}`}
-                          >
-                            <span className="text-[8px] leading-none opacity-80">P{position}{player.position === 'S' ? ' · A' : ''}{serving ? ' · 🏐' : ''}</span>
-                            <span className="font-mono text-lg font-black leading-tight">{num}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <div className="flex flex-wrap gap-1" role="group" aria-label={`Líberos de ${team === 'home' ? match.homeTeamName : match.awayTeamName}`}>
-                      {players.filter((p) => p.position === 'L').map((libero) => (
-                        <button key={libero.id} type="button" onClick={() => selectScoutPlayer(team, libero)}
-                          aria-label={`Seleccionar líbero ${team === 'home' ? match.homeTeamName : match.awayTeamName} #${libero.number} ${libero.name}`}
-                          aria-pressed={activeTeam === team && selectedPlayer?.id === libero.id}
-                          className={`min-h-11 px-3 rounded-lg border text-xs font-black ${activeTeam === team && selectedPlayer?.id === libero.id ? 'bg-purple-500 border-white text-white' : 'bg-purple-950 border-purple-500 text-purple-200'}`}
-                        >L {libero.number}</button>
-                      ))}
-                    </div>
-                  </div>
-                </React.Fragment>
-              );
-            })}
+        <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(280px,2fr)_minmax(0,1fr)] gap-3 items-start">
+          <div className="sm:col-start-2 sm:row-start-1 w-full mx-auto space-y-2 bg-slate-950 border border-slate-700 rounded-xl p-2">
+            <CourtViewControls view={courtView.view} onView={courtView.onView} onSwap={courtView.onSwap} />
+            <div className={courtView.view === 'side' ? 'h-52' : 'h-80'}><CourtRotationView match={match} activeTeam={activeTeam} selectedPlayer={selectedPlayer} onPlayer={selectScoutPlayer} view={courtView.view} swapped={courtView.swapped} /></div>
           </div>
           {(['home', 'away'] as const).map((team) => {
             const players = team === 'home' ? match.homePlayers : match.awayPlayers;
