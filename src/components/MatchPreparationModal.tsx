@@ -199,16 +199,17 @@ export const MatchPreparationModal: React.FC<MatchPreparationModalProps> = ({
                         {positions.map((position) => {
                           const selected = selectedPosition.team === team && selectedPosition.index === position - 1;
                           const number = rotation[position - 1];
+                          const setter = players.some(p => p.number === number && p.position === 'S');
                           return (
                             <button
                               key={position}
                               type="button"
-                              aria-label={`${team === 'home' ? match.homeTeamName : match.awayTeamName} P${position}, número ${number || 'sin asignar'}`}
+                              aria-label={`${team === 'home' ? match.homeTeamName : match.awayTeamName} P${position}, número ${number || 'sin asignar'}${setter ? ', armador' : ''}`}
                               aria-pressed={selected}
                               onClick={() => setSelectedPosition({ team, index: position - 1 })}
-                              className={`min-h-16 rounded-xl border-2 text-white flex flex-col items-center justify-center ${team === 'home' ? 'bg-blue-600' : 'bg-fuchsia-600'} ${selected ? 'border-white ring-2 ring-amber-400' : 'border-transparent'}`}
+                              className={`min-h-16 rounded-xl border-2 text-white flex flex-col items-center justify-center ${setter ? 'bg-amber-100 !text-slate-950' : team === 'home' ? 'bg-blue-600' : 'bg-fuchsia-600'} ${selected ? 'border-white ring-2 ring-amber-400' : 'border-transparent'}`}
                             >
-                              <span className="text-[10px] opacity-80">P{position}{position === 1 && serverTeam === team ? ' · SAQUE' : ''}</span>
+                              <span className="text-[10px] opacity-80">P{position}{setter ? ' · A' : ''}{position === 1 && serverTeam === team ? ' · SAQUE' : ''}</span>
                               <span className="text-2xl font-black font-mono">{number ? `#${number}` : '—'}</span>
                             </button>
                           );
@@ -243,7 +244,7 @@ export const MatchPreparationModal: React.FC<MatchPreparationModalProps> = ({
                         <button key={player.id} type="button" disabled={libero || selectedPosition.team !== team} onClick={() => assignPlayer(team, player.number)} aria-label={`Asignar #${player.number} ${player.name}`} className={`w-full flex items-center gap-2 text-left rounded-lg px-2 py-2 text-xs ${libero ? 'text-purple-300 bg-purple-500/10' : position ? 'text-white bg-slate-800' : 'text-slate-300 hover:bg-slate-800'}`}>
                           <span className="font-mono font-black shrink-0">#{player.number}</span>
                           <span className="truncate flex-1">{player.name}</span>
-                          <span className="text-[10px] shrink-0">{libero ? 'L' : position ? `P${position}` : ''}</span>
+                          <span className="text-[10px] shrink-0">{libero ? 'L' : `${player.position === 'S' ? 'A · ' : ''}${position ? `P${position}` : ''}`}</span>
                         </button>
                       );
                     })}
