@@ -15,7 +15,7 @@ export function isTerminalScoutAction(skill: VolleySkill, evaluation: Evaluation
 }
 
 /**
- * Suggests only rule-safe, high-confidence next actions.
+ * Suggests the next scouting entry without recording intermediate touches.
  * Terminal evaluations return null because the rally has ended.
  */
 export function nextScoutStep(team: TeamSide, skill: VolleySkill, evaluation: EvaluationSymbol): ScoutNextStep | null {
@@ -23,6 +23,6 @@ export function nextScoutStep(team: TeamSide, skill: VolleySkill, evaluation: Ev
   if (skill === 'S') return { team: other(team), skill: 'R' };
   if (skill === 'R') return { team, skill: 'E' };
   if (skill === 'E') return { team, skill: 'A' };
-  if (skill === 'A') return { team: other(team), skill: 'B' };
+  if (skill === 'A') return { team: other(team), skill: 'A' };
   return null;
 }
