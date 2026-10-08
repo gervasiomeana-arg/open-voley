@@ -1,3 +1,4 @@
+import { TacticalWhiteboard } from './components/TacticalWhiteboard';
 import React, { useState, useEffect } from 'react';
 import { applyRallyWinner, pointWinnerFromAction, rotateClockwise } from './utils/matchRotationEngine';
 import { evaluateSetCompletion, matchWinnerFromSets } from './utils/matchSetEngine';
@@ -80,7 +81,7 @@ import {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('home');
-  const [matchesSubTab, setMatchesSubTab] = useState<'center' | 'scout' | 'boxscore' | 'info'>('center');
+  const [matchesSubTab, setMatchesSubTab] = useState<'center' | 'scout' | 'boxscore' | 'info' | 'whiteboard'>('center');
   const [teamsSubTab, setTeamsSubTab] = useState<'rosters' | 'training'>('rosters');
   const [analysisSubTab, setAnalysisSubTab] = useState<'reports' | 'video'>('reports');
   const [aiSubTab, setAiSubTab] = useState<'coach' | 'telemetry'>('coach');
@@ -1206,6 +1207,11 @@ export default function App() {
                   </button>
 
                   <button
+                    onClick={() => setMatchesSubTab('whiteboard')}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-black transition shrink-0 ${matchesSubTab === 'whiteboard' ? 'bg-amber-500 text-slate-950' : 'text-slate-300 hover:bg-slate-800'}`}
+                  >Pizarra</button>
+
+                  <button
                     onClick={() => setMatchesSubTab('boxscore')}
                     className={`px-3.5 py-2 rounded-xl text-xs font-black transition flex items-center gap-2 shrink-0 ${
                       matchesSubTab === 'boxscore'
@@ -1263,6 +1269,8 @@ export default function App() {
                   onReopenMatch={handleReopenMatch}
                 />
               )}
+
+              {matchesSubTab === 'whiteboard' && <TacticalWhiteboard key={match.id} match={match} />}
 
               {/* Sub-view 2: Live Scouting on 2D Court */}
               {matchesSubTab === 'scout' && (
