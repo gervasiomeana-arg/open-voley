@@ -27,8 +27,11 @@ export const CourtRotationView: React.FC<{
     {teams.map((team,half)=>{
       const roster=team==='home'?match.homePlayers:match.awayPlayers,rotation=team==='home'?match.homeRotation:match.awayRotation;
       return <React.Fragment key={team}>
-        {side && <div className={`min-w-0 truncate text-center text-[10px] font-bold ${team==='home'?'text-blue-300':'text-fuchsia-300'}`} style={{gridColumn:half===0?2:4,gridRow:1}}>{team==='home'?match.homeTeamName:match.awayTeamName}</div>}
-        <div style={side?{gridColumn:half===0?1:5,gridRow:2}:{gridRow:half===0?1:5}}>{bench(team,half)}</div>
+        {side && <div className={`min-w-0 break-words whitespace-normal text-center text-[10px] font-bold ${team==='home'?'text-blue-300':'text-fuchsia-300'}`} style={{gridColumn:half===0?2:4,gridRow:1}}>{team==='home'?match.homeTeamName:match.awayTeamName}</div>}
+        <div className="min-w-0" style={side?{gridColumn:half===0?1:5,gridRow:2}:{gridRow:half===0?1:5}}>
+          {!side && <div className={`break-words whitespace-normal text-[10px] font-bold ${team==='home'?'text-blue-300':'text-fuchsia-300'}`}>{team==='home'?match.homeTeamName:match.awayTeamName}</div>}
+          {bench(team,half)}
+        </div>
         <div className={`grid min-h-0 gap-1 ${side?'grid-cols-2 grid-rows-3':'grid-cols-3 grid-rows-2'}`} style={side?{gridColumn:half===0?2:4,gridRow:2}:{gridRow:half===0?2:4}} data-court-team={team}>
           {courtPositionOrder(view,half).map(position=>{
             const number=rotation[position-1],player=roster.find(p=>p.number===number),setter=player?.position==='S',selected=team===activeTeam && selectedPlayer?.id===player?.id;
