@@ -1,3 +1,4 @@
+import { CompactScoutPanel } from './CompactScoutPanel';
 import { TargetZoneCourt } from './TargetZoneCourt';
 import { useScoutButtons, evaluationForKey } from '../utils/scoutButtonPreferences';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
@@ -114,6 +115,15 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
 }) => {
   // Active team being scouted
   const [activeTeam, setActiveTeam] = useState<TeamSide>('home');
+  const [compactView, setCompactView] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches);
+  useEffect(() => {
+    if (!compactView) return;
+    const before = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const close = (event: KeyboardEvent) => { if (event.key === 'Escape') setCompactView(false); };
+    window.addEventListener('keydown', close);
+    return () => { document.body.style.overflow = before; window.removeEventListener('keydown', close); };
+  }, [compactView]);
   
   // Staged player & skill for the rapid 2-step flow
   const [stagedPlayerId, setStagedPlayerId] = useState<string | null>(null);
@@ -327,7 +337,7 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
     if (stagedSkill === 'S') setSelectedServeType(null);
     if (next) {
       setActiveTeam(next.team);
-      setStagedSkill(next.skill);
+      setStagedSkill(next.skill === 'E' ? 'A' : next.skill);
       setStagedPlayerId(null);
     } else if (isTerminal) {
       // The match engine updates score/rotation/server. Prepare the UI for the
@@ -400,11 +410,6 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
       const upperKey = e.key.toUpperCase();
       if (upperKey === 'S') { setStagedSkill('S'); return; }
       if (upperKey === 'R') { setStagedSkill('R'); return; }
-      if (upperKey === 'E') {
-        // If skill already set, might be trigger error
-        setStagedSkill('E');
-        return;
-      }
       if (upperKey === 'A') { setStagedSkill('A'); return; }
       if (upperKey === 'B') { setStagedSkill('B'); return; }
       if (upperKey === 'D') { setStagedSkill('D'); return; }
@@ -424,7 +429,11 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
   const currentOutcomes = [...(SKILL_OUTCOMES[stagedSkill] || SKILL_OUTCOMES.A)]
     .sort((a, b) => scoutButtons.order.indexOf(a.symbol) - scoutButtons.order.indexOf(b.symbol));
 
+  if (compactView) return <CompactScoutPanel match={match} activeTeam={activeTeam} selectedPlayer={selectedPlayer} skill={stagedSkill} outcomes={currentOutcomes} onPlayer={selectScoutPlayer} onSkill={setStagedSkill} onEvaluate={handleCommitAction} onUndo={handleUndo} onClose={() => setCompactView(false)} confirmation={quickConfirmation} />;
+
   return (
+    <>
+    <button type="button" onClick={() => setCompactView(true)} className="min-h-11 rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-slate-950">Scout simple · Pantalla completa</button>
     <div className="space-y-4 select-none animate-fadeIn">
       {/* EPHEMERAL QUICK TOAST CONFIRMATION (Disappears in 1.2s without requiring 'Aceptar') */}
       {quickConfirmation && (
@@ -696,7 +705,7 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] font-mono">
             <div><strong className="text-white">1 .. 6:</strong> Jugador P1 .. P6</div>
-            <div><strong className="text-amber-300">S, R, E, A, B, D:</strong> Fundamento</div>
+            <div><strong className="text-amber-300">S, R, A, B, D:</strong> Fundamento</div>
             <div className="col-span-2 flex flex-wrap gap-3">{currentOutcomes.map(option => <span key={option.symbol}><strong className="text-amber-300">{scoutButtons.keys[option.symbol]} / {option.symbol}:</strong> {option.label}</span>)}</div>
             <div><strong className="text-white">Ctrl+Z:</strong> Deshacer</div>
           </div>
@@ -813,7 +822,7 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
             </div>
 
             <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5 sm:gap-2.5">
-              {SKILLS.map((skill) => {
+              {SKILLS.filter(s => s.id !== 'E').map((skill) => {
                 const isActive = stagedSkill === skill.id;
                 return (
                   <button
@@ -949,5 +958,6 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
       </div>
 
     </div>
+    </>
   );
 };
