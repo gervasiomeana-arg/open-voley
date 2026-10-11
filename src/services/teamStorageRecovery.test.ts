@@ -1,133 +1,26 @@
 import assert from 'node:assert/strict';
-import { setStorageUser, userStorage } from './userStorage';
-import { 
-  getSavedTeams, 
-  getSavedMatches, 
-  getCurrentMatch, 
-  recoverAllStoredData, 
-  importDataFromBackupJson,
-  SavedTeam,
-  SavedMatchRecord
-} from './teamStorage';
-
-const values = new Map<string, string>();
-Object.defineProperty(globalThis, 'localStorage', {
-  value: {
-    get length() { return values.size; },
-    key: (i: number) => [...values.keys()][i] ?? null,
-    getItem: (k: string) => values.get(k) ?? null,
-    setItem: (k: string, v: string) => values.set(k, v),
-    removeItem: (k: string) => values.delete(k),
-  },
-  configurable: true,
-});
-
-console.log('Testing team, match and player recovery...');
-
-// Scenario 1: User created custom teams while in guest mode or legacy unscoped key
-const customTeam: SavedTeam = {
-  id: 'team_custom_1',
-  name: 'Defensores de Banfield',
-  shortName: 'Banfield',
-  category: 'Sub 18',
-  gender: 'Femenino',
-  type: 'my_team',
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-  players: [
-    { id: 'p_101', number: 1, name: 'Sofia Rodriguez', position: 'S', team: 'home', starter: true },
-    { id: 'p_102', number: 4, name: 'Lucia Gomez', position: 'OH', team: 'home', starter: true },
-    { id: 'p_103', number: 7, name: 'Valeria Diaz', position: 'MB', team: 'home', starter: true },
-  ],
-};
-
-// Store in legacy unscoped key
-values.set('openvoley_saved_teams_v1', JSON.stringify([customTeam]));
-
-// User logs in as user-123
-setStorageUser('user-123');
-
-// getSavedTeams must automatically recover the custom team and its players!
-const recoveredTeams = getSavedTeams();
-assert.equal(recoveredTeams.some(t => t.name === 'Defensores de Banfield'), true, 'Custom team should be recovered');
-const banfield = recoveredTeams.find(t => t.name === 'Defensores de Banfield')!;
-assert.equal(banfield.players.length, 3, 'All 3 players must be recovered');
-
-// Scenario 2: Matches saved in guest key
-const customMatch: SavedMatchRecord = {
-  id: 'match_test_1',
-  title: 'Banfield vs Vélez',
-  competition: 'Metropolitano',
-  date: '2026-10-10',
-  homeTeamName: 'Defensores de Banfield',
-  awayTeamName: 'Vélez Sarsfield',
-  finalScore: '3 - 1',
-  matchData: {
-    id: 'match_test_1',
-    title: 'Banfield vs Vélez',
-    homeTeamName: 'Defensores de Banfield',
-    awayTeamName: 'Vélez Sarsfield',
-    competition: 'Metropolitano',
-    date: '2026-10-10',
-    venue: 'Cancha Central',
-    currentSet: 4,
-    status: 'finished',
-    sets: [
-      { setNumber: 1, scoreHome: 25, scoreAway: 20, winner: 'home' },
-      { setNumber: 2, scoreHome: 22, scoreAway: 25, winner: 'away' },
-      { setNumber: 3, scoreHome: 25, scoreAway: 18, winner: 'home' },
-      { setNumber: 4, scoreHome: 25, scoreAway: 21, winner: 'home' },
-    ],
-    homePlayers: banfield.players,
-    awayPlayers: [
-      { id: 'p_v1', number: 2, name: 'Clara Silva', position: 'OH', team: 'away', starter: true },
-    ],
-    actions: [],
-    homeRotation: [1, 2, 3, 4, 5, 6],
-    awayRotation: [1, 2, 3, 4, 5, 6],
-    server: { team: 'home', playerNum: 1 },
-  },
-  actionsCount: 45,
-  status: 'finished',
-  updatedAt: new Date().toISOString(),
-};
-
-// Store in guest scope
-values.set('ov-user:guest:openvoley_saved_matches_v1', JSON.stringify([customMatch]));
-
-const recoveredMatches = getSavedMatches();
-assert.equal(recoveredMatches.some(m => m.title === 'Banfield vs Vélez'), true, 'Match should be recovered');
-
-// Scenario 3: Active match recovery
-values.set('openvoley_current_match_v1', JSON.stringify(customMatch.matchData));
-const active = getCurrentMatch();
-assert.notEqual(active, null, 'Active match should be recovered');
-assert.equal(active?.homeTeamName, 'Defensores de Banfield');
-
-// Scenario 4: recoverAllStoredData utility
-const summary = recoverAllStoredData();
-assert.equal(summary.teams.some(t => t.name === 'Defensores de Banfield'), true);
-assert.equal(summary.matches.some(m => m.id === 'match_test_1'), true);
-
-// Scenario 5: importDataFromBackupJson
-const backupObj = {
-  teams: [
-    {
-      id: 'team_imported_1',
-      name: 'River Plate Sub 21',
-      shortName: 'River',
-      category: 'Sub 21',
-      gender: 'Femenino',
-      type: 'opponent',
-      players: [
-        { id: 'p_r1', number: 10, name: 'Martina River', position: 'OH', team: 'away', starter: true }
-      ]
-    }
-  ]
-};
-
-const importRes = importDataFromBackupJson(JSON.stringify(backupObj));
-assert.equal(importRes.teamsAdded, 1, 'Should import 1 team');
-assert.equal(getSavedTeams().some(t => t.name === 'River Plate Sub 21'), true, 'Imported team should be in saved teams');
-
-console.log('All team, match, and player recovery tests passed successfully!');
+import {setStorageUser,userStorage} from './userStorage';
+import {getSavedTeams,getSavedMatches,getCurrentMatch,saveTeam,deleteSavedTeam,saveMatchRecord,deleteSavedMatchRecord,importDataFromBackupJson,recoverAllStoredData} from './teamStorage';
+import {inspectLegacy,recoverLegacy,inspectBackup,recoverItems,restoreRecoveryCheckpoint,RECOVERY_CHECKPOINT,exportCurrentData} from './legacyRecovery';
+const values=new Map<string,string>();let failKey='';
+Object.defineProperty(globalThis,'localStorage',{value:{get length(){return values.size},key:(i:number)=>[...values.keys()][i]??null,getItem:(k:string)=>values.get(k)??null,setItem:(k:string,v:string)=>{if(k===failKey){failKey='';throw new Error('Quota')}values.set(k,v)},removeItem:(k:string)=>values.delete(k)},configurable:true});
+const tk='openvoley_saved_teams_v1',mk='openvoley_saved_matches_v1',ak='openvoley_current_match_v1';
+const team=(id:string,name='Equipo')=>({id,name,shortName:name,category:'Sub18',gender:'Femenino' as const,type:'my_team' as const,players:[{id:'p1',number:7,name:'Ana',position:'S' as const,team:'home' as const,starter:true}],createdAt:'2026-10-01',updatedAt:'2026-10-11'});
+const active={id:'m1',homeTeamName:'Local',awayTeamName:'Rival',homePlayers:team('t').players,awayPlayers:[],actions:[],currentSet:1,sets:[]};
+const match={id:'m1',title:'Partido',homeTeamName:'Local',awayTeamName:'Rival',matchData:active};
+const reset=()=>{values.clear();setStorageUser('a');failKey=''};
+reset();userStorage.setItem(tk,JSON.stringify([team('private-a')]));userStorage.setItem(mk,JSON.stringify([match]));userStorage.setItem(ak,JSON.stringify(active));userStorage.setItem('openvoley_user_cuts',JSON.stringify([{id:'cut-a'}]));
+setStorageUser('b');assert.equal(getSavedTeams().some(t=>t.id==='private-a'),false);assert.deepEqual(getSavedMatches(),[]);assert.equal(getCurrentMatch(),null);recoverAllStoredData();assert.equal(userStorage.getItem('openvoley_user_cuts'),null);assert.equal(values.has(tk),false);assert.equal(values.has('ov-user:guest:'+tk),false);
+reset();values.set(tk,JSON.stringify([team('old')]));values.set('ov-user:guest:'+mk,JSON.stringify([match]));const before=JSON.stringify([...values]);const review=inspectLegacy();assert.equal(JSON.stringify([...values]),before);assert.equal(getSavedTeams().some(t=>t.id==='old'),false);assert.deepEqual(getSavedMatches(),[]);assert.throws(()=>recoverLegacy([tk],false));recoverLegacy([tk,'ov-user:guest:'+mk],true);assert.equal(getSavedTeams().some(t=>t.id==='old'),true);assert.equal(getSavedMatches().length,1);assert.equal(values.get(tk),JSON.stringify([team('old')]));
+reset();values.set('ov-user:old:'+tk,JSON.stringify([team('old')]));assert.equal(inspectLegacy().length,0);assert.equal(inspectLegacy(true).length,1);recoverLegacy(['ov-user:old:'+tk],true,false,true);assert.equal(getSavedTeams().some(t=>t.id==='old'),true);restoreRecoveryCheckpoint();assert.equal(userStorage.getItem(tk),null);
+reset();const recent=team('same','Actual');userStorage.setItem(tk,JSON.stringify([recent]));values.set(tk,JSON.stringify([{...recent,name:'Antiguo',players:[{...recent.players[0],position:'L'}]}]));recoverLegacy([tk],true);assert.equal(getSavedTeams()[0].name,'Actual');assert.equal(getSavedTeams()[0].players[0].position,'S');deleteSavedTeam('same');assert.deepEqual(getSavedTeams(),[]);recoverLegacy([tk],true);assert.deepEqual(getSavedTeams(),[]);
+reset();saveTeam(team('private'));assert.equal(values.has(tk),false);assert.equal(values.has('ov-user:guest:'+tk),false);saveMatchRecord(match as any);deleteSavedMatchRecord('m1');values.set(mk,JSON.stringify([match]));recoverLegacy([mk],true);assert.deepEqual(getSavedMatches(),[]);
+reset();userStorage.setItem(ak,JSON.stringify(active));values.set(ak,JSON.stringify({...active,id:'previous'}));recoverLegacy([ak],true);assert.equal(getCurrentMatch()?.id,'m1');recoverLegacy([ak],true,true);assert.equal(getCurrentMatch()?.id,'previous');restoreRecoveryCheckpoint();assert.equal(getCurrentMatch()?.id,'m1');
+reset();const initial=JSON.stringify([...values]);const bad=importDataFromBackupJson(JSON.stringify({teams:[team('valid'),{id:'bad',name:22,players:null}]}),true);assert.ok(bad.error);assert.equal(JSON.stringify([...values]),initial);assert.ok(importDataFromBackupJson('{}',true).error);assert.ok(importDataFromBackupJson(JSON.stringify({teams:[team('new')]})).error);
+const backup=inspectBackup(JSON.stringify({teams:[team('new')],matches:[match]}));assert.ok(backup.some(i=>i.targetKey===tk));assert.ok(backup.some(i=>i.label.startsWith('Plantel')));const untouched=JSON.stringify([...values]);assert.throws(()=>recoverItems(backup,false));assert.equal(JSON.stringify([...values]),untouched);
+const oldTeams=JSON.stringify([team('existing')]);userStorage.setItem(tk,oldTeams);userStorage.setItem(RECOVERY_CHECKPOINT,'previous-checkpoint');failKey='ov-user:a:'+mk;assert.throws(()=>recoverItems(backup,true),/Quota/);assert.equal(userStorage.getItem(tk),oldTeams);assert.equal(userStorage.getItem(mk),null);assert.equal(userStorage.getItem(RECOVERY_CHECKPOINT),'previous-checkpoint');
+const imported=importDataFromBackupJson(JSON.stringify({teams:[team('new')],matches:[match]}),true);assert.equal(imported.teamsAdded,2);assert.equal(imported.matchesAdded,1);const repeated=importDataFromBackupJson(JSON.stringify({teams:[team('new')],matches:[match]}),true);assert.equal(repeated.teamsAdded,0);assert.equal(repeated.matchesAdded,0);
+reset();userStorage.setItem(ak,JSON.stringify(active));const settingsBackup=inspectBackup(JSON.stringify({version:'2.4',match:active}));assert.ok(settingsBackup.some(i=>i.targetKey===ak));const exported=exportCurrentData();assert.ok(inspectBackup(JSON.stringify(exported)).some(i=>i.targetKey===ak));
+reset();userStorage.setItem(tk,JSON.stringify([team('keep')]));const deleteBefore=JSON.stringify([...values]);failKey='ov-user:a:'+tk;assert.throws(()=>deleteSavedTeam('keep'),/Quota/);assert.equal(JSON.stringify([...values]),deleteBefore);
+reset();const distinct=[{...match,id:'one'},{...match,id:'two'}];recoverItems(inspectBackup(JSON.stringify({matches:distinct})),true);assert.equal(getSavedMatches().length,2);
+console.log('Safe recovery: isolation, read-only discovery, explicit ownership, prior scopes, current data, deletions, active match confirmation, validated imports and quota rollback passed.');

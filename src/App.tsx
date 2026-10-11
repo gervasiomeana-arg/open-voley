@@ -47,8 +47,7 @@ import {
   SavedMatchRecord,
   getCurrentMatch,
   saveCurrentMatch,
-  recoverAllStoredData,
-  importDataFromBackupJson
+  recoverAllStoredData
 } from './services/teamStorage';
 import { getAuthenticatedSession, logoutAuthenticatedSession } from './services/authSession';
 import { enrichActionsWithRallyContext } from './utils/rallyContext';
@@ -109,11 +108,9 @@ export default function App() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
 
+  const [currentUser, setCurrentUser] = useState<ClientUser | null>(null);
   const [isResearchUnlocked, setIsResearchUnlocked] = useState(false);
-  const [match, setMatch] = useState<MatchData>(() => {
-    const active = getCurrentMatch();
-    return active || sampleMatchData;
-  });
+  const [match, setMatch] = useState<MatchData>(sampleMatchData);
   const [selectedActionId, setSelectedActionId] = useState<string | null>(null);
   const [evidenceRallyIds, setEvidenceRallyIds] = useState<string[]>([]);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -129,16 +126,16 @@ export default function App() {
   const [isFinishMatchModalOpen, setIsFinishMatchModalOpen] = useState(false);
   const [isSavedMatchesModalOpen, setIsSavedMatchesModalOpen] = useState(false);
   const [isQuickGuideOpen, setIsQuickGuideOpen] = useState(false);
-  const [savedTeams, setSavedTeams] = useState<SavedTeam[]>(() => getSavedTeams());
-  const [savedMatches, setSavedMatches] = useState<SavedMatchRecord[]>(() => getSavedMatches());
+  const [savedTeams, setSavedTeams] = useState<SavedTeam[]>([]);
+  const [savedMatches, setSavedMatches] = useState<SavedMatchRecord[]>([]);
   const [floatingToast, setFloatingToast] = useState<{ title: string; subtitle?: string } | null>(null);
 
   // Sync current active match to localStorage so Scout and all views always use currentMatch
   useEffect(() => {
-    if (match) {
+    if (currentUser && match) {
       saveCurrentMatch(match);
     }
-  }, [match]);
+  }, [match, currentUser?.id]);
 
   // A new set must never start with the previous set's lineup silently.
   useEffect(() => {
@@ -168,41 +165,28 @@ export default function App() {
   const [videoFileSize, setVideoFileSize] = useState<string | null>(null);
   const [videoFocusTimestamp, setVideoFocusTimestamp] = useState<number | null>(null);
   
-  const [userCuts, setUserCuts] = useState<ScoutCodeAction[]>(() => {
-    try {
-      const stored = userStorage.getItem('openvoley_user_cuts');
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [userCuts, setUserCuts] = useState<ScoutCodeAction[]>([]);
+  const [aiRallies, setAiRallies] = useState<RallyDetection[]>([]);
 
-  const [aiRallies, setAiRallies] = useState<RallyDetection[]>(() => {
-    try {
-      const stored = userStorage.getItem('openvoley_ai_rallies');
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  // Sync user cuts to localStorage
+  // Save only after this account has been loaded and verified.
   useEffect(() => {
+    if (!currentUser) return;
     try {
       userStorage.setItem('openvoley_user_cuts', JSON.stringify(userCuts));
     } catch (e) {
       console.warn('Could not save user cuts:', e);
     }
-  }, [userCuts]);
+  }, [userCuts, currentUser?.id]);
 
-  // Sync AI rallies to localStorage
+  // Sync AI rallies to account storage
   useEffect(() => {
+    if (!currentUser) return;
     try {
       userStorage.setItem('openvoley_ai_rallies', JSON.stringify(aiRallies));
     } catch (e) {
       console.warn('Could not save AI rallies:', e);
     }
-  }, [aiRallies]);
+  }, [aiRallies, currentUser?.id]);
 
   const handleSetVideoSrc = (src: string, fileName?: string, fileSize?: string) => {
     setVideoSrc(src);
@@ -235,7 +219,6 @@ export default function App() {
   };
 
   // Authentication is server-authoritative. Browser storage is never accepted as identity.
-  const [currentUser, setCurrentUser] = useState<ClientUser | null>(null);
   const [trialInfo, setTrialInfo] = useState<TrialInfo | null>(null);
 
   useEffect(() => {
@@ -279,18 +262,21 @@ export default function App() {
         if (cancelled) return;
 
         if (session) {
+          const rec = recoverAllStoredData();
+          const cuts = JSON.parse(userStorage.getItem('openvoley_user_cuts') || '[]');
+          const rallies = JSON.parse(userStorage.getItem('openvoley_ai_rallies') || '[]');
+          if (!Array.isArray(cuts) || !Array.isArray(rallies)) throw new Error('Los datos locales requieren revisión.');
+          setSavedTeams(rec.teams);
+          setSavedMatches(rec.matches);
+          setMatch(rec.activeMatch || sampleMatchData);
+          setUserCuts(cuts);
+          setAiRallies(rallies);
           setCurrentUser(session.user);
           setTrialInfo(session.trial);
         } else {
           setCurrentUser(null);
           setTrialInfo(null);
         }
-
-        // Recover and synchronize all stored teams, matches, and players across all storage scopes
-        const rec = recoverAllStoredData();
-        if (rec.teams.length > 0) setSavedTeams(rec.teams);
-        if (rec.matches.length > 0) setSavedMatches(rec.matches);
-        if (rec.activeMatch) setMatch(rec.activeMatch);
       } catch (error) {
         console.error('Could not synchronize verified OPEN VOLEY session:', error);
         if (!cancelled) {
@@ -310,33 +296,26 @@ export default function App() {
     };
   }, []);
 
-  // Immediate auto-recovery on mount to restore any teams, matches, or players
-  useEffect(() => {
-    const rec = recoverAllStoredData();
-    if (rec.teams.length > 0) setSavedTeams(rec.teams);
-    if (rec.matches.length > 0) setSavedMatches(rec.matches);
-    if (rec.activeMatch) setMatch(rec.activeMatch);
-  }, []);
-
-  // Listen for storage events across tabs
+  // Storage events only refresh this verified account. They never write or scan other scopes.
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
-      if (e.key && (e.key.includes('saved_teams') || e.key.includes('saved_matches') || e.key.includes('current_match'))) {
-        const rec = recoverAllStoredData();
-        setSavedTeams(rec.teams);
-        setSavedMatches(rec.matches);
-        if (rec.activeMatch) setMatch(rec.activeMatch);
+      if (!currentUser) return;
+      const prefix = `ov-user:${encodeURIComponent(currentUser.id)}:`;
+      if (e.key?.startsWith(prefix) && /saved_teams|saved_matches|current_match/.test(e.key.slice(prefix.length))) {
+        setSavedTeams(getSavedTeams());
+        setSavedMatches(getSavedMatches());
+        const active = getCurrentMatch();
+        if (active) setMatch(active);
       }
     };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
-  }, []);
+  }, [currentUser?.id]);
 
   const handleLoginSuccess = (user: ClientUser, trial: TrialInfo) => {
     // GoogleAuthModal obtains these values only from /api/auth/me after the HttpOnly
     // session cookie has been created and verified by the backend.
-    setCurrentUser(user);
-    setTrialInfo(trial);
+    // Reload and hydrate the verified account before enabling persistence.
     setShowAuthModal(false);
     window.location.reload();
   };
