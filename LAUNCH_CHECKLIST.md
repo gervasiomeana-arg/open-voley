@@ -22,7 +22,7 @@ Los cambios de precio se aplican a nuevos cobros; los iniciados antes mantienen 
 
 ## Datos anteriores y pruebas obligatorias
 
-El almacenamiento del navegador queda separado por cuenta. Los datos antiguos sin propietario no se asignan automáticamente a quien ingrese. No se borran, pero dejan de aparecer en la nueva vista: preparar una exportación de los partidos anteriores y una migración revisada antes de publicar.
+El almacenamiento del navegador queda separado por cuenta. Los datos antiguos sin propietario no se asignan automáticamente a quien ingrese. No se borran, pero dejan de aparecer en la nueva vista. El administrador dispone de una recuperación revisable por categorías, exportación de respaldo y opción de deshacer local; ver RECOVERY_RUNBOOK.md antes de importar.
 
 Verificar en el despliegue real: dos cuentas independientes, administrador y usuario normal, cuenta vencida y bloqueada, cierre de sesión, cobro sandbox, notificación con firma válida, reembolso, cambio de precio con un cobro anterior pendiente, carga/render de vídeo y comportamiento en móvil/tablet.
 
@@ -30,7 +30,7 @@ Por defecto: 250 MB por archivo de vídeo, 2 GB por cuenta, dos cargas simultán
 
 ## Pendientes antes de venta abierta
 
-- Copia y restauración real de SQLite (usar la API de backup o detener escrituras; no copiar solo el archivo principal con WAL activo), cuentas y vídeos, en almacenamiento externo. Recuperación ante reinicio y redeploy.
+- Las herramientas de copia, verificación y restauración de SQLite, cuentas y vídeos están implementadas y probadas con datos sintéticos (RECOVERY_RUNBOOK.md). Configurar almacenamiento externo y retención; comprobar una restauración real y persistencia ante reinicio/redeploy antes de venta abierta.
 - Verificar vulnerabilidades con el lockfile de Bun y las versiones exactas del despliegue. npm audit no admite directamente bun.lock.
 - Acordar y publicar contacto real de soporte, política de privacidad, condiciones comerciales y procedimiento de eliminación de cuenta/datos. El formulario ya explica el uso y permite borrar interesados; eso no cubre todos los datos de una cuenta.
 - Reconciliación de pagos fallidos y prueba de casos de reversión parciales. Monitorizar errores y costes.

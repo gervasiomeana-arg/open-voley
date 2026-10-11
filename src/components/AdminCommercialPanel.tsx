@@ -1,3 +1,4 @@
+import {LegacyRecoveryPanel} from './LegacyRecoveryPanel';
 import React,{useEffect,useState} from 'react';
 export const AdminCommercialPanel=()=>{
  const [prices,setPrices]=useState<any>(null),[leads,setLeads]=useState<any[]>([]),[visits,setVisits]=useState<any[]>([]),[total,setTotal]=useState(0),[message,setMessage]=useState(''),[busy,setBusy]=useState(false);
@@ -7,6 +8,7 @@ export const AdminCommercialPanel=()=>{
  const exportLeads=()=>{const quote=(v:any)=>'"'+String(v??'').replace(/^[=+@-]/,"'$&").replace(/"/g,'""')+'"';const csv=[['Nombre','Correo','Club','Teléfono','Origen','Correo verificado','Autorizó contacto','Primer registro','Último registro'],...leads.map(l=>[l.name,l.email,l.club,l.phone,l.source,l.verified?'Sí':'No',l.consent?'Sí':'No',l.firstSeen,l.lastSeen])].map(row=>row.map(quote).join(';')).join('\r\n');const url=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}));const link=document.createElement('a');link.href=url;link.download='OPEN_VOLEY_interesados.csv';link.click();URL.revokeObjectURL(url)};
  const remove=async(email:string)=>{if(!window.confirm('¿Eliminar los datos de este interesado?'))return;const r=await fetch('/api/commercial/leads/'+encodeURIComponent(email),{method:'DELETE'});if(r.ok)await load();else setMessage('No se pudo eliminar.')};
  return <section className="space-y-5 bg-slate-900 p-5 rounded-2xl border border-slate-700"><h2 className="text-2xl font-bold">Administración comercial</h2><p role="status">{message}</p>
+ <LegacyRecoveryPanel />
  <h3 className="font-bold">Precio de uso de la app</h3><p className="text-sm text-slate-300">Definí el pago mensual por plan y moneda. El precio anual se configura por separado. Los cobros ya iniciados conservan su importe.</p>
  {prices&&Object.entries(prices).map(([id,plan]:[string,any])=><fieldset key={id} className="border border-slate-700 rounded p-3"><legend>{plan.name}</legend><div className="grid sm:grid-cols-4 gap-3">{(['monthly','annual'] as const).flatMap(cycle=>(['ARS','USD'] as const).map(currency=><label key={cycle+currency} className="text-sm">{cycle==='monthly'?'Mensual':'Anual'} {currency}<input type="number" min="0.01" step="0.01" value={plan[cycle][currency]} onChange={e=>setPrices({...prices,[id]:{...plan,[cycle]:{...plan[cycle],[currency]:Number(e.target.value)}}})} className="block bg-slate-800 p-2 rounded w-full"/></label>))}</div></fieldset>)}
  <button disabled={busy||!prices} onClick={save} className="bg-amber-500 text-slate-950 rounded p-3 font-bold">{busy?'Guardando…':'Guardar precios'}</button>

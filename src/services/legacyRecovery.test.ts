@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {setStorageUser,userStorage} from './userStorage';
+import {inspectLegacy,legacyExport,recoverLegacy,restoreRecoveryCheckpoint} from './legacyRecovery';
+const values=new Map<string,string>();let failKey='';
+Object.defineProperty(globalThis,'localStorage',{value:{get length(){return values.size},key:(i:number)=>[...values.keys()][i]??null,getItem:(k:string)=>values.get(k)??null,setItem:(k:string,v:string)=>{if(k===failKey){failKey='';throw new Error('Quota')}values.set(k,v)},removeItem:(k:string)=>values.delete(k)},configurable:true});
+const teams='openvoley_saved_teams_v1',matches='openvoley_saved_matches_v1';
+localStorage.setItem(teams,JSON.stringify([{id:'same',name:'old',players:[]},{id:'new',name:'new',players:[]}]));localStorage.setItem(matches,'broken');localStorage.setItem('authSession','private-secret');
+assert.equal(inspectLegacy().find(i=>i.key===matches)?.error!==undefined,true);assert.equal(JSON.stringify(legacyExport()).includes('private-secret'),false);
+setStorageUser(null);assert.throws(()=>recoverLegacy([teams],true));setStorageUser('a');assert.throws(()=>recoverLegacy([teams],false));assert.throws(()=>recoverLegacy([matches],true));
+userStorage.setItem(teams,JSON.stringify([{id:'same',name:'keep',players:[]}]));const original=userStorage.getItem(teams);const result=recoverLegacy([teams],true);assert.deepEqual(result,{added:1,skipped:1});assert.equal(JSON.parse(userStorage.getItem(teams)!)[0].name,'keep');
+setStorageUser('b');assert.equal(userStorage.getItem(teams),null);assert.throws(restoreRecoveryCheckpoint);setStorageUser('a');restoreRecoveryCheckpoint();assert.equal(userStorage.getItem(teams),original);assert.equal(JSON.parse(localStorage.getItem(teams)!)[0].name,'old');
+localStorage.setItem(matches,JSON.stringify([{id:'m',homeTeamName:'A',awayTeamName:'B',matchData:{}}]));failKey='ov-user:a:'+matches;assert.throws(()=>recoverLegacy([teams,matches],true),/Quota/);assert.equal(userStorage.getItem(teams),original);assert.equal(userStorage.getItem(matches),null);
+console.log('Legacy recovery validation, ownership, duplicate preservation, undo and quota rollback tests passed.');
