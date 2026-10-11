@@ -1,9 +1,8 @@
-import React, { useRef, useState } from 'react';
+import {LegacyRecoveryPanel} from './LegacyRecoveryPanel';
+import React, { useState } from 'react';
 import { 
   SavedMatchRecord, 
   deleteSavedMatchRecord, 
-  recoverAllStoredData, 
-  importDataFromBackupJson, 
   getSavedMatches 
 } from '../services/teamStorage';
 import { 
@@ -19,8 +18,7 @@ import {
   Clock, 
   CheckCircle2,
   RotateCcw,
-  Upload,
-  Sparkles
+  Upload
 } from 'lucide-react';
 import { MatchData } from '../types';
 
@@ -41,43 +39,10 @@ export const SavedMatchesModal: React.FC<SavedMatchesModalProps> = ({
   onLoadMatch,
   onOpenNewMatch,
 }) => {
+  const [reviewRecovery,setReviewRecovery] = useState(false);
   if (!isOpen) return null;
-
   const safeMatches = matches || [];
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [feedback, setFeedback] = useState<string | null>(null);
-
-  const handleManualRecovery = () => {
-    const res = recoverAllStoredData();
-    if (onMatchesUpdated) {
-      onMatchesUpdated(res.matches);
-    }
-    setFeedback(`¡Recuperación completada! Se restauraron ${res.matches.length} partidos y ${res.teams.length} equipos.`);
-    window.setTimeout(() => setFeedback(null), 6000);
-  };
-
-  const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string;
-      if (!content) return;
-      const res = importDataFromBackupJson(content);
-      if (res.error) {
-        alert(`Error: ${res.error}`);
-        return;
-      }
-      const updated = getSavedMatches();
-      if (onMatchesUpdated) {
-        onMatchesUpdated(updated);
-      }
-      setFeedback(`¡Importación exitosa! ${res.matchesAdded} partidos restaurados.`);
-      window.setTimeout(() => setFeedback(null), 6000);
-    };
-    reader.readAsText(file);
-    if (e.target) e.target.value = '';
-  };
+  const handleManualRecovery = () => setReviewRecovery(true);
 
   const handleDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -120,16 +85,8 @@ export const SavedMatchesModal: React.FC<SavedMatchesModalProps> = ({
               <span>Recuperar Datos</span>
             </button>
 
-            {/* Hidden File Input */}
-            <input
-              type="file"
-              ref={fileInputRef}
-              accept=".json"
-              onChange={handleFileImport}
-              className="hidden"
-            />
             <button
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => setReviewRecovery(true)}
               className="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 transition cursor-pointer shadow-sm"
               title="Importar archivo JSON o copia de seguridad"
             >
@@ -153,15 +110,7 @@ export const SavedMatchesModal: React.FC<SavedMatchesModalProps> = ({
           </div>
         </div>
 
-        {/* Feedback alert */}
-        {feedback && (
-          <div className="mx-6 mt-4 p-3 bg-amber-950/80 border border-amber-500/50 rounded-2xl flex items-center gap-2.5 text-amber-200 text-xs font-medium">
-            <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
-            <span className="flex-1">{feedback}</span>
-            <button onClick={() => setFeedback(null)} className="text-amber-400 hover:text-white">✕</button>
-          </div>
-        )}
-
+        {reviewRecovery && <div className="overflow-y-auto p-4"><LegacyRecoveryPanel onRecovered={()=>onMatchesUpdated?.(getSavedMatches())} /></div>}
         {/* Content */}
         <div className="p-6 overflow-y-auto flex-1 custom-scrollbar space-y-3">
           {safeMatches.length === 0 ? (
