@@ -1,11 +1,18 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import fs from 'node:fs';
 import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [react(), tailwindcss(), (()=>{
+      let googleClientId='';
+      return {name:'openvoley-client-build',apply:'build' as const,
+        configResolved(config:any){googleClientId=String(config.env.VITE_GOOGLE_CLIENT_ID||'').trim();},
+        closeBundle(){fs.mkdirSync('server-build',{recursive:true});fs.writeFileSync('server-build/client-build.json',JSON.stringify({version:1,builtAt:new Date().toISOString(),googleClientId}),{mode:0o600});}
+      };
+    })()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
