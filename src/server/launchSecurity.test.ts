@@ -71,5 +71,20 @@ await secureMercadoPago(webhook as any,response() as any,()=>{});assert.equal(lo
 globalThis.fetch=(async()=>({ok:false})) as any;const retry=response();await secureMercadoPago(webhook as any,retry as any,()=>{});assert.equal(retry.code,502);
 const guard=(commercialRouter as any).stack.find((l:any)=>!l.route).handle;
 const forbidden=response();guard({headers:{}} as any,forbidden,()=>{throw new Error('Should not authorize anonymous admin')});assert.equal(forbidden.code,401);
+const previousNodeEnv=process.env.NODE_ENV,previousPreviewFlag=process.env.ALLOW_IFRAME_PREVIEW;
+delete process.env.ALLOW_IFRAME_PREVIEW;
+for(const mode of ['development','production']){
+ process.env.NODE_ENV=mode;
+ const page=response();let served=false;
+ securityMiddleware({method:'GET',path:'/',headers:{}} as any,page as any,()=>{served=true});
+ assert.equal(served,true);
+ assert.equal(page.headers['Content-Security-Policy'],mode==='production'?"frame-ancestors 'self'":"frame-ancestors 'self' https://aistudio.google.com");
+ if(mode==='production')assert.equal(page.headers['Strict-Transport-Security'],'max-age=31536000; includeSubDomains');
+ const adminPage=response();let opened=false;
+ securityMiddleware({method:'GET',path:'/api/clients',headers:{}} as any,adminPage as any,()=>{opened=true});
+ assert.equal(opened,false);assert.equal(adminPage.code,401);
+}
+if(previousNodeEnv===undefined)delete process.env.NODE_ENV;else process.env.NODE_ENV=previousNodeEnv;
+if(previousPreviewFlag===undefined)delete process.env.ALLOW_IFRAME_PREVIEW;else process.env.ALLOW_IFRAME_PREVIEW=previousPreviewFlag;
 console.log('Launch security tests passed: auth, admin, revocation, license, leads, price snapshot, payment idempotency and refunds.');
 process.chdir(originalCwd);fs.rmSync(temp,{recursive:true,force:true});
