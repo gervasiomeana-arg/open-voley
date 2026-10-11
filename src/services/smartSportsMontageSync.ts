@@ -1,3 +1,4 @@
+import { userStorage } from './userStorage';
 import { SmartSportsMontage } from '../types';
 import {
   getSavedSmartSportsMontages,
@@ -7,7 +8,7 @@ import {
 
 function replaceLocalMontages(montages: SmartSportsMontage[]) {
   try {
-    localStorage.setItem('openvoley_smart_sports_montages_v1', JSON.stringify(montages));
+    userStorage.setItem('openvoley_smart_sports_montages_v1', JSON.stringify(montages));
   } catch (error) {
     console.error('Error replacing smart sports montages:', error);
   }

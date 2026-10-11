@@ -1,3 +1,4 @@
+import { userStorage } from './userStorage';
 import { SmartSportsMontage } from '../types';
 
 export const SMART_SPORTS_MONTAGES_KEY = 'openvoley_smart_sports_montages_v1';
@@ -20,7 +21,7 @@ function isMontage(value: unknown): value is SmartSportsMontage {
 
 export function getSavedSmartSportsMontages(): SmartSportsMontage[] {
   try {
-    const raw = localStorage.getItem(SMART_SPORTS_MONTAGES_KEY);
+    const raw = userStorage.getItem(SMART_SPORTS_MONTAGES_KEY);
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
@@ -38,7 +39,7 @@ export function saveSmartSportsMontage(montage: SmartSportsMontage): SmartSports
     : [montage, ...current];
 
   try {
-    localStorage.setItem(SMART_SPORTS_MONTAGES_KEY, JSON.stringify(updated));
+    userStorage.setItem(SMART_SPORTS_MONTAGES_KEY, JSON.stringify(updated));
   } catch (error) {
     console.error('Error saving smart sports montage:', error);
   }
@@ -48,7 +49,7 @@ export function saveSmartSportsMontage(montage: SmartSportsMontage): SmartSports
 export function deleteSmartSportsMontage(id: string): SmartSportsMontage[] {
   const updated = getSavedSmartSportsMontages().filter((item) => item.id !== id);
   try {
-    localStorage.setItem(SMART_SPORTS_MONTAGES_KEY, JSON.stringify(updated));
+    userStorage.setItem(SMART_SPORTS_MONTAGES_KEY, JSON.stringify(updated));
   } catch (error) {
     console.error('Error deleting smart sports montage:', error);
   }

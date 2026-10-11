@@ -1,3 +1,4 @@
+import { userStorage } from './services/userStorage';
 import { TacticalWhiteboard } from './components/TacticalWhiteboard';
 import React, { useState, useEffect } from 'react';
 import { applyRallyWinner, pointWinnerFromAction, rotateClockwise } from './utils/matchRotationEngine';
@@ -167,7 +168,7 @@ export default function App() {
   
   const [userCuts, setUserCuts] = useState<ScoutCodeAction[]>(() => {
     try {
-      const stored = localStorage.getItem('openvoley_user_cuts');
+      const stored = userStorage.getItem('openvoley_user_cuts');
       return stored ? JSON.parse(stored) : [];
     } catch {
       return [];
@@ -176,7 +177,7 @@ export default function App() {
 
   const [aiRallies, setAiRallies] = useState<RallyDetection[]>(() => {
     try {
-      const stored = localStorage.getItem('openvoley_ai_rallies');
+      const stored = userStorage.getItem('openvoley_ai_rallies');
       return stored ? JSON.parse(stored) : [];
     } catch {
       return [];
@@ -186,7 +187,7 @@ export default function App() {
   // Sync user cuts to localStorage
   useEffect(() => {
     try {
-      localStorage.setItem('openvoley_user_cuts', JSON.stringify(userCuts));
+      userStorage.setItem('openvoley_user_cuts', JSON.stringify(userCuts));
     } catch (e) {
       console.warn('Could not save user cuts:', e);
     }
@@ -195,7 +196,7 @@ export default function App() {
   // Sync AI rallies to localStorage
   useEffect(() => {
     try {
-      localStorage.setItem('openvoley_ai_rallies', JSON.stringify(aiRallies));
+      userStorage.setItem('openvoley_ai_rallies', JSON.stringify(aiRallies));
     } catch (e) {
       console.warn('Could not save AI rallies:', e);
     }
@@ -307,14 +308,11 @@ export default function App() {
     setCurrentUser(user);
     setTrialInfo(trial);
     setShowAuthModal(false);
+    window.location.reload();
   };
 
   const handleLogout = () => {
-    void logoutAuthenticatedSession().finally(() => {
-      setCurrentUser(null);
-      setTrialInfo(null);
-      setShowAuthModal(false);
-    });
+    void logoutAuthenticatedSession().then(() => window.location.reload()).catch(() => window.alert('No se pudo cerrar la sesión. Reintentá.'));
   };
 
   // Handlers for scouting actions

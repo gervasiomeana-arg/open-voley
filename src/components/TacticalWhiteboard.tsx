@@ -1,3 +1,4 @@
+import { userStorage } from '../services/userStorage';
 import { CourtViewControls, useCourtView } from './CourtRotationView';
 import React, { useEffect, useRef, useState } from 'react';
 import { MatchData } from '../types';
@@ -44,7 +45,7 @@ export const TacticalWhiteboard: React.FC<{ match: MatchData }> = ({ match }) =>
   const world = useRef<SVGGElement>(null);
   const storageKey = `openvoley.whiteboard.v1.${match.id}`;
   const [board, setBoard] = useState<Board>(() => {
-    try { const saved = JSON.parse(localStorage.getItem(storageKey) || 'null'); if (validWhiteboard(saved)) return { ...saved, tokens: saved.tokens.map(t => t.label.startsWith('L') && t.x === 23 && [140, 200, 420, 480].includes(t.y) ? { ...t, x: t.team === 'home' ? 270 - (t.y === 200 ? 50 : 0) : 90 + (t.y === 480 ? 50 : 0), y: t.team === 'home' ? 25 : 615 } : t) }; } catch { /* Start with formation. */ }
+    try { const saved = JSON.parse(userStorage.getItem(storageKey) || 'null'); if (validWhiteboard(saved)) return { ...saved, tokens: saved.tokens.map(t => t.label.startsWith('L') && t.x === 23 && [140, 200, 420, 480].includes(t.y) ? { ...t, x: t.team === 'home' ? 270 - (t.y === 200 ? 50 : 0) : 90 + (t.y === 480 ? 50 : 0), y: t.team === 'home' ? 25 : 615 } : t) }; } catch { /* Start with formation. */ }
     return initialWhiteboard(match);
   });
   const [history, setHistory] = useState<Board[]>([]);
@@ -57,7 +58,7 @@ export const TacticalWhiteboard: React.FC<{ match: MatchData }> = ({ match }) =>
   const latest = useRef(board);
   latest.current = board;
   useEffect(() => {
-    try { localStorage.setItem(storageKey, JSON.stringify(board)); setSaveMessage('Pizarra guardada en este navegador.'); }
+    try { userStorage.setItem(storageKey, JSON.stringify(board)); setSaveMessage('Pizarra guardada en este navegador.'); }
     catch { setSaveMessage('No se pudo guardar; la pizarra sigue disponible mientras permanezcas aquí.'); }
   }, [board, storageKey]);
   useEffect(() => {

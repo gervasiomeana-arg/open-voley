@@ -1,3 +1,4 @@
+import {userStorage} from './userStorage';
 import assert from 'node:assert/strict';
 import { SmartSportsMontage } from '../types';
 import { SMART_SPORTS_MONTAGES_KEY } from './smartSportsMontageStorage';
@@ -23,7 +24,7 @@ function montage(id:string, name:string, updatedAt='2026-09-18T20:00:00.000Z'): 
   };
 }
 
-localStorage.setItem(SMART_SPORTS_MONTAGES_KEY, JSON.stringify([montage('local-1','Local')]));
+userStorage.setItem(SMART_SPORTS_MONTAGES_KEY, JSON.stringify([montage('local-1','Local')]));
 const writes: SmartSportsMontage[] = [];
 (globalThis as typeof globalThis & { fetch: typeof fetch }).fetch = (async (input, init) => {
   const url = String(input);
@@ -41,7 +42,7 @@ const mergedLocal = await syncSmartSportsMontages();
 assert.equal(mergedLocal[0].id, 'local-1');
 assert.equal(writes[0].id, 'local-1');
 
-localStorage.setItem(SMART_SPORTS_MONTAGES_KEY, JSON.stringify([]));
+userStorage.setItem(SMART_SPORTS_MONTAGES_KEY, JSON.stringify([]));
 (globalThis as typeof globalThis & { fetch: typeof fetch }).fetch = (async (input, init) => {
   const url = String(input);
   if (url === '/api/smart-sports-montages' && (!init || init.method === 'GET')) {
@@ -53,7 +54,7 @@ localStorage.setItem(SMART_SPORTS_MONTAGES_KEY, JSON.stringify([]));
 const mergedRemote = await syncSmartSportsMontages();
 assert.equal(mergedRemote[0].id, 'remote-1');
 
-localStorage.setItem(SMART_SPORTS_MONTAGES_KEY, JSON.stringify([
+userStorage.setItem(SMART_SPORTS_MONTAGES_KEY, JSON.stringify([
   montage('same','Local newer','2026-09-18T22:00:00.000Z'),
 ]));
 (globalThis as typeof globalThis & { fetch: typeof fetch }).fetch = (async (input, init) => {

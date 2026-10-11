@@ -1,3 +1,4 @@
+import { userStorage } from '../services/userStorage';
 import { useEffect, useState } from 'react';
 import { EvaluationSymbol } from '../types';
 
@@ -30,7 +31,7 @@ export function validateScoutButtons(value: ScoutButtonPreferences): string | nu
 
 export function readScoutButtons(): ScoutButtonPreferences {
   try {
-    const value = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    const value = JSON.parse(userStorage.getItem(STORAGE_KEY) || 'null');
     if (value && !validateScoutButtons(value)) return value;
   } catch { /* Invalid or unavailable storage uses defaults. */ }
   return DEFAULT_SCOUT_BUTTONS;
@@ -40,7 +41,7 @@ export function saveScoutButtons(value: ScoutButtonPreferences): void {
   const error = validateScoutButtons(value);
   if (error) throw new Error(error);
   const normalized = { ...value, keys: Object.fromEntries(EVALUATIONS.map(s => [s, value.keys[s].trim().toUpperCase()])) };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+  userStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
   window.dispatchEvent(new Event(CHANGE_EVENT));
 }
 

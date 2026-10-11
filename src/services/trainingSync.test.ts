@@ -1,3 +1,4 @@
+import {userStorage} from './userStorage';
 import assert from 'node:assert/strict';
 import { TrainingSession } from '../types';
 import {
@@ -93,7 +94,7 @@ const offline = await syncTrainingSessions();
 assert.equal(offline.status, 'unavailable');
 assert.equal(offline.sessions.length, 1);
 assert.equal(offline.sessions[0].id, 'local-1');
-assert.equal(JSON.parse(localStorage.getItem(STORAGE_TRAINING_SESSIONS_KEY) || '[]').length, 1);
+assert.equal(JSON.parse(userStorage.getItem(STORAGE_TRAINING_SESSIONS_KEY) || '[]').length, 1);
 
 replaceSavedTrainingSessions([localOnly]);
 (globalThis as typeof globalThis & { fetch: typeof fetch }).fetch = (async () =>

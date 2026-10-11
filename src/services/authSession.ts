@@ -1,3 +1,4 @@
+import {setStorageUser} from './userStorage';
 import type { ClientUser, TrialInfo } from '../types';
 
 export interface AuthSession {
@@ -20,6 +21,7 @@ export async function getAuthenticatedSession(): Promise<AuthSession | null> {
     const data = await response.json();
     if (!data?.authenticated || !data?.user || !data?.trial) return null;
 
+    setStorageUser(data.user.id);
     return { user: data.user as ClientUser, trial: data.trial as TrialInfo };
   } catch (error) {
     console.error('Could not verify OPEN VOLEY session:', error);
@@ -29,11 +31,13 @@ export async function getAuthenticatedSession(): Promise<AuthSession | null> {
 
 export async function logoutAuthenticatedSession(): Promise<void> {
   try {
-    await fetch('/api/auth/logout', {
+    const response = await fetch('/api/auth/logout', {
       method: 'POST',
       credentials: 'same-origin',
       headers: { Accept: 'application/json' },
     });
+    if (!response.ok) throw new Error('No se pudo cerrar la sesión');
+    setStorageUser(null);
   } finally {
     // Remove legacy identity caches. They must never be accepted as authentication.
     localStorage.removeItem('openvoley_user');

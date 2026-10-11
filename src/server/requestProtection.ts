@@ -44,6 +44,7 @@ function stringLength(value: unknown): number {
 export function requestProtection(req: Request, res: Response, next: NextFunction) {
   const path = req.path;
   const ip = clientKey(req);
+  if (req.method === 'POST' && path === '/api/commercial/leads' && !consume(`leads:${ip}`, 10, 3600000)) return res.status(429).json({error:'Demasiadas solicitudes. Intentá más tarde.'});
 
   if (req.method === 'POST' && path === '/api/auth/google') {
     const credential = req.body?.credential;
@@ -92,7 +93,7 @@ export function requestProtection(req: Request, res: Response, next: NextFunctio
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    if (!consume(`ai:${session.userId}`, 30, 60 * 60 * 1000)) {
+    if (!consume(`ai:${session.userId}`, 30, 60 * 60 * 1000) || !consume('ai:global', Math.max(1,Number(process.env.OPENVOLEY_AI_HOURLY_LIMIT)||200),3600000)) {
       return res.status(429).json({ error: 'AI request limit reached. Try again later.' });
     }
 

@@ -59,7 +59,7 @@ export const ClientHistorySection: React.FC = () => {
   const [showMPConfig, setShowMPConfig] = useState(false);
   const [mpAccessToken, setMpAccessToken] = useState('');
   const [mpPublicKey, setMpPublicKey] = useState('APP_USR-bb2f9b87-9ef9-44fb-bb03-0e19411853f4');
-  const [mpAdminKey, setMpAdminKey] = useState('CAR123');
+  const [mpAdminKey, setMpAdminKey] = useState('');
   const [showTokenText, setShowTokenText] = useState(false);
   const [mpStatus, setMpStatus] = useState<{
     isConfigured: boolean;

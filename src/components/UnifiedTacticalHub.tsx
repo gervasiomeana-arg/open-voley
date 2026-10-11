@@ -1,3 +1,4 @@
+import { userStorage } from '../services/userStorage';
 import React, { useState } from 'react';
 import { MatchData, Player, ScoutCodeAction, TeamSide, VolleySkill, EvaluationSymbol } from '../types';
 import { parseScoutCodes, parseScoutCode, EVALUATION_NAMES, SKILL_NAMES } from '../utils/codeParser';
@@ -105,13 +106,13 @@ export const UnifiedTacticalHub: React.FC<UnifiedTacticalHubProps> = ({
 }) => {
   // Active viewing state (Default: MODO RÁPIDO, remembers preference in localStorage)
   const [scoutViewMode, setScoutViewMode] = useState<'quick_touch' | 'tactical_2d'>(() => {
-    const saved = localStorage.getItem('openvoley_scouting_mode');
+    const saved = userStorage.getItem('openvoley_scouting_mode');
     return saved === 'tactical_2d' ? 'tactical_2d' : 'quick_touch';
   });
 
   const handleToggleScoutMode = (mode: 'quick_touch' | 'tactical_2d') => {
     setScoutViewMode(mode);
-    localStorage.setItem('openvoley_scouting_mode', mode);
+    userStorage.setItem('openvoley_scouting_mode', mode);
   };
 
   const handleUndo = () => {

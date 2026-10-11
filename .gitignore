@@ -19,3 +19,5 @@ mp_credentials.json
 
 # Local source videos and generated montage files
 .openvoley-video-renders/
+
+server-build/

@@ -1,3 +1,4 @@
+import { userStorage } from './userStorage';
 import { Player, TeamSide, MatchData, ScoutCodeAction } from '../types';
 
 export interface SavedTeam {
@@ -106,9 +107,9 @@ const DEFAULT_SAVED_TEAMS: SavedTeam[] = [
 // Helper to get saved teams
 export function getSavedTeams(): SavedTeam[] {
   try {
-    const raw = localStorage.getItem(STORAGE_TEAMS_KEY);
+    const raw = userStorage.getItem(STORAGE_TEAMS_KEY);
     if (!raw) {
-      localStorage.setItem(STORAGE_TEAMS_KEY, JSON.stringify(DEFAULT_SAVED_TEAMS));
+      userStorage.setItem(STORAGE_TEAMS_KEY, JSON.stringify(DEFAULT_SAVED_TEAMS));
       return DEFAULT_SAVED_TEAMS;
     }
     const parsed = JSON.parse(raw);
@@ -134,7 +135,7 @@ export function saveTeam(team: SavedTeam): SavedTeam[] {
     updated = [team, ...current];
   }
   try {
-    localStorage.setItem(STORAGE_TEAMS_KEY, JSON.stringify(updated));
+    userStorage.setItem(STORAGE_TEAMS_KEY, JSON.stringify(updated));
   } catch (err) {
     console.error('Error saving teams:', err);
   }
@@ -146,7 +147,7 @@ export function deleteSavedTeam(id: string): SavedTeam[] {
   const current = getSavedTeams();
   const updated = current.filter((t) => t.id !== id);
   try {
-    localStorage.setItem(STORAGE_TEAMS_KEY, JSON.stringify(updated));
+    userStorage.setItem(STORAGE_TEAMS_KEY, JSON.stringify(updated));
   } catch (err) {
     console.error('Error deleting team:', err);
   }
@@ -233,7 +234,7 @@ export function parseRosterFromText(text: string, teamSide: TeamSide = 'home'): 
 
 export function getSavedMatches(): SavedMatchRecord[] {
   try {
-    const raw = localStorage.getItem(STORAGE_MATCHES_KEY);
+    const raw = userStorage.getItem(STORAGE_MATCHES_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
@@ -254,7 +255,7 @@ export function saveMatchRecord(record: SavedMatchRecord): SavedMatchRecord[] {
     updated = [record, ...current];
   }
   try {
-    localStorage.setItem(STORAGE_MATCHES_KEY, JSON.stringify(updated));
+    userStorage.setItem(STORAGE_MATCHES_KEY, JSON.stringify(updated));
   } catch (err) {
     console.error('Error saving match record:', err);
   }
@@ -265,7 +266,7 @@ export function deleteSavedMatchRecord(id: string): SavedMatchRecord[] {
   const current = getSavedMatches();
   const updated = current.filter((m) => m.id !== id);
   try {
-    localStorage.setItem(STORAGE_MATCHES_KEY, JSON.stringify(updated));
+    userStorage.setItem(STORAGE_MATCHES_KEY, JSON.stringify(updated));
   } catch (err) {
     console.error('Error deleting match record:', err);
   }
@@ -280,7 +281,7 @@ export const STORAGE_CURRENT_MATCH_KEY = 'openvoley_current_match_v1';
 
 export function getCurrentMatch(): MatchData | null {
   try {
-    const raw = localStorage.getItem(STORAGE_CURRENT_MATCH_KEY);
+    const raw = userStorage.getItem(STORAGE_CURRENT_MATCH_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (parsed && typeof parsed === 'object' && parsed.id && parsed.homeTeamName && parsed.awayTeamName) {
@@ -295,7 +296,7 @@ export function getCurrentMatch(): MatchData | null {
 
 export function saveCurrentMatch(match: MatchData): void {
   try {
-    localStorage.setItem(STORAGE_CURRENT_MATCH_KEY, JSON.stringify(match));
+    userStorage.setItem(STORAGE_CURRENT_MATCH_KEY, JSON.stringify(match));
   } catch (err) {
     console.warn('Error saving current match to storage:', err);
   }
@@ -303,7 +304,7 @@ export function saveCurrentMatch(match: MatchData): void {
 
 export function clearCurrentMatch(): void {
   try {
-    localStorage.removeItem(STORAGE_CURRENT_MATCH_KEY);
+    userStorage.removeItem(STORAGE_CURRENT_MATCH_KEY);
   } catch (err) {
     console.warn('Error clearing current match from storage:', err);
   }
