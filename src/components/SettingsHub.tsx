@@ -2,6 +2,8 @@ import { DEFAULT_SCOUT_BUTTONS, readScoutButtons, saveScoutButtons, validateScou
 import React, { useState } from 'react';
 import { MatchData, ClientUser, TrialInfo } from '../types';
 import { generateDVWV2 } from './ExportImportModal';
+import { recoverAllStoredData } from '../services/teamStorage';
+import { LegacyRecoveryPanel } from './LegacyRecoveryPanel';
 import { 
   Settings, 
   Download, 
@@ -17,7 +19,8 @@ import {
   User, 
   Check, 
   Copy, 
-  AlertTriangle 
+  AlertTriangle,
+  Sparkles
 } from 'lucide-react';
 import { ResearchTab } from './ResearchTab';
 
@@ -332,6 +335,33 @@ export const SettingsHub: React.FC<SettingsHubProps> = ({
                 {copiedBackup ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                 <span>{copiedBackup ? '¡Copiado!' : 'Copiar al Portapapeles'}</span>
               </button>
+            </div>
+          </div>
+
+          {/* Card: Recuperación Total de Datos */}
+          <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4 shadow-xl">
+            <h3 className="text-base font-black text-white flex items-center gap-2">
+              <RotateCcw className="w-5 h-5 text-amber-400" />
+              <span>Recuperación de Datos Anteriores (Equipos, Partidos y Jugadores)</span>
+            </h3>
+            <p className="text-xs text-slate-400">
+              Restaura automáticamente los equipos, planteles, jugadores y partidos guardados en este navegador o en sesiones previas.
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                onClick={() => {
+                  const res = recoverAllStoredData();
+                  alert(`¡Recuperación completada! Se restauraron ${res.teams.length} equipos y ${res.matches.length} partidos con sus jugadores.`);
+                  window.location.reload();
+                }}
+                className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs px-4 py-3 rounded-2xl flex items-center gap-2 transition cursor-pointer shadow-lg shadow-amber-500/20"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span>Escanear y Recuperar Todos los Datos Ahora</span>
+              </button>
+            </div>
+            <div className="pt-4 border-t border-slate-800">
+              <LegacyRecoveryPanel />
             </div>
           </div>
         </div>

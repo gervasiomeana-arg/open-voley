@@ -1,5 +1,13 @@
-import React, { useState } from 'react';
-import { SavedTeam, saveTeam, deleteSavedTeam, parseRosterFromText } from '../services/teamStorage';
+import React, { useState, useRef } from 'react';
+import { 
+  SavedTeam, 
+  saveTeam, 
+  deleteSavedTeam, 
+  parseRosterFromText,
+  recoverAllStoredData,
+  importDataFromBackupJson,
+  getSavedTeams
+} from '../services/teamStorage';
 import { Player, TeamSide } from '../types';
 import { 
   Users, 
@@ -15,7 +23,10 @@ import {
   ClipboardPaste,
   HelpCircle,
   ArrowRight,
-  Volleyball
+  Volleyball,
+  RotateCcw,
+  Upload,
+  Sparkles
 } from 'lucide-react';
 
 interface TeamsHubProps {
@@ -61,6 +72,44 @@ export const TeamsHub: React.FC<TeamsHubProps> = ({
   // Quick Paste Roster Modal
   const [isQuickPasteOpen, setIsQuickPasteOpen] = useState(false);
   const [pasteText, setPasteText] = useState('');
+
+  // Recovery & Backup Import
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [recoveryFeedback, setRecoveryFeedback] = useState<string | null>(null);
+
+  const handleManualRecovery = () => {
+    const res = recoverAllStoredData();
+    onTeamsUpdated(res.teams);
+    if (res.teams.length > 0) {
+      const first = res.teams.find((t) => t.type === activeTab) || res.teams[0];
+      if (first) setSelectedTeamId(first.id);
+    }
+    const totalPlayers = res.teams.reduce((acc, t) => acc + (t.players?.length || 0), 0);
+    setRecoveryFeedback(`¡Recuperación completada! Se restauraron ${res.teams.length} equipos con ${totalPlayers} jugadores.`);
+    window.setTimeout(() => setRecoveryFeedback(null), 6000);
+  };
+
+  const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      if (!content) return;
+      const res = importDataFromBackupJson(content);
+      if (res.error) {
+        alert(`Error al importar: ${res.error}`);
+        return;
+      }
+      const updated = getSavedTeams();
+      onTeamsUpdated(updated);
+      const totalPlayers = updated.reduce((acc, t) => acc + (t.players?.length || 0), 0);
+      setRecoveryFeedback(`¡Importación exitosa! ${res.teamsAdded} equipos agregados (${totalPlayers} jugadores en total).`);
+      window.setTimeout(() => setRecoveryFeedback(null), 6000);
+    };
+    reader.readAsText(file);
+    if (e.target) e.target.value = '';
+  };
 
   const currentTeam = safeTeams.find((t) => t.id === selectedTeamId) || safeTeams.find((t) => t.type === activeTab) || safeTeams[0];
   const filteredTeams = safeTeams.filter((t) => t.type === activeTab);
@@ -195,7 +244,7 @@ export const TeamsHub: React.FC<TeamsHubProps> = ({
     <div className="space-y-3 sm:space-y-6 animate-in fade-in duration-200">
       
       {/* Header Bar */}
-      <div className="flex items-center justify-between gap-3 bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-3 sm:p-6 shadow-xl">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-3 sm:p-6 shadow-xl">
         <div className="flex items-center gap-3">
           <div className="hidden sm:block p-3 bg-cyan-500/20 text-cyan-400 rounded-2xl border border-cyan-500/30">
             <Users className="w-6 h-6" />
@@ -208,17 +257,56 @@ export const TeamsHub: React.FC<TeamsHubProps> = ({
           </div>
         </div>
 
-        <button
-          onClick={() => {
-            setNewTeamType(activeTab);
-            setIsCreatingTeam(true);
-          }}
-          className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs sm:text-sm px-4 py-2.5 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition cursor-pointer self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" />
-          <span className="hidden sm:inline">Crear Nuevo Equipo</span><span className="sm:hidden">Equipo</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          {/* Recovery Button */}
+          <button
+            onClick={handleManualRecovery}
+            className="bg-slate-800 hover:bg-slate-700 text-cyan-300 hover:text-white border border-cyan-500/40 text-xs sm:text-sm font-bold px-3 py-2 rounded-xl sm:rounded-2xl flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+            title="Escanear y recuperar automáticamente equipos y jugadores guardados previamente en este navegador"
+          >
+            <RotateCcw className="w-4 h-4 text-cyan-400" />
+            <span className="hidden md:inline">Recuperar Datos</span><span className="md:hidden">Recuperar</span>
+          </button>
+
+          {/* Import JSON File */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept=".json"
+            onChange={handleFileImport}
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs sm:text-sm font-bold px-3 py-2 rounded-xl sm:rounded-2xl flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+            title="Importar archivo JSON o copia de seguridad anterior"
+          >
+            <Upload className="w-4 h-4 text-slate-400" />
+            <span className="hidden md:inline">Importar Respaldo</span><span className="md:hidden">Importar</span>
+          </button>
+
+          {/* Create Team */}
+          <button
+            onClick={() => {
+              setNewTeamType(activeTab);
+              setIsCreatingTeam(true);
+            }}
+            className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs sm:text-sm px-4 py-2 rounded-xl sm:rounded-2xl flex items-center justify-center gap-1.5 shadow-lg shadow-amber-500/20 transition cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span className="hidden sm:inline">Crear Nuevo Equipo</span><span className="sm:hidden">Crear</span>
+          </button>
+        </div>
       </div>
+
+      {/* Recovery Feedback Toast / Alert Banner */}
+      {recoveryFeedback && (
+        <div className="p-3.5 bg-cyan-950/80 border border-cyan-500/50 rounded-2xl flex items-center gap-3 text-cyan-200 text-xs sm:text-sm font-medium animate-in fade-in duration-200">
+          <Sparkles className="w-5 h-5 text-cyan-400 shrink-0" />
+          <span className="flex-1">{recoveryFeedback}</span>
+          <button onClick={() => setRecoveryFeedback(null)} className="text-cyan-400 hover:text-white px-2">✕</button>
+        </div>
+      )}
 
       {/* Main Grid: Left List + Right Detail */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-6">

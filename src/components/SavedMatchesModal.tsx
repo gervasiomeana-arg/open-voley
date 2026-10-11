@@ -1,5 +1,11 @@
-import React from 'react';
-import { SavedMatchRecord, deleteSavedMatchRecord } from '../services/teamStorage';
+import React, { useRef, useState } from 'react';
+import { 
+  SavedMatchRecord, 
+  deleteSavedMatchRecord, 
+  recoverAllStoredData, 
+  importDataFromBackupJson, 
+  getSavedMatches 
+} from '../services/teamStorage';
 import { 
   FolderKanban, 
   Play, 
@@ -11,7 +17,10 @@ import {
   FileText, 
   PlusCircle, 
   Clock, 
-  CheckCircle2 
+  CheckCircle2,
+  RotateCcw,
+  Upload,
+  Sparkles
 } from 'lucide-react';
 import { MatchData } from '../types';
 
@@ -35,6 +44,40 @@ export const SavedMatchesModal: React.FC<SavedMatchesModalProps> = ({
   if (!isOpen) return null;
 
   const safeMatches = matches || [];
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
+
+  const handleManualRecovery = () => {
+    const res = recoverAllStoredData();
+    if (onMatchesUpdated) {
+      onMatchesUpdated(res.matches);
+    }
+    setFeedback(`¡Recuperación completada! Se restauraron ${res.matches.length} partidos y ${res.teams.length} equipos.`);
+    window.setTimeout(() => setFeedback(null), 6000);
+  };
+
+  const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      if (!content) return;
+      const res = importDataFromBackupJson(content);
+      if (res.error) {
+        alert(`Error: ${res.error}`);
+        return;
+      }
+      const updated = getSavedMatches();
+      if (onMatchesUpdated) {
+        onMatchesUpdated(updated);
+      }
+      setFeedback(`¡Importación exitosa! ${res.matchesAdded} partidos restaurados.`);
+      window.setTimeout(() => setFeedback(null), 6000);
+    };
+    reader.readAsText(file);
+    if (e.target) e.target.value = '';
+  };
 
   const handleDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -51,7 +94,7 @@ export const SavedMatchesModal: React.FC<SavedMatchesModalProps> = ({
       <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in duration-200">
         
         {/* Header */}
-        <div className="p-5 sm:p-6 border-b border-slate-800 bg-slate-900/90 flex items-center justify-between">
+        <div className="p-5 sm:p-6 border-b border-slate-800 bg-slate-900/90 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-amber-500/20 text-amber-400 rounded-2xl border border-amber-500/30">
               <FolderKanban className="w-6 h-6" />
@@ -66,16 +109,43 @@ export const SavedMatchesModal: React.FC<SavedMatchesModalProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Quick Recovery Button */}
+            <button
+              onClick={handleManualRecovery}
+              className="bg-slate-800 hover:bg-slate-700 text-amber-300 hover:text-white border border-amber-500/40 text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+              title="Escanear y recuperar partidos guardados anteriormente en este navegador"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
+              <span>Recuperar Datos</span>
+            </button>
+
+            {/* Hidden File Input */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept=".json"
+              onChange={handleFileImport}
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+              title="Importar archivo JSON o copia de seguridad"
+            >
+              <Upload className="w-3.5 h-3.5 text-slate-400" />
+              <span>Importar</span>
+            </button>
+
             <button
               onClick={() => {
                 onClose();
                 if (onOpenNewMatch) onOpenNewMatch();
               }}
-              className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 shadow-md shadow-amber-500/20 transition cursor-pointer"
+              className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-md shadow-amber-500/20 transition cursor-pointer"
             >
               <PlusCircle className="w-4 h-4" />
-              <span>+ Nuevo Partido</span>
+              <span>+ Nuevo</span>
             </button>
             <button onClick={onClose} className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition">
               <X className="w-5 h-5" />
@@ -83,26 +153,44 @@ export const SavedMatchesModal: React.FC<SavedMatchesModalProps> = ({
           </div>
         </div>
 
+        {/* Feedback alert */}
+        {feedback && (
+          <div className="mx-6 mt-4 p-3 bg-amber-950/80 border border-amber-500/50 rounded-2xl flex items-center gap-2.5 text-amber-200 text-xs font-medium">
+            <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+            <span className="flex-1">{feedback}</span>
+            <button onClick={() => setFeedback(null)} className="text-amber-400 hover:text-white">✕</button>
+          </div>
+        )}
+
         {/* Content */}
         <div className="p-6 overflow-y-auto flex-1 custom-scrollbar space-y-3">
           {safeMatches.length === 0 ? (
-            <div className="p-12 text-center text-slate-500 space-y-3 border border-dashed border-slate-800 rounded-3xl bg-slate-950/40">
+            <div className="p-12 text-center text-slate-500 space-y-4 border border-dashed border-slate-800 rounded-3xl bg-slate-950/40">
               <FolderKanban className="w-12 h-12 mx-auto opacity-30 text-amber-400" />
               <div className="space-y-1">
-                <h4 className="text-white font-bold text-base">Aún no has guardado partidos</h4>
+                <h4 className="text-white font-bold text-base">Aún no se visualizan partidos en esta vista</h4>
                 <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                  Cuando termines de scoutear un partido, pulsa el botón <strong>"💾 Guardar Partido"</strong> en la barra superior para archivarlo aquí.
+                  Si ya tenías partidos scouteados, pulsa <strong>"Recuperar Datos"</strong> para escanear y restaurar el historial guardado en este navegador.
                 </p>
               </div>
-              <button
-                onClick={() => {
-                  onClose();
-                  if (onOpenNewMatch) onOpenNewMatch();
-                }}
-                className="bg-amber-500 text-slate-950 font-black text-xs px-4 py-2 rounded-xl"
-              >
-                + Iniciar un Partido Ahora
-              </button>
+              <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+                <button
+                  onClick={handleManualRecovery}
+                  className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5 transition cursor-pointer shadow-lg shadow-amber-500/20"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  <span>Recuperar Partidos Anteriores</span>
+                </button>
+                <button
+                  onClick={() => {
+                    onClose();
+                    if (onOpenNewMatch) onOpenNewMatch();
+                  }}
+                  className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs px-4 py-2.5 rounded-xl border border-slate-700"
+                >
+                  + Iniciar un Partido Nuevo
+                </button>
+              </div>
             </div>
           ) : (
             safeMatches.map((record) => (

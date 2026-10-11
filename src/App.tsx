@@ -46,7 +46,9 @@ import {
   saveMatchRecord, 
   SavedMatchRecord,
   getCurrentMatch,
-  saveCurrentMatch
+  saveCurrentMatch,
+  recoverAllStoredData,
+  importDataFromBackupJson
 } from './services/teamStorage';
 import { getAuthenticatedSession, logoutAuthenticatedSession } from './services/authSession';
 import { enrichActionsWithRallyContext } from './utils/rallyContext';
@@ -283,6 +285,12 @@ export default function App() {
           setCurrentUser(null);
           setTrialInfo(null);
         }
+
+        // Recover and synchronize all stored teams, matches, and players across all storage scopes
+        const rec = recoverAllStoredData();
+        if (rec.teams.length > 0) setSavedTeams(rec.teams);
+        if (rec.matches.length > 0) setSavedMatches(rec.matches);
+        if (rec.activeMatch) setMatch(rec.activeMatch);
       } catch (error) {
         console.error('Could not synchronize verified OPEN VOLEY session:', error);
         if (!cancelled) {
@@ -300,6 +308,28 @@ export default function App() {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  // Immediate auto-recovery on mount to restore any teams, matches, or players
+  useEffect(() => {
+    const rec = recoverAllStoredData();
+    if (rec.teams.length > 0) setSavedTeams(rec.teams);
+    if (rec.matches.length > 0) setSavedMatches(rec.matches);
+    if (rec.activeMatch) setMatch(rec.activeMatch);
+  }, []);
+
+  // Listen for storage events across tabs
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key && (e.key.includes('saved_teams') || e.key.includes('saved_matches') || e.key.includes('current_match'))) {
+        const rec = recoverAllStoredData();
+        setSavedTeams(rec.teams);
+        setSavedMatches(rec.matches);
+        if (rec.activeMatch) setMatch(rec.activeMatch);
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
   }, []);
 
   const handleLoginSuccess = (user: ClientUser, trial: TrialInfo) => {

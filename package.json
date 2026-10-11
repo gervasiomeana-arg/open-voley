@@ -40,6 +40,7 @@
     "test:rally-simulation-v2": "tsx src/utils/rallySimulationV2.test.ts",
     "recovery": "node --import tsx scripts/recovery.ts",
     "test:recovery": "node --import tsx src/server/recoveryBackup.test.ts && node --import tsx src/services/legacyRecovery.test.ts",
+    "test:teams-recovery": "node --import tsx src/services/teamStorageRecovery.test.ts",
     "test:payments": "node --import tsx src/server/paymentProcessing.test.ts",
     "check:launch": "node --import tsx scripts/checkLaunch.ts",
     "test:readiness": "node --import tsx src/server/launchReadiness.test.ts"
