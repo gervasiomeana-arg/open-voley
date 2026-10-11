@@ -56,7 +56,7 @@ export async function secureMercadoPago(req: Request, res: Response, next: NextF
     const planId = String(req.body?.planId || '') as PlanId;
     const billing = String(req.body?.billingCycle || '') as BillingCycle;
     const currency = String(req.body?.currency || 'ARS') as Currency;
-    if (!Object.prototype.hasOwnProperty.call(PLAN_CATALOG,planId) || !['monthly', 'annual'].includes(billing) || !['ARS', 'USD'].includes(currency)) {
+    if (!Object.prototype.hasOwnProperty.call(PLAN_CATALOG,planId) || billing !== 'monthly' || !['ARS', 'USD'].includes(currency)) {
       return res.status(400).json({ error: 'Invalid plan selection' });
     }
 
