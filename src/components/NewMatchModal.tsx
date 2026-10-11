@@ -1,3 +1,4 @@
+import { userStorage } from '../services/userStorage';
 import React, { useState, useEffect, useMemo } from 'react';
 import { MatchData, Player, TeamSide } from '../types';
 import { 
@@ -76,7 +77,7 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({
   // Favorite / Recent Team ID
   const defaultRecentTeamId = useMemo(() => {
     try {
-      const storedId = localStorage.getItem(RECENT_TEAM_KEY);
+      const storedId = userStorage.getItem(RECENT_TEAM_KEY);
       if (storedId && safeTeams.some((t) => t.id === storedId)) {
         return storedId;
       }
@@ -204,7 +205,7 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
     try {
-      const rawDraft = localStorage.getItem(DRAFT_STORAGE_KEY);
+      const rawDraft = userStorage.getItem(DRAFT_STORAGE_KEY);
       if (rawDraft) {
         const draft = JSON.parse(rawDraft);
         // Only consider drafts saved in the last 48 hours
@@ -235,7 +236,7 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({
         selectedAwayPlayerIds,
         timestamp: Date.now(),
       };
-      localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draftData));
+      userStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draftData));
     } catch {
       // ignore
     }
@@ -256,7 +257,7 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({
 
   const handleRestoreDraft = () => {
     try {
-      const rawDraft = localStorage.getItem(DRAFT_STORAGE_KEY);
+      const rawDraft = userStorage.getItem(DRAFT_STORAGE_KEY);
       if (rawDraft) {
         const draft = JSON.parse(rawDraft);
         if (draft.selectedHomeTeamId) setSelectedHomeTeamId(draft.selectedHomeTeamId);
@@ -279,7 +280,7 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({
 
   const handleDiscardDraft = () => {
     try {
-      localStorage.removeItem(DRAFT_STORAGE_KEY);
+      userStorage.removeItem(DRAFT_STORAGE_KEY);
     } catch {
       // ignore
     }
@@ -289,7 +290,7 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({
   // Clear draft helper on finish or cancel
   const clearDraft = () => {
     try {
-      localStorage.removeItem(DRAFT_STORAGE_KEY);
+      userStorage.removeItem(DRAFT_STORAGE_KEY);
     } catch {
       // ignore
     }
@@ -567,7 +568,7 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({
 
     // Save recent home team id for future matches
     try {
-      localStorage.setItem(RECENT_TEAM_KEY, selectedHomeTeam.id);
+      userStorage.setItem(RECENT_TEAM_KEY, selectedHomeTeam.id);
     } catch {
       // ignore
     }

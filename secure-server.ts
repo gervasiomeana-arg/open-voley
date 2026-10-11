@@ -1,3 +1,4 @@
+import { commercialRouter } from './src/server/commercialRouter';
 import 'dotenv/config';
 import express from 'express';
 import { authMeRouter } from './src/server/authMeRouter';
@@ -10,6 +11,8 @@ import { storageHealthRouter } from './src/server/storageHealthRouter';
 import { smartSportsMontageRouter } from './src/server/smartSportsMontageRouter';
 import { videoRenderRouter } from './src/server/videoRenderRouter';
 
+if (process.env.NODE_ENV === 'production' && (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.trim().length < 32 || !process.env.GOOGLE_CLIENT_ID?.trim() || !process.env.ADMIN_EMAILS?.trim() || !process.env.APP_URL?.startsWith('https://'))) throw new Error('Configure SESSION_SECRET (32+ chars), GOOGLE_CLIENT_ID, ADMIN_EMAILS and HTTPS APP_URL before production startup');
+
 const expressApplication = express.application as any;
 const originalInit = expressApplication.init;
 
@@ -19,6 +22,7 @@ expressApplication.init = function patchedInit(this: any) {
   this.use(express.json({ limit: '1mb' }));
   this.use(securityMiddleware);
   this.use(requestProtection);
+  this.use(commercialRouter);
   this.use(secureMercadoPago);
   this.use(securePaymentConfirmation);
   this.use('/api/auth', authMeRouter);

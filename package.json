@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "tsx secure-server.ts",
-    "build": "vite build && esbuild secure-server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
-    "start": "node dist/server.cjs",
+    "build": "vite build && esbuild secure-server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=server-build/server.cjs",
+    "start": "node server-build/server.cjs",
     "clean": "rm -rf dist server.cjs",
     "lint": "tsc --noEmit",
+    "test:launch-security": "node --import tsx src/server/launchSecurity.test.ts && node --import tsx src/services/userStorage.test.ts",
     "test:analytics": "tsx src/utils/dataVolleyAnalytics.test.ts",
     "test:evidence": "tsx src/utils/evidenceInsights.test.ts",
     "test:training-evidence": "tsx src/utils/trainingEvidence.test.ts",

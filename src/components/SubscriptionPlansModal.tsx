@@ -24,6 +24,9 @@ export const SubscriptionPlansModal: React.FC<SubscriptionPlansModalProps> = ({
   onClose,
   currentUser,
 }) => {
+  const [catalog,setCatalog]=useState<any>(null);
+  const [priceError,setPriceError]=useState('');
+  useEffect(()=>{if(!isOpen)return;setPriceError('');fetch('/api/commercial/prices').then(async r=>{if(!r.ok)throw new Error();const d=await r.json();setCatalog(d.prices)}).catch(()=>{setCatalog(null);setPriceError('No se pudieron cargar los precios. Reabrí esta ventana para reintentar.')})},[isOpen]);
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
   const [currency, setCurrency] = useState<'ARS' | 'USD'>('ARS');
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
@@ -43,10 +46,6 @@ export const SubscriptionPlansModal: React.FC<SubscriptionPlansModalProps> = ({
       id: 'plan-dt',
       name: 'Plan DT / Entrenador',
       tagline: 'Ideal para técnicos independientes y formativas',
-      monthlyPriceArs: 18000,
-      annualPriceArs: 160000,
-      monthlyPriceUsd: 19,
-      annualPriceUsd: 169,
       popular: false,
       color: 'border-slate-700 bg-slate-900/90',
       badge: null,
@@ -62,10 +61,6 @@ export const SubscriptionPlansModal: React.FC<SubscriptionPlansModalProps> = ({
       id: 'plan-club-pro',
       name: 'Plan Club Pro & Liga',
       tagline: 'Para planteles de primera división y cuerpos técnicos',
-      monthlyPriceArs: 35000,
-      annualPriceArs: 320000,
-      monthlyPriceUsd: 35,
-      annualPriceUsd: 315,
       popular: true,
       color: 'border-emerald-500 bg-gradient-to-b from-slate-900 to-emerald-950/40 shadow-emerald-500/20 shadow-2xl',
       badge: '🔥 RECOMENDADO',
@@ -83,10 +78,6 @@ export const SubscriptionPlansModal: React.FC<SubscriptionPlansModalProps> = ({
       id: 'plan-federacion',
       name: 'Plan Federación / Torneo',
       tagline: 'Para asociaciones, ligas regionales y clubes multisede',
-      monthlyPriceArs: 95000,
-      annualPriceArs: 850000,
-      monthlyPriceUsd: 99,
-      annualPriceUsd: 890,
       popular: false,
       color: 'border-indigo-500/50 bg-slate-900/90',
       badge: 'INSTITUCIONAL',
@@ -106,6 +97,7 @@ export const SubscriptionPlansModal: React.FC<SubscriptionPlansModalProps> = ({
       return;
     }
 
+    if (!catalog) {alert("Esperá a que se carguen los precios.");return;}
     if (!mpConfig?.isConfigured) {
       alert('Mercado Pago no está disponible en este momento.');
       return;
@@ -177,7 +169,7 @@ export const SubscriptionPlansModal: React.FC<SubscriptionPlansModalProps> = ({
               className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${billingCycle === 'annual' ? 'bg-emerald-500 text-slate-950 font-black shadow-lg shadow-emerald-500/30' : 'text-emerald-400 hover:text-emerald-300'}`}
             >
               <span>Pago Anual</span>
-              <span className="bg-emerald-950 text-emerald-300 text-[10px] px-1.5 py-0.5 rounded-full uppercase font-black">20% OFF</span>
+              <span className="bg-emerald-950 text-emerald-300 text-[10px] px-1.5 py-0.5 rounded-full uppercase font-black">Pago anual</span>
             </button>
           </div>
 
@@ -197,12 +189,11 @@ export const SubscriptionPlansModal: React.FC<SubscriptionPlansModalProps> = ({
           </div>
         </div>
 
+        {priceError && <p role="alert" className="text-rose-300">{priceError}</p>}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-2">
           {plans.map((plan) => {
-            const price = currency === 'ARS'
-              ? (billingCycle === 'annual' ? plan.annualPriceArs : plan.monthlyPriceArs)
-              : (billingCycle === 'annual' ? plan.annualPriceUsd : plan.monthlyPriceUsd);
-            const displayPrice = currency === 'ARS' ? `$${price.toLocaleString('es-AR')}` : `$${price}`;
+            const price = catalog?.[plan.id]?.[billingCycle]?.[currency] ?? 0;
+            const displayPrice = !catalog ? 'Cargando…' : currency === 'ARS' ? `$${price.toLocaleString('es-AR')}` : `$${price}`;
             const periodLabel = billingCycle === 'annual' ? '/ año' : '/ mes';
             const isLoadingThis = loadingPlanId === plan.id;
 
@@ -225,7 +216,7 @@ export const SubscriptionPlansModal: React.FC<SubscriptionPlansModalProps> = ({
                       <span className="text-3xl font-black text-white font-mono">{displayPrice}</span>
                       <span className="text-xs text-slate-400">{currency} {periodLabel}</span>
                     </div>
-                    {billingCycle === 'annual' && (
+                    {catalog && billingCycle === 'annual' && (
                       <div className="text-[11px] text-emerald-400 font-bold mt-1">
                         Equivale a {currency === 'ARS' ? `$${Math.round(price / 12).toLocaleString('es-AR')}` : `$${Math.round(price / 12)}`} {currency} / mes
                       </div>
@@ -245,7 +236,7 @@ export const SubscriptionPlansModal: React.FC<SubscriptionPlansModalProps> = ({
                 <div className="pt-6">
                   <button
                     onClick={() => handleMercadoPagoCheckout(plan)}
-                    disabled={isLoadingThis || !mpConfig?.isConfigured || !currentUser}
+                    disabled={isLoadingThis || !catalog || !mpConfig?.isConfigured || !currentUser}
                     className={`w-full py-3 px-4 rounded-2xl font-black text-xs flex items-center justify-center gap-2.5 transition transform active:scale-95 shadow-xl ${plan.popular ? 'bg-sky-400 hover:bg-sky-300 text-slate-950 shadow-sky-400/20' : 'bg-slate-800 hover:bg-sky-500 hover:text-slate-950 text-white border border-slate-700'} disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
                     {isLoadingThis ? (

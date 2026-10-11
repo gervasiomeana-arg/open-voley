@@ -1,3 +1,4 @@
+import {LeadRegistrationForm} from './LeadRegistrationForm';
 import React, { useState, useEffect } from 'react';
 import { 
   Volleyball, 
@@ -887,6 +888,7 @@ export const WelcomeLandingPage: React.FC<WelcomeLandingPageProps> = ({
         </div>
       </section>
 
+      <LeadRegistrationForm />
       {/* 6. Footer */}
       <footer className="bg-slate-950 border-t border-slate-900 py-8 text-center text-xs text-slate-500 space-y-2">
         <div className="font-mono font-bold text-slate-400">

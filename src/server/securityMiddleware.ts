@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import fs from 'fs';
 import path from 'path';
+import { loadAccounts, isAdminEmail, accountTrial } from './accountStore';
 import { getSessionFromRequest, isSameOriginMutation } from './sessionSecurity';
 
 const CLIENTS_FILE = path.join(process.cwd(), 'clients_db.json');
@@ -17,36 +18,10 @@ const protectedAdminRoutes = new Set([
   'POST /api/mercadopago/test-credentials',
 ]);
 
-function getAdminEmails(): Set<string> {
-  return new Set(
-    (process.env.ADMIN_EMAILS || '')
-      .split(',')
-      .map((email) => email.trim().toLowerCase())
-      .filter(Boolean),
-  );
-}
-
-function hasActiveAdminAccount(userId: string, email: string): boolean {
-  try {
-    if (!fs.existsSync(CLIENTS_FILE)) return false;
-    const parsed = JSON.parse(fs.readFileSync(CLIENTS_FILE, 'utf-8'));
-    if (!Array.isArray(parsed)) return false;
-
-    const account = parsed.find(
-      (candidate: any) =>
-        candidate?.id === userId &&
-        String(candidate?.email || '').toLowerCase().trim() === email,
-    );
-
-    return Boolean(account && !account.isBlocked);
-  } catch (error) {
-    console.error('Admin account validation failed:', error);
-    return false;
-  }
-}
-
 export function securityMiddleware(req: Request, res: Response, next: NextFunction) {
   res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Cache-Control', req.path.startsWith('/api/') ? 'no-store' : 'no-cache');
+  if (!process.env.ALLOW_IFRAME_PREVIEW) res.setHeader('Content-Security-Policy', "frame-ancestors 'self'");
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   if (process.env.NODE_ENV === 'production' && !process.env.ALLOW_IFRAME_PREVIEW) {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
@@ -67,10 +42,17 @@ export function securityMiddleware(req: Request, res: Response, next: NextFuncti
   }
 
   const routeKey = `${req.method} ${req.path}`;
-  if (!protectedAdminRoutes.has(routeKey)) return next();
+  const isAdminRoute = protectedAdminRoutes.has(routeKey);
+  if (!isAdminRoute && req.path.startsWith('/api/') && !req.path.startsWith('/api/auth/') && !req.path.startsWith('/api/mercadopago/') && !req.path.startsWith('/api/commercial/') && !['/api/health', '/api/visitors/track'].includes(req.path)) {
+    const session = getSessionFromRequest(req);
+    if (!session) return res.status(401).json({error: 'Authentication required'});
+    const account = loadAccounts().find(c => c.id === session.userId);
+    if (!isAdminEmail(session.email) && accountTrial(account).isExpired) return res.status(403).json({error: 'License expired'});
+  }
+  if (!isAdminRoute) return next();
 
-  const adminEmails = getAdminEmails();
-  if (adminEmails.size === 0) {
+  const adminEmails = (process.env.ADMIN_EMAILS || "").split(",").filter(v => v.trim());
+  if (adminEmails.length === 0) {
     return res.status(503).json({ error: 'Admin access is not configured' });
   }
 
@@ -79,7 +61,7 @@ export function securityMiddleware(req: Request, res: Response, next: NextFuncti
     return res.status(401).json({ error: 'Authentication required' });
   }
 
-  if (!adminEmails.has(session.email) || !hasActiveAdminAccount(session.userId, session.email)) {
+  if (!isAdminEmail(session.email)) {
     return res.status(403).json({ error: 'Admin access required' });
   }
 

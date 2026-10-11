@@ -1,3 +1,5 @@
+import { loadAccounts, saveAccounts, grantAccessDays } from './accountStore';
+import { DEFAULT_PRICES, getPrices, getQuote, saveQuote, recordPaymentEvent } from './commercialStore';
 import type { Request, Response, NextFunction } from 'express';
 import fs from 'fs';
 import path from 'path';
@@ -36,42 +38,14 @@ interface ClientRecord {
 
 const CLIENTS_FILE = path.join(process.cwd(), 'clients_db.json');
 
-const PLAN_CATALOG = {
-  'plan-dt': {
-    name: 'Plan DT / Entrenador',
-    monthly: { ARS: 18000, USD: 19 },
-    annual: { ARS: 160000, USD: 169 },
-  },
-  'plan-club-pro': {
-    name: 'Plan Club Pro & Liga',
-    monthly: { ARS: 35000, USD: 35 },
-    annual: { ARS: 320000, USD: 315 },
-  },
-  'plan-federacion': {
-    name: 'Plan Federación / Torneo',
-    monthly: { ARS: 95000, USD: 99 },
-    annual: { ARS: 850000, USD: 890 },
-  },
-} as const;
+const PLAN_CATALOG = DEFAULT_PRICES;
 
 type PlanId = keyof typeof PLAN_CATALOG;
 type BillingCycle = 'monthly' | 'annual';
 type Currency = 'ARS' | 'USD';
 
-function loadClients(): ClientRecord[] {
-  try {
-    if (!fs.existsSync(CLIENTS_FILE)) return [];
-    const parsed = JSON.parse(fs.readFileSync(CLIENTS_FILE, 'utf-8'));
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (error) {
-    console.error('Error loading clients for payment confirmation:', error);
-    return [];
-  }
-}
-
-function saveClients(clients: ClientRecord[]) {
-  fs.writeFileSync(CLIENTS_FILE, JSON.stringify(clients, null, 2), 'utf-8');
-}
+const loadClients = loadAccounts;
+const saveClients = saveAccounts;
 
 function parseReference(value: unknown): { userId: string; planId: PlanId; billing: BillingCycle } | null {
   const raw = String(value || '');
@@ -141,7 +115,8 @@ export async function securePaymentConfirmation(req: Request, res: Response, nex
       return res.status(409).json({ error: 'Unexpected payment currency' });
     }
 
-    const expectedAmount = PLAN_CATALOG[reference.planId][reference.billing][currency];
+    const quote=getQuote(String(paymentData.external_reference));
+    const expectedAmount = quote ? (quote.currency===currency && quote.userId===reference.userId ? quote.amount : NaN) : DEFAULT_PRICES[reference.planId][reference.billing][currency];
     const paidAmount = Number(paymentData?.transaction_amount);
     if (!Number.isFinite(paidAmount) || paidAmount !== expectedAmount) {
       return res.status(409).json({ error: 'Payment amount does not match selected plan' });
@@ -168,7 +143,7 @@ export async function securePaymentConfirmation(req: Request, res: Response, nex
     }
 
     const days = reference.billing === 'annual' ? 365 : 30;
-    client.customGrantedDays = (client.customGrantedDays || 0) + days;
+    grantAccessDays(client, days);
     client.isBlocked = false;
     client.plan = reference.billing === 'annual' ? 'Anual Pro' : 'Mensual Pro';
     client.payments.unshift({

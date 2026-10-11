@@ -1,3 +1,4 @@
+import { loadAccounts, saveAccounts, grantAccessDays } from './src/server/accountStore';
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
@@ -64,11 +65,11 @@ function readArrayFile<T>(filePath: string): T[] {
 }
 
 function loadClients(): ClientRecord[] {
-  return readArrayFile<ClientRecord>(CLIENTS_FILE);
+  return loadAccounts();
 }
 
 function saveClients(clients: ClientRecord[]) {
-  fs.writeFileSync(CLIENTS_FILE, JSON.stringify(clients, null, 2), 'utf-8');
+  saveAccounts(clients);
 }
 
 function loadVisitors(): VisitorRecord[] {
@@ -93,122 +94,6 @@ async function startServer() {
     res.json({ status: 'ok', app: 'OPEN VOLEY' });
   });
 
-  const googleAuthClient = new OAuth2Client();
-
-  async function verifyGoogleCredential(credential: string) {
-    try {
-      const audience = process.env.GOOGLE_CLIENT_ID?.trim();
-      let payload: any = null;
-
-      if (audience) {
-        const ticket = await googleAuthClient.verifyIdToken({
-          idToken: credential,
-          audience,
-        });
-        payload = ticket.getPayload();
-      } else {
-        try {
-          const ticket = await googleAuthClient.verifyIdToken({
-            idToken: credential,
-          });
-          payload = ticket?.getPayload();
-        } catch {
-          const parts = credential.split('.');
-          if (parts.length === 3) {
-            const decoded = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf-8'));
-            if (decoded && decoded.email) payload = decoded;
-          }
-        }
-      }
-
-      if (!payload?.email || payload.email_verified === false) {
-        return null;
-      }
-
-      return {
-        email: payload.email.toLowerCase().trim(),
-        name: payload.name || '',
-        picture: payload.picture || '',
-        sub: payload.sub,
-      };
-    } catch (error) {
-      console.error('Google credential verification failed:', error);
-      return null;
-    }
-  }
-
-  function createSessionToken(user: { userId: string; email: string; role?: string }) {
-    const secret = process.env.SESSION_SECRET?.trim();
-    if (!secret) throw new Error('SESSION_SECRET is not configured');
-
-    return jwt.sign(
-      {
-        userId: user.userId,
-        email: user.email,
-        role: user.role || 'Entrenador',
-      },
-      secret,
-      { expiresIn: '7d', algorithm: 'HS256' },
-    );
-  }
-
-  app.post('/api/auth/google', async (req, res) => {
-    try {
-      const credential = req.body?.credential;
-      if (typeof credential !== 'string' || !credential) {
-        return res.status(400).json({ error: 'Credential is required' });
-      }
-
-      const verifiedUser = await verifyGoogleCredential(credential);
-      if (!verifiedUser) {
-        return res.status(401).json({ error: 'Invalid Google credential' });
-      }
-
-      const clients = loadClients();
-      let client = clients.find(
-        (candidate) => candidate.email.toLowerCase().trim() === verifiedUser.email,
-      );
-      const now = new Date().toISOString();
-
-      if (!client) {
-        client = {
-          id: `usr-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-          email: verifiedUser.email,
-          name: verifiedUser.name || verifiedUser.email.split('@')[0],
-          picture: verifiedUser.picture,
-          firstLoginDate: now,
-          lastLoginDate: now,
-          trialDurationDays: 7,
-          customGrantedDays: 0,
-          isBlocked: false,
-          role: 'Entrenador',
-        };
-        clients.unshift(client);
-      } else {
-        if (client.isBlocked) {
-          return res.status(403).json({ error: 'Account blocked' });
-        }
-        client.lastLoginDate = now;
-        if (verifiedUser.name) client.name = verifiedUser.name;
-        if (verifiedUser.picture) client.picture = verifiedUser.picture;
-      }
-
-      saveClients(clients);
-
-      const sessionToken = createSessionToken({
-        userId: client.id,
-        email: client.email,
-        role: client.role,
-      });
-
-      res.setHeader('Set-Cookie', sessionCookieHeader(sessionToken));
-      return res.status(200).json({ verified: true });
-    } catch (error) {
-      console.error('Google authentication failed:', error);
-      return res.status(500).json({ error: 'Authentication error' });
-    }
-  });
-
   // Administrative routes. securityMiddleware executes before these handlers.
   app.get('/api/clients', (_req, res) => {
     res.json({ clients: loadClients() });
@@ -229,7 +114,7 @@ async function startServer() {
       if (addDays < 0 || addDays > 365) {
         return res.status(400).json({ error: 'addDays out of range' });
       }
-      client.customGrantedDays = (client.customGrantedDays || 0) + addDays;
+      grantAccessDays(client, addDays);
     }
     if (typeof req.body?.isBlocked === 'boolean') client.isBlocked = req.body.isBlocked;
     if (req.body?.resetDate === true) {
@@ -429,7 +314,7 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
+    app.use('/assets', express.static(path.join(distPath, 'assets')));
     app.get('*', (_req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });

@@ -1,3 +1,6 @@
+import { Transform } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
+import { randomUUID } from 'node:crypto';
 import express, { Router } from 'express';
 import fs from 'fs';
 import path from 'path';
@@ -20,7 +23,11 @@ interface RenderJob {
 const router = Router();
 const jobs = new Map<string, RenderJob>();
 const ROOT = path.join(process.cwd(), '.openvoley-video-renders');
-const MAX_SOURCE_BYTES = Math.max(50, Number(process.env.OPENVOLEY_MAX_VIDEO_MB) || 1500) * 1024 * 1024;
+let activeUploads=0;
+const uploading=new Set<string>();
+const MAX_USER_BYTES=Math.max(500,Number(process.env.OPENVOLEY_VIDEO_QUOTA_MB)||2000)*1024*1024;
+function directoryBytes(dir:string):number { return fs.existsSync(dir) ? fs.readdirSync(dir,{withFileTypes:true}).reduce((sum,item)=>sum+(item.isDirectory()?directoryBytes(path.join(dir,item.name)):fs.statSync(path.join(dir,item.name)).size),0) : 0; }
+const MAX_SOURCE_BYTES = Math.min(1500, Math.max(50, Number(process.env.OPENVOLEY_MAX_VIDEO_MB) || 250)) * 1024 * 1024;
 
 function safePart(value: unknown, fallback = 'video') {
   const cleaned = String(value || '').replace(/[^a-zA-Z0-9_-]/g, '-').replace(/-+/g, '-').slice(0, 120);
@@ -41,7 +48,7 @@ function ffmpegAvailable() {
 }
 function run(binary: string, args: string[]) {
   return new Promise<void>((resolve, reject) => {
-    const child = spawn(binary, args, { stdio: ['ignore', 'ignore', 'pipe'] });
+    const child = spawn(binary, args, { stdio: ['ignore', 'ignore', 'pipe'], timeout: 10*60*1000, killSignal:'SIGKILL' });
     let stderr = '';
     child.stderr.on('data', (chunk) => { stderr = (stderr + chunk.toString()).slice(-8000); });
     child.once('error', reject);
@@ -60,25 +67,35 @@ router.get('/capabilities', (_req, res) => {
   res.json({ ffmpeg: ffmpegAvailable(), maxSourceMb: Math.floor(MAX_SOURCE_BYTES / 1024 / 1024) });
 });
 
-router.put(
-  '/source/:matchId',
-  express.raw({ type: ['video/*', 'application/octet-stream'], limit: MAX_SOURCE_BYTES }),
-  (req, res) => {
-    const userId = String(res.locals.sessionUserId);
-    const matchId = safePart(req.params.matchId, 'match');
-    if (!Buffer.isBuffer(req.body) || req.body.length === 0) return res.status(400).json({ error: 'Video source required' });
-    const target = sourcePath(userId, matchId);
-    fs.writeFileSync(target, req.body);
-    return res.json({ success: true, matchId, bytes: req.body.length });
-  },
-);
+router.put('/source/:matchId', async (req,res)=>{
+ const userId=String(res.locals.sessionUserId);
+ if(activeUploads>=2 || uploading.has(userId))return res.status(429).json({error:'Ya hay una carga en curso. Intentá más tarde.'});
+ if(!/^(video\/|application\/octet-stream)/.test(String(req.headers['content-type']||'')))return res.status(415).json({error:'Se requiere un archivo de video.'});
+ const used=directoryBytes(userDir(userId));
+ const limit=Math.min(MAX_SOURCE_BYTES,MAX_USER_BYTES-used);
+ if(limit<=0)return res.status(413).json({error:'Cuota de videos alcanzada.'});
+ const target=sourcePath(userId,safePart(req.params.matchId,'match')),temp=target+'.'+randomUUID()+'.upload';
+ let bytes=0;activeUploads+=1;uploading.add(userId);
+ const timeout=setTimeout(()=>req.destroy(),120000);
+ try {
+  const guard=new Transform({transform(chunk,_encoding,callback){bytes+=chunk.length;callback(bytes>limit?new Error('Video exceeds size or quota limit'):null,chunk)}});
+  await pipeline(req,guard,fs.createWriteStream(temp,{flags:'wx',mode:0o600}));
+  if(!bytes)throw new Error('Empty video');fs.renameSync(temp,target);
+  return res.json({success:true,matchId:req.params.matchId,bytes});
+ } catch {try{fs.unlinkSync(temp)}catch{};if(!res.headersSent && !res.destroyed)return res.status(413).json({error:'No se pudo cargar el video: revisá el tamaño, la cuota y la conexión.'});}
+ finally{clearTimeout(timeout);activeUploads-=1;uploading.delete(userId)}
+});
 
 router.post('/render', async (req, res) => {
   const userId = String(res.locals.sessionUserId);
+  const running=[...jobs.values()].filter(j=>j.status==='queued'||j.status==='rendering');
+  if(running.length>=2 || running.some(j=>j.userId===userId))return res.status(429).json({error:'Hay un montaje en proceso. Intentá más tarde.'});
+  for(const [id,job] of jobs)if(!['queued','rendering'].includes(job.status) && Date.now()-Date.parse(job.updatedAt)>86400000){fs.rmSync(path.join(userDir(job.userId),id),{recursive:true,force:true});jobs.delete(id)}
+  if(jobs.size>=500 || directoryBytes(userDir(userId))>=MAX_USER_BYTES)return res.status(429).json({error:'Cuota de montajes alcanzada.'});
   const matchId = safePart(req.body?.matchId, 'match');
   if (!ffmpegAvailable()) return res.status(503).json({ error: 'FFmpeg is not available on this server' });
   const normalized = normalizeVideoRenderClips(req.body?.clips);
-  if (!normalized) return res.status(400).json({ error: 'Invalid clip list or timing' });
+  if (!normalized || normalized.reduce((sum,c)=>sum+c.endSec-c.startSec,0)>3600) return res.status(400).json({ error: 'Invalid clip list or timing' });
   const source = sourcePath(userId, matchId);
   if (!fs.existsSync(source)) return res.status(409).json({ error: 'Upload the local match video before rendering' });
 
@@ -97,10 +114,11 @@ router.post('/render', async (req, res) => {
       job.status = 'rendering'; job.updatedAt = new Date().toISOString();
       const parts: string[] = [];
       for (let i = 0; i < normalized.length; i += 1) {
+        if(directoryBytes(userDir(userId))>=MAX_USER_BYTES)throw new Error('Video quota reached');
         const clip = normalized[i];
         const part = path.join(jobDir, `clip-${String(i + 1).padStart(4, '0')}.mp4`);
         parts.push(part);
-        await run(binary, ['-y', '-ss', String(clip.startSec), '-i', source, '-t', String(clip.endSec - clip.startSec), '-map', '0:v:0', '-map', '0:a?', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', part]);
+        await run(binary, ['-y', '-ss', String(clip.startSec), '-protocol_whitelist', 'file,pipe', '-format_whitelist', 'mov,matroska,webm,avi,mpegts,mpeg,ogg', '-i', source, '-t', String(clip.endSec - clip.startSec), '-map', '0:v:0', '-map', '0:a?', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', part]);
       }
       const list = path.join(jobDir, 'concat.txt');
       fs.writeFileSync(list, parts.map((part) => `file '${part.replace(/'/g, "'\\''")}'`).join('\n'), 'utf-8');
@@ -109,7 +127,9 @@ router.post('/render', async (req, res) => {
       try { fs.unlinkSync(list); } catch {}
       job.status = 'ready'; job.fileName = path.basename(output); job.updatedAt = new Date().toISOString();
     } catch (error) {
-      job.status = 'failed'; job.error = error instanceof Error ? error.message.slice(-1200) : 'Render failed'; job.updatedAt = new Date().toISOString();
+      try{fs.rmSync(jobDir,{recursive:true,force:true})}catch{}
+      console.error('Video render failed:',error);
+      job.status = 'failed'; job.error = 'No se pudo generar el montaje. Revisá el formato, los tiempos y la cuota.'; job.updatedAt = new Date().toISOString();
     }
   })();
 });

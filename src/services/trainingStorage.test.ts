@@ -1,3 +1,4 @@
+import {userStorage} from './userStorage';
 import assert from 'node:assert/strict';
 import { TrainingSession } from '../types';
 import {
@@ -114,10 +115,10 @@ const replaced = getSavedTrainingSessions();
 assert.equal(replaced.length, 2);
 assert.equal(replaced[0].id, 'training-persist-2');
 
-localStorage.setItem(STORAGE_TRAINING_SESSIONS_KEY, '{invalid json');
+userStorage.setItem(STORAGE_TRAINING_SESSIONS_KEY, '{invalid json');
 assert.deepEqual(getSavedTrainingSessions(), []);
 
-localStorage.setItem(
+userStorage.setItem(
   STORAGE_TRAINING_SESSIONS_KEY,
   JSON.stringify([{ id: 'invalid' }, session]),
 );

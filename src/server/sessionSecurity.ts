@@ -1,5 +1,6 @@
 import type { Request } from 'express';
 import jwt from 'jsonwebtoken';
+import { loadAccounts } from './accountStore';
 
 export interface SessionPayload {
   userId: string;
@@ -26,10 +27,10 @@ function parseCookies(header?: string): Record<string, string> {
   }, {});
 }
 
-const FALLBACK_SESSION_SECRET = 'ov_sec_8f9c2d1e4b7a3f60851e93c72b4d68a05c1e3f7924b8d60a1e3579b24d68acfe';
-
 function getSessionSecret(): string {
-  return process.env.SESSION_SECRET?.trim() || FALLBACK_SESSION_SECRET;
+  const secret = process.env.SESSION_SECRET?.trim();
+  if (!secret || secret.length < 32) throw new Error('SESSION_SECRET must contain at least 32 characters');
+  return secret;
 }
 
 export function createSessionToken(user: { userId: string; email: string; role?: string }): string {
@@ -38,20 +39,20 @@ export function createSessionToken(user: { userId: string; email: string; role?:
   return jwt.sign(
     {
       userId: user.userId,
+      sessionVersion: Number(loadAccounts().find(c => c.id === user.userId)?.sessionVersion || 0),
       email: user.email.toLowerCase().trim(),
       role: user.role || 'Entrenador',
     },
     secret,
-    { expiresIn: '7d', algorithm: 'HS256' },
+    { expiresIn: '7d', algorithm: 'HS256', issuer: 'openvoley-v2', audience: 'openvoley-app' },
   );
 }
 
 export function verifySessionToken(token: string): SessionPayload | null {
-  const secret = getSessionSecret();
-
   try {
+    const secret = getSessionSecret();
     const decoded = jwt.verify(token, secret, {
-      algorithms: ['HS256'],
+      algorithms: ['HS256'], issuer: 'openvoley-v2', audience: 'openvoley-app',
     }) as jwt.JwtPayload;
 
     if (
@@ -62,6 +63,8 @@ export function verifySessionToken(token: string): SessionPayload | null {
       return null;
     }
 
+    const account = loadAccounts().find(c => c.id === decoded.userId && String(c.email).toLowerCase().trim() === decoded.email);
+    if (!account || account.isBlocked || Number(account.sessionVersion || 0) !== decoded.sessionVersion) return null;
     return {
       userId: decoded.userId,
       email: decoded.email.toLowerCase().trim(),
@@ -117,7 +120,7 @@ export function isSameOriginMutation(req: Request): boolean {
   }
 
   // Non-browser clients may omit Origin/Referer. Require bearer auth in that case.
-  return Boolean(req.headers.authorization?.startsWith('Bearer '));
+  return Boolean(getSessionFromRequest(req));
 }
 
 export function sessionCookieHeader(token: string): string {

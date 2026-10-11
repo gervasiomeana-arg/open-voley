@@ -1,3 +1,4 @@
+import { userStorage } from './userStorage';
 import { TrainingSession } from '../types';
 
 export const STORAGE_TRAINING_SESSIONS_KEY = 'openvoley_training_sessions_v1';
@@ -16,7 +17,7 @@ function isTrainingSession(value: unknown): value is TrainingSession {
 
 export function getSavedTrainingSessions(): TrainingSession[] {
   try {
-    const raw = localStorage.getItem(STORAGE_TRAINING_SESSIONS_KEY);
+    const raw = userStorage.getItem(STORAGE_TRAINING_SESSIONS_KEY);
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
@@ -36,7 +37,7 @@ export function saveTrainingSession(session: TrainingSession): TrainingSession[]
       : [session, ...current];
 
   try {
-    localStorage.setItem(STORAGE_TRAINING_SESSIONS_KEY, JSON.stringify(updated));
+    userStorage.setItem(STORAGE_TRAINING_SESSIONS_KEY, JSON.stringify(updated));
   } catch (err) {
     console.error('Error saving training session:', err);
   }
@@ -46,7 +47,7 @@ export function saveTrainingSession(session: TrainingSession): TrainingSession[]
 export function deleteTrainingSession(id: string): TrainingSession[] {
   const updated = getSavedTrainingSessions().filter((session) => session.id !== id);
   try {
-    localStorage.setItem(STORAGE_TRAINING_SESSIONS_KEY, JSON.stringify(updated));
+    userStorage.setItem(STORAGE_TRAINING_SESSIONS_KEY, JSON.stringify(updated));
   } catch (err) {
     console.error('Error deleting training session:', err);
   }
@@ -55,7 +56,7 @@ export function deleteTrainingSession(id: string): TrainingSession[] {
 
 export function replaceSavedTrainingSessions(sessions: TrainingSession[]): void {
   try {
-    localStorage.setItem(
+    userStorage.setItem(
       STORAGE_TRAINING_SESSIONS_KEY,
       JSON.stringify(sessions.filter(isTrainingSession)),
     );

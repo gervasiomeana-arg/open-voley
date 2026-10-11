@@ -1,12 +1,13 @@
+import { userStorage } from '../services/userStorage';
 import React, { useState } from 'react';
 import { MatchData, Player, TeamSide } from '../types';
 export type CourtView = 'back' | 'side';
 export function useCourtView(defaultView: CourtView = 'back') {
   const [view, setView] = useState<CourtView>(() => {
-    try { return localStorage.getItem('openvoley.courtView') === 'side' ? 'side' : localStorage.getItem('openvoley.courtView') === 'back' ? 'back' : defaultView; } catch { return defaultView; }
+    try { return userStorage.getItem('openvoley.courtView') === 'side' ? 'side' : userStorage.getItem('openvoley.courtView') === 'back' ? 'back' : defaultView; } catch { return defaultView; }
   });
-  const [swapped, setSwapped] = useState(() => { try { return localStorage.getItem('openvoley.courtSides') === 'swapped'; } catch { return false; } });
-  return { view, swapped, onView: (next: CourtView) => { setView(next); try { localStorage.setItem('openvoley.courtView', next); } catch {} }, onSwap: () => setSwapped(previous => { const next = !previous; try { localStorage.setItem('openvoley.courtSides', next ? 'swapped' : 'normal'); } catch {} return next; }) };
+  const [swapped, setSwapped] = useState(() => { try { return userStorage.getItem('openvoley.courtSides') === 'swapped'; } catch { return false; } });
+  return { view, swapped, onView: (next: CourtView) => { setView(next); try { userStorage.setItem('openvoley.courtView', next); } catch {} }, onSwap: () => setSwapped(previous => { const next = !previous; try { userStorage.setItem('openvoley.courtSides', next ? 'swapped' : 'normal'); } catch {} return next; }) };
 }
 export const CourtViewControls: React.FC<{view: CourtView; onView: (v: CourtView) => void; onSwap: () => void}> = ({view,onView,onSwap}) => <div className="flex gap-1" role="group" aria-label="Vista de la cancha">
   {(['back','side'] as const).map(v=><button type="button" key={v} aria-pressed={view===v} onClick={()=>onView(v)} className={`min-h-11 rounded-lg border px-2 text-[10px] font-bold ${view===v?'border-amber-400 bg-amber-500 text-slate-950':'border-slate-600 bg-slate-800 text-white'}`}>{v==='back'?'Desde atrás':'De costado'}</button>)}

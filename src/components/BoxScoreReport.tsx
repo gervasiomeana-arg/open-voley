@@ -1,3 +1,4 @@
+import { userStorage } from '../services/userStorage';
 import React, { useState } from 'react';
 import { MatchData, TeamSide, PlayerStats } from '../types';
 import { calculatePlayerStats } from '../utils/codeParser';
@@ -54,7 +55,7 @@ export const BoxScoreReport: React.FC<BoxScoreReportProps> = ({
     block: boolean;
   }>(() => {
     try {
-      const saved = localStorage.getItem('openvoley_boxscore_cols');
+      const saved = userStorage.getItem('openvoley_boxscore_cols');
       if (saved) return JSON.parse(saved);
     } catch (e) {
       // ignore
@@ -72,7 +73,7 @@ export const BoxScoreReport: React.FC<BoxScoreReportProps> = ({
     }
     setColumnsConfig(updated);
     try {
-      localStorage.setItem('openvoley_boxscore_cols', JSON.stringify(updated));
+      userStorage.setItem('openvoley_boxscore_cols', JSON.stringify(updated));
     } catch (e) {
       // ignore
     }
@@ -89,7 +90,7 @@ export const BoxScoreReport: React.FC<BoxScoreReportProps> = ({
     }
     setColumnsConfig(updated);
     try {
-      localStorage.setItem('openvoley_boxscore_cols', JSON.stringify(updated));
+      userStorage.setItem('openvoley_boxscore_cols', JSON.stringify(updated));
     } catch (e) {
       // ignore
     }
