@@ -3,10 +3,13 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=22.14.0"
+  },
   "scripts": {
     "dev": "tsx secure-server.ts",
-    "build": "vite build && esbuild secure-server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=server-build/server.cjs",
-    "start": "node server-build/server.cjs",
+    "build": "vite build && esbuild src/server/serverCore.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=server-build/server.cjs",
+    "start": "node server.ts",
     "clean": "rm -rf dist server.cjs",
     "lint": "tsc --noEmit",
     "test:launch-security": "node --import tsx src/server/launchSecurity.test.ts && node --import tsx src/services/userStorage.test.ts",
