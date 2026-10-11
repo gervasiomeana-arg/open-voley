@@ -1,36 +1,10 @@
+import {reconcilePayment} from './paymentProcessing';
 import {validPaymentWebhookSignature} from './paymentWebhookSignature';
 import { randomUUID } from 'node:crypto';
-import { loadAccounts, saveAccounts, grantAccessDays } from './accountStore';
-import { DEFAULT_PRICES, getPrices, getQuote, saveQuote, recordPaymentEvent } from './commercialStore';
+import { loadAccounts } from './accountStore';
+import { DEFAULT_PRICES, getPrices, saveQuote } from './commercialStore';
 import type { Request, Response, NextFunction } from 'express';
-import fs from 'fs';
-import path from 'path';
 import { getSessionFromRequest } from './sessionSecurity';
-
-interface ClientRecord {
-  id: string;
-  email: string;
-  name: string;
-  firstLoginDate: string;
-  lastLoginDate: string;
-  trialDurationDays: number;
-  customGrantedDays?: number;
-  isBlocked?: boolean;
-  plan?: string;
-  payments?: Array<{
-    id: string;
-    paymentId?: string;
-    planId: string;
-    planName: string;
-    amount: number;
-    currency: string;
-    status: string;
-    date: string;
-    paymentMethod?: string;
-  }>;
-}
-
-const CLIENTS_FILE = path.join(process.cwd(), 'clients_db.json');
 
 const PLAN_CATALOG = DEFAULT_PRICES;
 
@@ -39,7 +13,6 @@ type BillingCycle = 'monthly' | 'annual';
 type Currency = 'ARS' | 'USD';
 
 const loadClients = loadAccounts;
-const saveClients = saveAccounts;
 
 function accessToken(): string {
   return process.env.MERCADOPAGO_ACCESS_TOKEN?.trim() || '';
@@ -53,79 +26,8 @@ function baseUrl(req: Request): string {
   return `${protocol}://${host}`;
 }
 
-function parseReference(value: unknown): { userId: string; planId: PlanId; billing: BillingCycle } | null {
-  const raw = String(value || '');
-  const match = /^openvoley:([^:]+):(plan-dt|plan-club-pro|plan-federacion):(monthly|annual):[a-zA-Z0-9-]+$/.exec(raw);
-  if (!match) return null;
-  return {
-    userId: match[1],
-    planId: match[2] as PlanId,
-    billing: match[3] as BillingCycle,
-  };
-}
-
 function paymentPlanName(planId: PlanId, billing: BillingCycle) {
   return `${PLAN_CATALOG[planId].name} (${billing === 'annual' ? 'Anual' : 'Mensual'})`;
-}
-
-async function fetchVerifiedPayment(paymentId: string) {
-  const token = accessToken();
-  if (!token) return null;
-  const response = await fetch(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(paymentId)}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!response.ok) return null;
-  return response.json() as Promise<any>;
-}
-
-async function processApprovedPayment(paymentData: any) {
-  if (!['approved','refunded','charged_back'].includes(paymentData?.status)) return;
-  const paymentId = String(paymentData?.id || '').trim();
-  const ref = parseReference(paymentData?.external_reference);
-  if (!paymentId || !ref) return;
-
-  const clients = loadClients();
-  const client = clients.find((candidate) => candidate.id === ref.userId);
-  if (!client || client.isBlocked) return;
-
-  const payerEmail = String(paymentData?.payer?.email || '').toLowerCase().trim();
-  if (!payerEmail || payerEmail !== client.email.toLowerCase().trim()) return;
-
-  const currency = String(paymentData?.currency_id || '') as Currency;
-  if (!['ARS', 'USD'].includes(currency)) return;
-  const quote=getQuote(String(paymentData.external_reference));
-  const expectedAmount = quote ? (quote.currency===currency && quote.userId===ref.userId ? quote.amount : NaN) : DEFAULT_PRICES[ref.planId][ref.billing][currency];
-  const paidAmount = Number(paymentData?.transaction_amount);
-  if (!Number.isFinite(paidAmount) || paidAmount !== expectedAmount) return;
-
-  if (!client.payments) client.payments = [];
-  const existing=client.payments.find(p=>String(p.paymentId)===paymentId);
-  if(paymentData.status!=='approved') {
-    if(existing?.status==='approved') {
-      client.customGrantedDays=(client.customGrantedDays || 0)-(ref.billing==='annual'?365:30);
-      existing.status=paymentData.status;client.sessionVersion=(client.sessionVersion||0)+1;saveClients(clients);
-      recordPaymentEvent(paymentId,{status:paymentData.status,userId:client.id});
-    }
-    return;
-  }
-  if (client.payments.some((payment) => String(payment.paymentId) === paymentId)) return;
-
-  const days = ref.billing === 'annual' ? 365 : 30;
-  grantAccessDays(client, days);
-  client.isBlocked = false;
-  client.plan = ref.billing === 'annual' ? 'Anual Pro' : 'Mensual Pro';
-  client.payments.unshift({
-    id: `pay-${Date.now()}`,
-    paymentId,
-    planId: ref.planId,
-    planName: paymentPlanName(ref.planId, ref.billing),
-    amount: paidAmount,
-    currency,
-    status: 'approved',
-    date: new Date().toISOString(),
-    paymentMethod: String(paymentData?.payment_method_id || 'mercadopago'),
-  });
-  saveClients(clients);
 }
 
 export async function secureMercadoPago(req: Request, res: Response, next: NextFunction) {
@@ -174,6 +76,7 @@ export async function secureMercadoPago(req: Request, res: Response, next: NextF
     try {
       const mpResponse = await fetch('https://api.mercadopago.com/checkout/preferences', {
         method: 'POST',
+        signal: AbortSignal.timeout(10000),
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -221,18 +124,16 @@ export async function secureMercadoPago(req: Request, res: Response, next: NextF
   if (req.method === 'POST' && req.path === '/api/mercadopago/webhook') {
     // The webhook payload is never trusted. Payment ID is used only to re-query Mercado Pago.
     const paymentId = String(req.query['data.id'] || req.query.id || req.body?.data?.id || '').trim();
-    if (!/^[0-9]+$/.test(paymentId)) return res.status(400).send('Invalid payment id');
+    if (!/^[0-9]{1,30}$/.test(paymentId)) return res.status(400).send('Invalid payment id');
     const secret=process.env.MERCADOPAGO_WEBHOOK_SECRET?.trim();
     if(!secret)return res.status(503).send('Webhook signature secret not configured');
     if(!validPaymentWebhookSignature(paymentId,String(req.headers['x-request-id']||''),String(req.headers['x-signature']||''),secret))return res.status(401).send('Invalid webhook signature');
     try {
-      const paymentData = await fetchVerifiedPayment(paymentId);
-      if (!paymentData) return res.status(502).send('Payment verification unavailable');
-      await processApprovedPayment(paymentData);
+      await reconcilePayment(paymentId,'webhook');
       return res.status(200).send('OK');
     } catch (error) {
       console.error('Secure Mercado Pago webhook processing failed:', error);
-      return res.status(500).send('Payment processing failed');
+      return res.status(502).send('Payment verification or processing unavailable');
     }
     return;
   }

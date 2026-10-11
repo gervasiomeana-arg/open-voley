@@ -57,7 +57,7 @@ export function requestProtection(req: Request, res: Response, next: NextFunctio
     }
   }
 
-  if (req.method === 'POST' && (path === '/api/mercadopago/create-preference' || path === '/api/mercadopago/confirm-payment')) {
+  if (req.method === 'POST' && (path === '/api/mercadopago/create-preference' || path === '/api/mercadopago/confirm-payment' || /^\/api\/commercial\/payments\/[^/]+\/recheck$/.test(path))) {
     const session = getSessionFromRequest(req);
     if (!session) {
       return res.status(401).json({ error: 'Authentication required' });
