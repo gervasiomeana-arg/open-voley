@@ -21,7 +21,12 @@ const protectedAdminRoutes = new Set([
 export function securityMiddleware(req: Request, res: Response, next: NextFunction) {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Cache-Control', req.path.startsWith('/api/') ? 'no-store' : 'no-cache');
-  if (process.env.ALLOW_IFRAME_PREVIEW !== 'true') res.setHeader('Content-Security-Policy', "frame-ancestors 'self'");
+  if (process.env.ALLOW_IFRAME_PREVIEW !== 'true') {
+    // AI Studio renders its development preview inside an iframe on this exact origin.
+    // Published deployments continue to permit only same-origin embedding.
+    const editorOrigin = process.env.NODE_ENV === 'production' ? '' : ' https://aistudio.google.com';
+    res.setHeader('Content-Security-Policy', "frame-ancestors 'self'" + editorOrigin);
+  }
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   if (process.env.NODE_ENV === 'production' && process.env.ALLOW_IFRAME_PREVIEW !== 'true') {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
