@@ -21,9 +21,9 @@ const protectedAdminRoutes = new Set([
 export function securityMiddleware(req: Request, res: Response, next: NextFunction) {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Cache-Control', req.path.startsWith('/api/') ? 'no-store' : 'no-cache');
-  if (!process.env.ALLOW_IFRAME_PREVIEW) res.setHeader('Content-Security-Policy', "frame-ancestors 'self'");
+  if (process.env.ALLOW_IFRAME_PREVIEW !== 'true') res.setHeader('Content-Security-Policy', "frame-ancestors 'self'");
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  if (process.env.NODE_ENV === 'production' && !process.env.ALLOW_IFRAME_PREVIEW) {
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_IFRAME_PREVIEW !== 'true') {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   }
 

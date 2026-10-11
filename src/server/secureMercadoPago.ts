@@ -19,7 +19,7 @@ function accessToken(): string {
 }
 
 function baseUrl(req: Request): string {
-  if (process.env.APP_URL) return process.env.APP_URL.replace(/\/$/, '');
+  if (process.env.APP_URL) return process.env.APP_URL.trim().replace(/\/$/, '');
   const host = req.get('host');
   if (!host) return '';
   const protocol = process.env.NODE_ENV === 'production' ? 'https' : req.protocol;

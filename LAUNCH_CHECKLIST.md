@@ -12,6 +12,12 @@ Esta entrega cierra los accesos de desarrollo que aceptaban la identidad del pro
 - El comando de inicio es npm start, que ejecuta server-build/server.cjs. La carpeta dist contiene únicamente archivos del cliente.
 - Configurar OPENVOLEY_DB_PATH en un volumen persistente. También deben persistir clients_db.json y el directorio .openvoley-video-renders. Todavía no hay un servicio externo de almacenamiento de cuentas o archivos.
 
+## Comprobar el despliegue
+
+El panel Configuración → Ventas & PRD → Administración y precios → Preparación para demos y ventas muestra configuración del servidor y pruebas manuales pendientes. No revela claves. Compara el cliente Google incorporado a la compilación con el del servidor y registra fecha/administrador de las pruebas. Las comprobaciones de configuración no validan credenciales externas, autorizaciones de dominio, persistencia ni cobros reales.
+
+En el servidor puede ejecutarse `npm run check:launch`. Un código de salida 0 significa únicamente que las comprobaciones automáticas pasaron; no autoriza abrir ventas. Ver LAUNCH_READINESS_RUNBOOK.md. Mantener el archivo server-build/client-build.json junto al servidor generado.
+
 ## Administración comercial
 
 Ingresar con la cuenta Google autorizada y abrir Configuración → Ventas & PRD → Administración y precios. Allí se configuran precios mensuales y anuales en ARS/USD, se consultan interesados y visitas y se exporta el listado de interesados.

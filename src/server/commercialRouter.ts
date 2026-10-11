@@ -1,8 +1,10 @@
+import {launchConfiguration,MANUAL_LAUNCH_CHECKS,readClientBuild} from './launchReadiness';
+import {getTrainingRepositoryStatus} from './trainingRepository';
 import {reconcilePayment} from './paymentProcessing';
 import { Router } from 'express';
 import { getSessionFromRequest } from './sessionSecurity';
 import { loadAccounts, isAdminEmail } from './accountStore';
-import { DEFAULT_PRICES,getPrices,savePrices,recordLead,listLeads,deleteLead,recordVisit,listVisits, listReconciliation, listPaymentAudit } from './commercialStore';
+import { DEFAULT_PRICES,getPrices,savePrices,recordLead,listLeads,deleteLead,recordVisit,listVisits, listReconciliation, listPaymentAudit, getLaunchReview, saveLaunchReview } from './commercialStore';
 
 export const commercialRouter = Router();
 const clean=(v:unknown,max=150)=>typeof v==='string' ? v.trim().slice(0,max) : '';
@@ -50,4 +52,12 @@ commercialRouter.post('/api/commercial/payments/:paymentId/recheck',async(req,re
  activeChecks++;try{const result=await reconcilePayment(id,'admin-recheck',res.locals.adminEmail);res.json({success:true,result});}
  catch{return res.status(502).json({error:'No se pudo verificar o guardar el pago. El caso quedó registrado para reintentar.'});}
  finally{activeChecks--;}
+});
+
+commercialRouter.get('/api/commercial/readiness',(_req,res)=>res.json({...launchConfiguration(process.env,readClientBuild(),getTrainingRepositoryStatus()),manualChecks:MANUAL_LAUNCH_CHECKS,review:getLaunchReview()}));
+commercialRouter.put('/api/commercial/readiness',(req,res)=>{
+ const checks:Record<string,boolean>={};
+ for(const id of Object.keys(MANUAL_LAUNCH_CHECKS)){if(typeof req.body?.checks?.[id]!=='boolean')return res.status(400).json({error:'Indicá todas las comprobaciones realizadas.'});checks[id]=req.body.checks[id];}
+ if(req.body.notes!==undefined&&(typeof req.body.notes!=='string'||req.body.notes.length>1000))return res.status(400).json({error:'Las notas admiten hasta 1000 caracteres.'});
+ const review={checks,notes:clean(req.body.notes,1000),admin:res.locals.adminEmail,reviewedAt:new Date().toISOString(),builtAt:readClientBuild()?.builtAt||null};saveLaunchReview(review);res.json({review});
 });

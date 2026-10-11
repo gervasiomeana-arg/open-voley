@@ -1,5 +1,6 @@
-import { commercialRouter } from './src/server/commercialRouter';
 import 'dotenv/config';
+import {productionConfigurationErrors} from './src/server/launchReadiness';
+import { commercialRouter } from './src/server/commercialRouter';
 import express from 'express';
 import { authMeRouter } from './src/server/authMeRouter';
 import { requestProtection } from './src/server/requestProtection';
@@ -11,7 +12,10 @@ import { storageHealthRouter } from './src/server/storageHealthRouter';
 import { smartSportsMontageRouter } from './src/server/smartSportsMontageRouter';
 import { videoRenderRouter } from './src/server/videoRenderRouter';
 
-if (process.env.NODE_ENV === 'production' && (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.trim().length < 32 || !process.env.GOOGLE_CLIENT_ID?.trim() || !process.env.ADMIN_EMAILS?.trim() || !process.env.APP_URL?.startsWith('https://'))) throw new Error('Configure SESSION_SECRET (32+ chars), GOOGLE_CLIENT_ID, ADMIN_EMAILS and HTTPS APP_URL before production startup');
+if (process.env.NODE_ENV === 'production') {
+  const missing=productionConfigurationErrors();
+  if(missing.length)throw new Error('Configurar antes de publicar: '+missing.join(', '));
+}
 
 const expressApplication = express.application as any;
 const originalInit = expressApplication.init;
