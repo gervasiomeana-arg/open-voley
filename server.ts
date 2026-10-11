@@ -86,7 +86,9 @@ function cleanText(value: unknown, max = 300): string {
 
 async function startServer() {
   const app = express();
-  const PORT = Number(process.env.PORT) || 3000;
+  // Dev server and container proxy expect the application on port 3000.
+  // In container environments, process.env.PORT=8080 is reserved for nginx.
+  const PORT = 3000;
 
   app.use(express.json({ limit: '1mb' }));
 
