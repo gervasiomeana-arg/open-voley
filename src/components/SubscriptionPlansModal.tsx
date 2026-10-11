@@ -27,7 +27,7 @@ export const SubscriptionPlansModal: React.FC<SubscriptionPlansModalProps> = ({
   const [catalog,setCatalog]=useState<any>(null);
   const [priceError,setPriceError]=useState('');
   useEffect(()=>{if(!isOpen)return;setPriceError('');fetch('/api/commercial/prices').then(async r=>{if(!r.ok)throw new Error();const d=await r.json();setCatalog(d.prices)}).catch(()=>{setCatalog(null);setPriceError('No se pudieron cargar los precios. Reabrí esta ventana para reintentar.')})},[isOpen]);
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
+  const billingCycle = 'monthly' as const;
   const [currency, setCurrency] = useState<'ARS' | 'USD'>('ARS');
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
   const [mpConfig, setMpConfig] = useState<{ publicKey: string; isConfigured: boolean } | null>(null);
@@ -152,26 +152,12 @@ export const SubscriptionPlansModal: React.FC<SubscriptionPlansModalProps> = ({
             Elige tu Plan y Activa tu Temporada
           </h2>
           <p className="text-xs sm:text-sm text-slate-400">
-            El pago y la activación se validan en el servidor. El navegador no puede otorgar días ni cambiar el plan.
+            Elegí tu plan con pago mensual en pesos o dólares.
           </p>
         </div>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
-          <div className="bg-slate-950 p-1 rounded-2xl border border-slate-800 flex items-center shadow-inner">
-            <button
-              onClick={() => setBillingCycle('monthly')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition ${billingCycle === 'monthly' ? 'bg-slate-800 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
-            >
-              Pago Mensual
-            </button>
-            <button
-              onClick={() => setBillingCycle('annual')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${billingCycle === 'annual' ? 'bg-emerald-500 text-slate-950 font-black shadow-lg shadow-emerald-500/30' : 'text-emerald-400 hover:text-emerald-300'}`}
-            >
-              <span>Pago Anual</span>
-              <span className="bg-emerald-950 text-emerald-300 text-[10px] px-1.5 py-0.5 rounded-full uppercase font-black">Pago anual</span>
-            </button>
-          </div>
+          <span className="text-sm font-bold text-slate-300">Pago mensual</span>
 
           <div className="bg-slate-950 p-1 rounded-2xl border border-slate-800 flex items-center">
             <button
@@ -194,7 +180,7 @@ export const SubscriptionPlansModal: React.FC<SubscriptionPlansModalProps> = ({
           {plans.map((plan) => {
             const price = catalog?.[plan.id]?.[billingCycle]?.[currency] ?? 0;
             const displayPrice = !catalog ? 'Cargando…' : currency === 'ARS' ? `$${price.toLocaleString('es-AR')}` : `$${price}`;
-            const periodLabel = billingCycle === 'annual' ? '/ año' : '/ mes';
+            const periodLabel = '/ mes';
             const isLoadingThis = loadingPlanId === plan.id;
 
             return (
@@ -216,11 +202,7 @@ export const SubscriptionPlansModal: React.FC<SubscriptionPlansModalProps> = ({
                       <span className="text-3xl font-black text-white font-mono">{displayPrice}</span>
                       <span className="text-xs text-slate-400">{currency} {periodLabel}</span>
                     </div>
-                    {catalog && billingCycle === 'annual' && (
-                      <div className="text-[11px] text-emerald-400 font-bold mt-1">
-                        Equivale a {currency === 'ARS' ? `$${Math.round(price / 12).toLocaleString('es-AR')}` : `$${Math.round(price / 12)}`} {currency} / mes
-                      </div>
-                    )}
+
                   </div>
 
                   <ul className="space-y-2.5 text-xs text-slate-300">
