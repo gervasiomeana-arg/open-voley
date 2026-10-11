@@ -1,7 +1,8 @@
+import {reconcilePayment} from './paymentProcessing';
 import { Router } from 'express';
 import { getSessionFromRequest } from './sessionSecurity';
-import { isAdminEmail } from './accountStore';
-import { DEFAULT_PRICES,getPrices,savePrices,recordLead,listLeads,deleteLead,recordVisit,listVisits } from './commercialStore';
+import { loadAccounts, isAdminEmail } from './accountStore';
+import { DEFAULT_PRICES,getPrices,savePrices,recordLead,listLeads,deleteLead,recordVisit,listVisits, listReconciliation, listPaymentAudit } from './commercialStore';
 
 export const commercialRouter = Router();
 const clean=(v:unknown,max=150)=>typeof v==='string' ? v.trim().slice(0,max) : '';
@@ -33,4 +34,20 @@ commercialRouter.put('/api/commercial/prices',(req,res)=>{
     prices[id][cycle][currency]=value;
   }
   savePrices(prices,res.locals.adminEmail);res.json({success:true,prices});
+});
+
+commercialRouter.get('/api/commercial/payments',(_req,res)=>{
+ const records=listReconciliation(),accounts=loadAccounts(),byUser=new Map(accounts.map(a=>[a.id,a])),seen=new Set(records.payments.map(p=>p.paymentId));
+ const history=accounts.flatMap(a=>(a.payments||[]).filter((p:any)=>p.paymentId&&!seen.has(String(p.paymentId))).map((p:any)=>({paymentId:String(p.paymentId),userId:a.id,status:p.status,amount:p.amount,currency:p.currency,state:'not-checked',reason:'Pago del historial: consultar para verificar estado actual.',updatedAt:p.date,source:'history'}))).sort((a,b)=>String(b.updatedAt).localeCompare(String(a.updatedAt))).slice(0,200);
+ const payments=[...records.payments,...history].slice(0,200).map(p=>({...p,name:byUser.get(p.userId)?.name||'',email:byUser.get(p.userId)?.email||''}));
+ res.json({payments,summary:records.summary,audit:listPaymentAudit(),limit:200});
+});
+let activeChecks=0;
+commercialRouter.post('/api/commercial/payments/:paymentId/recheck',async(req,res)=>{
+ const id=String(req.params.paymentId);if(!/^[0-9]{1,30}$/.test(id))return res.status(400).json({error:'Identificador de pago inválido.'});
+ if(!process.env.MERCADOPAGO_ACCESS_TOKEN?.trim())return res.status(503).json({error:'Mercado Pago no está configurado.'});
+ if(activeChecks>=2)return res.status(429).json({error:'Hay consultas en curso. Intentá nuevamente.'});
+ activeChecks++;try{const result=await reconcilePayment(id,'admin-recheck',res.locals.adminEmail);res.json({success:true,result});}
+ catch{return res.status(502).json({error:'No se pudo verificar o guardar el pago. El caso quedó registrado para reintentar.'});}
+ finally{activeChecks--;}
 });

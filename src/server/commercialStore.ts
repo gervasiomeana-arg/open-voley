@@ -16,6 +16,8 @@ function db() {
       CREATE TABLE IF NOT EXISTS commercial_leads (email TEXT PRIMARY KEY, payload TEXT NOT NULL, updated_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS commercial_visits (id TEXT PRIMARY KEY, payload TEXT NOT NULL, created_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS checkout_quotes (reference TEXT PRIMARY KEY, payload TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS payment_reconciliation (id TEXT PRIMARY KEY, state TEXT NOT NULL, payload TEXT NOT NULL, updated_at TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS payment_audit (id TEXT PRIMARY KEY, payment_id TEXT NOT NULL, payload TEXT NOT NULL, created_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS payment_events (id TEXT PRIMARY KEY, payload TEXT NOT NULL, created_at TEXT NOT NULL);`);
   }
   return database;
@@ -43,4 +45,9 @@ export function recordVisit(value: object){db().prepare('INSERT INTO commercial_
 export function listVisits(){const rows=db().prepare('SELECT payload,created_at FROM commercial_visits ORDER BY created_at DESC LIMIT 500').all() as any[];return {total:(db().prepare('SELECT COUNT(*) AS count FROM commercial_visits').get() as any).count,visits:rows.map(r=>({...JSON.parse(r.payload),date:r.created_at}))};}
 export function saveQuote(reference:string,value:object){db().prepare('INSERT INTO checkout_quotes VALUES (?,?)').run(reference,JSON.stringify(value));}
 export function getQuote(reference:string){const row=db().prepare('SELECT payload FROM checkout_quotes WHERE reference=?').get(reference) as any;return row ? JSON.parse(row.payload) : null;}
-export function recordPaymentEvent(id:string,value:object){db().prepare('INSERT INTO payment_events VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload').run(id,JSON.stringify(value),new Date().toISOString());}
+export function recordPaymentEvent(id:string,value:object){db().prepare('INSERT INTO payment_audit VALUES (?,?,?,?)').run(randomUUID(),id,JSON.stringify(value),new Date().toISOString());db().prepare('INSERT INTO payment_events VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload').run(id,JSON.stringify(value),new Date().toISOString());}
+
+export function getReconciliation(id:string){const row=db().prepare('SELECT payload FROM payment_reconciliation WHERE id=?').get(id) as any;return row?JSON.parse(row.payload):null;}
+export function saveReconciliation(id:string,value:any){const now=new Date().toISOString();const previous=getReconciliation(id);const record={...previous,...value,paymentId:id,firstSeen:previous?.firstSeen||now,updatedAt:now};db().prepare('INSERT INTO payment_reconciliation VALUES (?,?,?,?) ON CONFLICT(id) DO UPDATE SET state=excluded.state,payload=excluded.payload,updated_at=excluded.updated_at').run(id,record.state,JSON.stringify(record),now);return record;}
+export function listReconciliation(){const rows=db().prepare("SELECT payload FROM payment_reconciliation ORDER BY CASE state WHEN 'review' THEN 0 WHEN 'retry' THEN 1 WHEN 'pending' THEN 2 ELSE 3 END, updated_at DESC LIMIT 200").all() as any[];const summary=db().prepare('SELECT state,COUNT(*) AS total FROM payment_reconciliation GROUP BY state').all();return {payments:rows.map(r=>JSON.parse(r.payload)),summary:Object.fromEntries(summary.map(r=>[r.state,r.total]))};}
+export function listPaymentAudit(){return (db().prepare('SELECT payment_id,payload,created_at FROM payment_audit ORDER BY created_at DESC,rowid DESC LIMIT 100').all() as any[]).map(r=>({paymentId:r.payment_id,...JSON.parse(r.payload),date:r.created_at}));}

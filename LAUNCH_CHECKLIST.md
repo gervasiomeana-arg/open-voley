@@ -18,7 +18,7 @@ Ingresar con la cuenta Google autorizada y abrir Configuración → Ventas & PRD
 
 Los nuevos ingresos verificados con Google registran nombre, correo y fechas en el historial de cuentas y en el registro comercial. El formulario público registra solicitudes de demo con autorización de contacto. Una visita anónima registra fecha, página y dispositivo; no permite identificar nombre o correo. La pantalla muestra las últimas 500 visitas y el total conservado.
 
-Los cambios de precio se aplican a nuevos cobros; los iniciados antes mantienen su cotización. Son pagos de acceso por período, no una suscripción con débito automático. Las renovaciones vencidas comienzan desde el momento del pago. Los reembolsos totales y contracargos verificados retiran los días correspondientes e invalidan sesiones; reembolsos parciales requieren revisión manual.
+Los cambios de precio se aplican a nuevos cobros; los iniciados antes mantienen su cotización. Son pagos de acceso por período, no una suscripción con débito automático. Las renovaciones vencidas comienzan desde el momento del pago. Los reembolsos totales y contracargos verificados retiran los días correspondientes e invalidan sesiones; reembolsos parciales quedan señalados para revisión manual en Pagos y revisión de acceso. Allí el administrador puede consultar por ID y reintentar casos fallidos; la consulta verifica el proveedor antes de modificar días de acceso.
 
 ## Datos anteriores y pruebas obligatorias
 
@@ -33,7 +33,7 @@ Por defecto: 250 MB por archivo de vídeo, 2 GB por cuenta, dos cargas simultán
 - Las herramientas de copia, verificación y restauración de SQLite, cuentas y vídeos están implementadas y probadas con datos sintéticos (RECOVERY_RUNBOOK.md). Configurar almacenamiento externo y retención; comprobar una restauración real y persistencia ante reinicio/redeploy antes de venta abierta.
 - Verificar vulnerabilidades con el lockfile de Bun y las versiones exactas del despliegue. npm audit no admite directamente bun.lock.
 - Acordar y publicar contacto real de soporte, política de privacidad, condiciones comerciales y procedimiento de eliminación de cuenta/datos. El formulario ya explica el uso y permite borrar interesados; eso no cubre todos los datos de una cuenta.
-- Reconciliación de pagos fallidos y prueba de casos de reversión parciales. Monitorizar errores y costes.
+- La revisión de pagos y la cola persistente de reintentos están implementadas; todavía falta un trabajador automático programado, reconciliación de pagos que nunca notificaron a la app y prueba sandbox real de reembolsos parciales. Monitorizar errores y costes.
 - Revisar promesas de planes: accesos simultáneos por club, equipos compartidos, SLA y funciones de cada nivel todavía no se aplican como permisos comerciales separados.
 - Prueba visual real del formulario de interés, panel administrativo y login en la tablet/celular. No se verificó aún el despliegue ni se procesaron cobros reales en esta entrega.
 
