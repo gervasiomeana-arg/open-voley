@@ -96,7 +96,8 @@ function cleanText(value: unknown, max = 300): string {
 }
 
 export async function startServer() {
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.NODE_ENV !== 'development') {
+    process.env.NODE_ENV = 'production';
     const missing = productionConfigurationErrors();
     if (missing.length) {
       console.warn('⚠️ [OPEN VOLEY] Advertencia de configuración en producción:', missing.join(', '));
@@ -106,10 +107,10 @@ export async function startServer() {
 
   const app = express();
   // Dev server and container proxy expect the application on port 3000 in development.
-  // In production (e.g. Cloud Run deployments on Publish), listen on process.env.PORT provided by the host.
-  const PORT = process.env.NODE_ENV === 'production' && process.env.PORT
-    ? parseInt(process.env.PORT, 10)
-    : 3000;
+  // In production (Cloud Run deployments on Publish), listen on process.env.PORT provided by the host.
+  const PORT = process.env.NODE_ENV === 'development'
+    ? 3000
+    : (process.env.PORT ? parseInt(process.env.PORT, 10) : 3000);
 
   app.use(express.json({ limit: '1mb' }));
   app.use(securityMiddleware);
