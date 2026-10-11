@@ -100,7 +100,9 @@ authMeRouter.post('/authorize', (_req, res) => res.status(410).json({error: 'Usa
 // Endpoint to receive official Google Identity Services credential
 authMeRouter.post('/google', async (req, res) => {
   try {
-    if (!process.env.GOOGLE_CLIENT_ID?.trim() || (process.env.SESSION_SECRET?.trim().length || 0)<32) return res.status(503).json({error: 'El acceso con Google no está configurado.'});
+    const sessionSecret = process.env.SESSION_SECRET?.trim();
+    const isSecretConfigured = Boolean(sessionSecret && (process.env.NODE_ENV !== 'production' || sessionSecret.length >= 32));
+    if (!process.env.GOOGLE_CLIENT_ID?.trim() || !isSecretConfigured) return res.status(503).json({error: 'El acceso con Google no está configurado.'});
     const credential = req.body?.credential;
     if (typeof credential !== 'string' || !credential) {
       return res.status(400).json({ error: 'Credential is required' });

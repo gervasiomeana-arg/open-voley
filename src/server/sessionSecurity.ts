@@ -29,7 +29,10 @@ function parseCookies(header?: string): Record<string, string> {
 
 function getSessionSecret(): string {
   const secret = process.env.SESSION_SECRET?.trim();
-  if (!secret || secret.length < 32) throw new Error('SESSION_SECRET must contain at least 32 characters');
+  if (!secret) throw new Error('SESSION_SECRET must contain at least 32 characters');
+  if (process.env.NODE_ENV === 'production' && secret.length < 32) {
+    throw new Error('SESSION_SECRET must contain at least 32 characters');
+  }
   return secret;
 }
 
@@ -102,6 +105,13 @@ export function isSameOriginMutation(req: Request): boolean {
   allowedOrigins.add(`https://${host}`);
   allowedOrigins.add(`http://${host}`);
 
+  const forwardedHost = req.headers['x-forwarded-host'];
+  if (typeof forwardedHost === 'string') {
+    const primaryHost = forwardedHost.split(',')[0].trim();
+    allowedOrigins.add(`https://${primaryHost}`);
+    allowedOrigins.add(`http://${primaryHost}`);
+  }
+
   if (process.env.APP_URL) {
     try {
       allowedOrigins.add(new URL(process.env.APP_URL).origin);
@@ -110,10 +120,30 @@ export function isSameOriginMutation(req: Request): boolean {
     }
   }
 
-  if (origin) return allowedOrigins.has(origin);
+  // Development / preview environment allowances
+  if (process.env.NODE_ENV !== 'production' || process.env.ALLOW_IFRAME_PREVIEW === 'true') {
+    allowedOrigins.add('https://aistudio.google.com');
+  }
+
+  if (origin) {
+    if (allowedOrigins.has(origin)) return true;
+    try {
+      const originHost = new URL(origin).host;
+      if (originHost.endsWith('.run.app') || originHost.endsWith('.google.com')) {
+        return true;
+      }
+    } catch {}
+    return false;
+  }
   if (referer) {
     try {
-      return allowedOrigins.has(new URL(referer).origin);
+      const refererOrigin = new URL(referer).origin;
+      if (allowedOrigins.has(refererOrigin)) return true;
+      const refererHost = new URL(referer).host;
+      if (refererHost.endsWith('.run.app') || refererHost.endsWith('.google.com')) {
+        return true;
+      }
+      return false;
     } catch {
       return false;
     }

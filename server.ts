@@ -7,6 +7,16 @@ import { GoogleGenAI } from '@google/genai';
 import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
 import { sessionCookieHeader } from './src/server/sessionSecurity';
+import { authMeRouter } from './src/server/authMeRouter';
+import { securityMiddleware } from './src/server/securityMiddleware';
+import { requestProtection } from './src/server/requestProtection';
+import { commercialRouter } from './src/server/commercialRouter';
+import { secureMercadoPago } from './src/server/secureMercadoPago';
+import { securePaymentConfirmation } from './src/server/securePaymentConfirmation';
+import { trainingSessionsRouter } from './src/server/trainingSessionsRouter';
+import { storageHealthRouter } from './src/server/storageHealthRouter';
+import { smartSportsMontageRouter } from './src/server/smartSportsMontageRouter';
+import { videoRenderRouter } from './src/server/videoRenderRouter';
 
 interface PaymentRecord {
   id: string;
@@ -91,6 +101,16 @@ async function startServer() {
   const PORT = 3000;
 
   app.use(express.json({ limit: '1mb' }));
+  app.use(securityMiddleware);
+  app.use(requestProtection);
+  app.use(commercialRouter);
+  app.use(secureMercadoPago);
+  app.use(securePaymentConfirmation);
+  app.use('/api/auth', authMeRouter);
+  app.use('/api/training-sessions', trainingSessionsRouter);
+  app.use('/api/smart-sports-montages', smartSportsMontageRouter);
+  app.use('/api/video-render', videoRenderRouter);
+  app.use('/api/storage-health', storageHealthRouter);
 
   app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok', app: 'OPEN VOLEY' });
@@ -306,6 +326,11 @@ async function startServer() {
       console.error('PRD generation failed:', error);
       return res.status(502).json({ error: 'PRD generation failed' });
     }
+  });
+
+  // Any unmatched /api route MUST return JSON 404, never falling through to HTML SPA fallback
+  app.all('/api/*', (_req, res) => {
+    res.status(404).json({ error: 'Endpoint not found' });
   });
 
   if (process.env.NODE_ENV !== 'production') {
