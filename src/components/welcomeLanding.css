@@ -1079,3 +1079,22 @@
 }
 
 }
+
+.ov-nav-actions { display:flex; align-items:center; gap:14px; }
+.ov-mobile-plans { display:none; }
+.ov-libero-band { display:flex; justify-content:flex-end; padding:7px 10px; color:var(--ov-muted); font-size:9px; }
+.ov-lead-form .ov-consent { font-size:12px; }
+.ov-consent input { width:20px; height:20px; }
+.ov-lead-form input:not([type=checkbox]) { min-height:44px; }
+@media (max-width:760px) {
+  .ov-mobile-plans { display:block; min-height:44px; padding:8px 4px; background:none; border:0; color:var(--ov-ink); font-size:12px!important; }
+  .ov-login { min-height:44px; }
+}
+@media (max-width:380px) {
+  .ov-nav { gap:8px; }
+  .ov-nav-actions { gap:8px; }
+  .ov-brand { font-size:16px; gap:6px; }
+  .ov-brand>svg { width:25px; height:25px; }
+  .ov-login { padding:8px 10px; }
+  .ov-login>svg { display:none; }
+}
