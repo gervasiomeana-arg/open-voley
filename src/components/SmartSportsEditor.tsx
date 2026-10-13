@@ -98,6 +98,8 @@ export const SmartSportsEditor: React.FC<SmartSportsEditorProps> = ({
     return () => { active = false; };
   }, [match.id]);
 
+  useEffect(()=>{const refresh=()=>setSavedMontages(getSavedSmartSportsMontages().filter(item=>item.matchId===match.id));window.addEventListener('openvoley:cloud-hydrated',refresh);return ()=>window.removeEventListener('openvoley:cloud-hydrated',refresh);},[match.id]);
+
   const sourceActions = useMemo(() => {
     const byId = new Map<string, ScoutCodeAction>();
     [...actions, ...userCuts].forEach((action) => {

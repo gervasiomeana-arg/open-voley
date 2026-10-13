@@ -1,3 +1,4 @@
+import {cloudOwnsUserData,flushUserData,getDataSyncStatus} from './userDataSync';
 import { userStorage } from './userStorage';
 import { SmartSportsMontage } from '../types';
 import {
@@ -31,6 +32,7 @@ export async function fetchServerMontages(): Promise<SmartSportsMontage[]> {
 }
 
 export async function pushMontageToServer(montage: SmartSportsMontage): Promise<boolean> {
+  if(cloudOwnsUserData()){await flushUserData();return getDataSyncStatus().state==='synced';}
   try {
     const response = await fetch(`/api/smart-sports-montages/${encodeURIComponent(montage.id)}`, {
       method: 'PUT',
@@ -45,6 +47,7 @@ export async function pushMontageToServer(montage: SmartSportsMontage): Promise<
 }
 
 export async function deleteMontageFromServer(id: string): Promise<boolean> {
+  if(cloudOwnsUserData()){await flushUserData();return getDataSyncStatus().state==='synced';}
   try {
     const response = await fetch(`/api/smart-sports-montages/${encodeURIComponent(id)}`, {
       method: 'DELETE',
@@ -58,6 +61,7 @@ export async function deleteMontageFromServer(id: string): Promise<boolean> {
 }
 
 export async function syncSmartSportsMontages(): Promise<SmartSportsMontage[]> {
+  if(cloudOwnsUserData())return getSavedSmartSportsMontages();
   const local = getSavedSmartSportsMontages();
   const remote = await fetchServerMontages();
   const byId = new Map<string, SmartSportsMontage>();

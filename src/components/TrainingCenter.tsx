@@ -75,6 +75,8 @@ export const TrainingCenter: React.FC<TrainingCenterProps> = ({
     };
   }, []);
 
+  useEffect(()=>{const refresh=()=>{const saved=getSavedTrainingSessions();setSessions(saved);setSelectedSessionId(current=>saved.some(s=>s.id===current)?current:(saved[0]?.id||''));};window.addEventListener('openvoley:cloud-hydrated',refresh);return ()=>window.removeEventListener('openvoley:cloud-hydrated',refresh);},[]);
+
   const activeSession = sessions.find((s) => s.id === selectedSessionId) || sessions[0];
   const activeFollowUp =
     activeSession?.performanceTarget && match

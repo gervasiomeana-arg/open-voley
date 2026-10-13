@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Film, Search, Scissors, Trash2, User, Volleyball, Send, MessageSquare } from 'lucide-react';
 import { SmartSportsMontage, VolleySkill } from '../types';
+import {getSavedSmartSportsMontages} from '../services/smartSportsMontageStorage';
 import { deleteMontageLocallyFirst, syncSmartSportsMontages } from '../services/smartSportsMontageSync';
 
 const SKILL_LABEL: Record<VolleySkill, string> = {
@@ -24,6 +25,8 @@ export const SmartSportsLibrary: React.FC<Props> = ({ currentMatchId, onOpenMont
     });
     return () => { active = false; };
   }, []);
+
+  useEffect(()=>{const refresh=()=>setMontages(getSavedSmartSportsMontages());window.addEventListener('openvoley:cloud-hydrated',refresh);return ()=>window.removeEventListener('openvoley:cloud-hydrated',refresh);},[]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();

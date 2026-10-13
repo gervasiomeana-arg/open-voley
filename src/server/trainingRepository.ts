@@ -1,3 +1,5 @@
+import {durableStorageEnabled} from './supabaseStore';
+import {CloudTrainingRepository} from './cloudCollections';
 import fs from 'fs';
 import path from 'path';
 import { TrainingSession } from '../types';
@@ -52,8 +54,8 @@ export class JsonTrainingRepository implements TrainingRepository {
 }
 
 export interface TrainingRepositoryStatus {
-  requestedDriver: 'json' | 'sqlite';
-  activeDriver: 'json' | 'sqlite';
+  requestedDriver: 'json' | 'sqlite' | 'supabase';
+  activeDriver: 'json' | 'sqlite' | 'supabase';
   fallbackActive: boolean;
   healthy: boolean;
   message: string;
@@ -115,6 +117,7 @@ function createTrainingRepository(): {
   repository: TrainingRepository;
   status: TrainingRepositoryStatus;
 } {
+  if(durableStorageEnabled())return {repository:new CloudTrainingRepository(),status:{requestedDriver:'supabase',activeDriver:'supabase',fallbackActive:false,healthy:true,message:'Supabase adapter selected; connection verification required'}};
   // SQLite is now the primary driver. Set OPENVOLEY_STORAGE_DRIVER=json only
   // as an explicit operational rollback while the transition is monitored.
   return createTrainingRepositoryForDriver(

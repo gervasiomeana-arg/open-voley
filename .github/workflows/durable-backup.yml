@@ -1,0 +1,29 @@
+name: OPEN VOLEY encrypted daily backup
+on:
+  schedule:
+    - cron: '30 6 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  backup:
+    if: vars.OPENVOLEY_BACKUPS_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      OPENVOLEY_BACKUP_ENCRYPTION_KEY: ${{ secrets.OPENVOLEY_BACKUP_ENCRYPTION_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Export a consistent snapshot and encrypt it
+        run: node scripts/exportDurableBackup.mjs encrypted-backup
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openvoley-encrypted-backup-${{ github.run_id }}
+          path: encrypted-backup/*.ovbak
+          retention-days: 30
+          if-no-files-found: error

@@ -1,3 +1,4 @@
+import {cloudOwnsUserData,flushUserData,getDataSyncStatus} from './userDataSync';
 import { TrainingSession } from '../types';
 import {
   getSavedTrainingSessions,
@@ -56,6 +57,7 @@ export async function fetchServerTrainingSessions(): Promise<TrainingSyncResult>
 export async function pushTrainingSessionToServer(
   session: TrainingSession,
 ): Promise<boolean> {
+  if(cloudOwnsUserData()){await flushUserData();return getDataSyncStatus().state==='synced';}
   try {
     const response = await fetch(
       `/api/training-sessions/${encodeURIComponent(session.id)}`,
@@ -79,6 +81,7 @@ export async function pushTrainingSessionToServer(
 export async function deleteTrainingSessionFromServer(
   id: string,
 ): Promise<boolean> {
+  if(cloudOwnsUserData()){await flushUserData();return getDataSyncStatus().state==='synced';}
   try {
     const response = await fetch(
       `/api/training-sessions/${encodeURIComponent(id)}`,
@@ -96,6 +99,7 @@ export async function deleteTrainingSessionFromServer(
 }
 
 export async function syncTrainingSessions(): Promise<TrainingSyncResult> {
+  if(cloudOwnsUserData())return {status:getDataSyncStatus().state==='synced'?'synced':'unavailable',sessions:getSavedTrainingSessions()};
   const local = getSavedTrainingSessions();
   const remoteResult = await fetchServerTrainingSessions();
 

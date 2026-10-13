@@ -1,3 +1,4 @@
+import {initializeUserDataSync} from './userDataSync';
 import {setStorageUser} from './userStorage';
 import type { ClientUser, TrialInfo } from '../types';
 
@@ -22,6 +23,7 @@ export async function getAuthenticatedSession(): Promise<AuthSession | null> {
     if (!data?.authenticated || !data?.user || !data?.trial) return null;
 
     setStorageUser(data.user.id);
+    await initializeUserDataSync(data.user.id);
     return { user: data.user as ClientUser, trial: data.trial as TrialInfo };
   } catch (error) {
     console.error('Could not verify OPEN VOLEY session:', error);

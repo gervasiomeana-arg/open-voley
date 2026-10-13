@@ -1,0 +1,21 @@
+import React,{useEffect,useState} from 'react';
+import {Cloud,CloudOff,ChevronDown} from 'lucide-react';
+import {CLOUD_KEYS} from '../shared/userDataSchema';
+import {getDataSyncStatus,subscribeDataSync,flushUserData,initializeUserDataSync,resolveDataConflict,listDataBackups,restoreDataBackup} from '../services/userDataSync';
+import {getStorageUser} from '../services/userStorage';
+const names:Record<string,string>={openvoley_saved_teams_v1:'Equipos y jugadores',openvoley_saved_matches_v1:'Partidos guardados',openvoley_current_match_v1:'Partido activo',openvoley_training_sessions_v1:'Entrenamientos',openvoley_smart_sports_montages_v1:'Montajes',openvoley_user_cuts:'Acciones de vídeo',openvoley_ai_rallies:'Jugadas analizadas'};
+export function UserDataStoragePanel(){
+ const [status,setStatus]=useState(getDataSyncStatus),[open,setOpen]=useState(false),[selected,setSelected]=useState(CLOUD_KEYS[0]),[backups,setBackups]=useState<any[]>([]),[error,setError]=useState(''),[working,setWorking]=useState(false);
+ useEffect(()=>subscribeDataSync(setStatus),[]);
+ async function run(task:()=>Promise<any>){setWorking(true);setError('');try{await task();}catch(e){setError(e instanceof Error?e.message:'No se pudo completar la operación.');}finally{setWorking(false);}}
+ return <section className="mx-3 mt-3 rounded-lg border border-slate-700 bg-slate-900 text-slate-100" aria-label="Guardado de datos">
+  <button type="button" onClick={()=>setOpen(v=>!v)} aria-expanded={open} className="w-full flex items-center gap-2 p-3 text-left text-xs">{status.state==='synced'?<Cloud size={17} className="text-emerald-400"/>:<CloudOff size={17} className="text-amber-400"/>}<span className="flex-1" role="status">{status.message}</span><ChevronDown size={15}/></button>
+  {open&&<div className="p-4 pt-0 text-sm space-y-3"><p>La copia local permite conservar cambios durante una desconexión. El indicador confirma cuándo llegaron a la base permanente. Los archivos originales de vídeo no se suben con estos registros.</p>
+   <button disabled={working} className="rounded bg-slate-700 px-3 py-2" onClick={()=>void run(()=>initializeUserDataSync(getStorageUser()))}>Comprobar y sincronizar</button>
+   {status.conflicts.map(key=><div key={key} className="rounded border border-amber-600 p-3"><strong>{names[key]||key}</strong><p className="my-2">Esta sección tiene versiones distintas en el dispositivo y en la nube. Reemplazar una conserva la versión anterior en los respaldos de la nube.</p><div className="flex flex-wrap gap-2"><button disabled={working} className="bg-slate-700 rounded p-2" onClick={()=>{if(window.confirm('¿Guardar la versión de este dispositivo en la nube? La versión anterior quedará respaldada.'))void run(()=>resolveDataConflict(key,'local'));}}>Conservar este dispositivo</button><button disabled={working} className="bg-slate-700 rounded p-2" onClick={()=>{if(window.confirm('¿Reemplazar esta sección local por la copia de la nube? Tu versión local se guardará en los respaldos de la nube antes de reemplazarla.'))void run(()=>resolveDataConflict(key,'cloud'));}}>Usar copia de la nube</button></div></div>)}
+   <div className="border-t border-slate-700 pt-3"><label className="block">Respaldos por sección<select className="block mt-2 w-full rounded bg-slate-800 p-2" value={selected} onChange={e=>{setSelected(e.target.value);setBackups([]);}}>{Object.keys(names).map(key=><option key={key} value={key}>{names[key]}</option>)}</select></label><button disabled={working} className="my-3 rounded bg-slate-700 px-3 py-2" onClick={()=>void run(async()=>setBackups(await listDataBackups(selected)))}>Ver respaldos disponibles</button>
+   {backups.map(b=><div key={b.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-800 py-2"><span>{new Date(b.createdAt).toLocaleString()} · {b.kind==='local-conflict'?'Copia local en conflicto':`Versión ${b.revision}`}</span><button disabled={working} className="rounded bg-slate-700 p-2" onClick={()=>{if(window.confirm('¿Restaurar esta sección desde el respaldo seleccionado? Se conservará una copia de la versión actual.'))void run(async()=>{await restoreDataBackup(selected,b.id);setBackups(await listDataBackups(selected));});}}>Restaurar</button></div>)}</div>
+   {error&&<p role="alert" className="text-amber-300">{error}</p>}
+  </div>}
+ </section>;
+}
