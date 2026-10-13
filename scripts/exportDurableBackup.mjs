@@ -3,10 +3,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 const dir=path.resolve(process.argv[2]||'encrypted-backup');
 const password=process.env.OPENVOLEY_BACKUP_ENCRYPTION_KEY;
-const key=process.env.SUPABASE_SERVICE_ROLE_KEY,url=new URL(process.env.SUPABASE_URL||'');
+const key=process.env.SUPABASE_SECRET_KEY?.trim()||process.env.SUPABASE_SERVICE_ROLE_KEY?.trim(),url=new URL(process.env.SUPABASE_URL||'');
 if(!password||password.length<32||!key||url.protocol!=='https:'||!url.hostname.endsWith('.supabase.co')||url.pathname!=='/'||url.search||url.hash||url.username||url.password)throw new Error('Configure the server URL, service key and a separate 32+ character backup encryption key.');
 fs.mkdirSync(dir,{recursive:true,mode:0o700});
-async function rpc(name,args){const response=await fetch(`${url.origin}/rest/v1/rpc/${name}`,{method:'POST',headers:{apikey:key,Authorization:`Bearer ${key}`,'Content-Type':'application/json'},body:JSON.stringify(args),signal:AbortSignal.timeout(60000)});if(!response.ok)throw new Error('Backup database request failed.');return response.json();}
+async function rpc(name,args){const response=await fetch(`${url.origin}/rest/v1/rpc/${name}`,{method:'POST',headers:{apikey:key,...(key.startsWith('sb_secret_')?{}:{Authorization:`Bearer ${key}`}),'Content-Type':'application/json'},body:JSON.stringify(args),signal:AbortSignal.timeout(60000)});if(!response.ok)throw new Error('Backup database request failed.');return response.json();}
 const encrypted=value=>JSON.stringify(encryptBackup(value,password));
 const snapshot=await rpc('ov_prepare_export',{});let cursor=0,count=0,page=0;
 try{

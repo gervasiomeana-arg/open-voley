@@ -2,7 +2,7 @@ export interface CloudRecord { key:string; value:any; revision:number; updatedAt
 export class CloudStorageError extends Error { constructor(public status:number, message='No se pudo confirmar el guardado permanente.') {super(message);} }
 export function durableStorageEnabled(){return process.env.OPENVOLEY_PERSISTENCE?.trim()==='supabase';}
 export function cloudConfiguration(){
- const raw=process.env.SUPABASE_URL?.trim(),key=process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+ const raw=process.env.SUPABASE_URL?.trim(),key=process.env.SUPABASE_SECRET_KEY?.trim()||process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
  if(!raw||!key)throw new CloudStorageError(503,'Falta configurar el almacenamiento permanente.');
  let url:URL;try{url=new URL(raw);}catch{throw new CloudStorageError(503);}
  if(url.protocol!=='https:'||!url.hostname.endsWith('.supabase.co')||url.username||url.password||url.search||url.hash||url.pathname!=='/')throw new CloudStorageError(503,'La dirección de Supabase no es válida.');
@@ -10,7 +10,7 @@ export function cloudConfiguration(){
 }
 export async function cloudRpc<T>(name:string,args:object):Promise<T>{
  const {url,key}=cloudConfiguration();let response:Response;
- try{response=await fetch(`${url}/rest/v1/rpc/${name}`,{method:'POST',headers:{apikey:key,Authorization:`Bearer ${key}`,'Content-Type':'application/json'},body:JSON.stringify(args),signal:AbortSignal.timeout(15000)});}catch{throw new CloudStorageError(503);}
+ try{response=await fetch(`${url}/rest/v1/rpc/${name}`,{method:'POST',headers:{apikey:key,...(key.startsWith('sb_secret_')?{}:{Authorization:`Bearer ${key}`}),'Content-Type':'application/json'},body:JSON.stringify(args),signal:AbortSignal.timeout(15000)});}catch{throw new CloudStorageError(503);}
  const data=await response.json().catch(()=>null);
  if(!response.ok)throw new CloudStorageError(data?.code==='40001'||data?.code==='23505'?409:503,data?.code==='40001'||data?.code==='23505'?'Hay una versión más reciente. Revisá el conflicto antes de guardar.':undefined);
  if(data===null)throw new CloudStorageError(503);return data;

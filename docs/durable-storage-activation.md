@@ -21,7 +21,7 @@ La copia contiene datos privados de clientes: conservarla fuera de GitHub. Este 
 ## Supabase y activación
 
 1. Crear un proyecto exclusivo para OPEN VOLEY. Ejecutar completo `supabase/migrations/20261013_durable_storage.sql` en SQL Editor. Las tablas privadas tienen RLS; las funciones solo admiten `service_role`. El navegador nunca recibe la clave de servicio.
-2. Configurar en los secretos del servidor AI Studio / Cloud Run `SUPABASE_URL` (URL HTTPS del proyecto) y `SUPABASE_SERVICE_ROLE_KEY` (clave de servicio privada). No utilizar prefijo `VITE_`. Mantener todavía sin activar `OPENVOLEY_PERSISTENCE`.
+2. Configurar en los secretos del servidor AI Studio / Cloud Run `SUPABASE_URL` (URL HTTPS del proyecto) y `SUPABASE_SECRET_KEY` (la clave privada `sb_secret_...` de Secret keys; solo servidor). No utilizar prefijo `VITE_`. Mantener todavía sin activar `OPENVOLEY_PERSISTENCE`.
 3. Publicar el código y abrir Administración → Preparar el almacenamiento permanente. Importar la copia previa de cuentas. Si la base ya contiene registros diferentes, se detiene la importación sin sobrescribirlos. Es una migración inicial, no una restauración destructiva.
 4. Exportar también la copia del servidor disponible y migrarla, revisando cualquier conflicto. Cuando hay conflictos de cuentas creadas después del despliegue, detenerse y revisar IDs; no borrar la base ni forzar sobrescrituras.
 5. Configurar `OPENVOLEY_PERSISTENCE=supabase` y volver a publicar. Si falla Supabase, el servidor rechaza operaciones; no vuelve a una base efímera ni registra un guardado exitoso.
@@ -35,7 +35,7 @@ Cada actualización guarda versiones anteriores en PostgreSQL en la misma transa
 
 La copia externa se prepara con `.github/workflows/durable-backup.yml`. En GitHub → Settings → Secrets and variables → Actions:
 
-- Secrets: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `OPENVOLEY_BACKUP_ENCRYPTION_KEY` (una clave independiente aleatoria de 32+ caracteres; guardarla también fuera de GitHub).
+- Secrets: `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `OPENVOLEY_BACKUP_ENCRYPTION_KEY` (una clave independiente aleatoria de 32+ caracteres; guardarla también fuera de GitHub).
 - Variable: `OPENVOLEY_BACKUPS_ENABLED=true`.
 
 El flujo queda apagado hasta configurar esa variable. Ejecutar primero **Run workflow** y confirmar su éxito. Después se programa diariamente a las 06:30 UTC (03:30 Argentina); GitHub puede demorar ejecuciones programadas. No se garantiza ejecución puntual. El snapshot de registros y versiones se crea de forma consistente en PostgreSQL y se exporta por páginas. Cada página y el manifiesto se cifran con AES-256-GCM antes de subirse como artifact, con retención de 30 días. No se escriben datos personales en texto claro en el job. Nunca subir un JSON sin cifrar al repositorio público. Las tablas temporales de exportación se eliminan al terminar; cualquier exportación incompleta pendiente se limpia al preparar una nueva copia después de dos días.
@@ -57,3 +57,5 @@ La primera copia local sigue sujeta a la cuota del navegador. Un fallo de espaci
 `npm run test:durable-storage` usa PostgreSQL real embebido mediante PGlite para validar migración SQL, permisos, CAS, rollback transaccional, aislamiento, restauración, historial, snapshot consistente, cifrado autenticado y reinicio. Pruebas HTTP validan sesión, cuenta esperada y lectura por cuenta vencida. Las pruebas del cliente cubren cola offline, cambios simultáneos, conflictos, copia local archivada, preferencias y borrados. No reemplazan una prueba de Supabase ni del despliegue real.
 
 Ejecutar también lint, build, seguridad, pagos, recuperación, readiness y sincronización heredada. El driver por defecto permanece local durante la preparación. No marcar el punto como activado o garantizado hasta completar la migración y pruebas reales anteriores.
+
+Compatibilidad: se mantiene `SUPABASE_SERVICE_ROLE_KEY` como alternativa para instalaciones heredadas. La nueva clave tiene prioridad si ambas están presentes. Las claves `sb_secret_...` se envían únicamente en `apikey`, sin tratarlas como un JWT en Authorization.

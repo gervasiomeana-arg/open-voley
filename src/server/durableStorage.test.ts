@@ -14,12 +14,15 @@ const originalFetch=globalThis.fetch;
 globalThis.fetch=async(input:any,init:any)=>{
  if(String(input).startsWith('http://127.0.0.1:'))return originalFetch(input,init);
  assert.ok(String(input).startsWith('https://test.supabase.co/rest/v1/rpc/'));
- assert.equal(init.headers.apikey,process.env.SUPABASE_SERVICE_ROLE_KEY);
+ const configured=process.env.SUPABASE_SECRET_KEY||process.env.SUPABASE_SERVICE_ROLE_KEY;assert.equal(init.headers.apikey,configured);assert.equal(init.headers.Authorization,configured?.startsWith('sb_secret_')?undefined:`Bearer ${configured}`);
  const name=String(input).split('/').pop()!,args=JSON.parse(init.body);
  const keys=Object.keys(args);assert.ok(/^ov_[a-z_]+$/.test(name));assert.ok(keys.every(k=>/^p_[a-z_]+$/.test(k)));
  try{const values=keys.map(k=>typeof args[k]==='object'&&args[k]!==null?JSON.stringify(args[k]):args[k]);const q=await db.query(`select public.${name}(${keys.map((k,i)=>`${k} => $${i+1}`).join(',')}) as data`,values);return new Response(JSON.stringify((q.rows[0] as any).data),{status:200});}
  catch(error:any){return new Response(JSON.stringify({code:error.code}),{status:500});}
 };
+process.env.SUPABASE_SECRET_KEY='sb_secret_mock';
+assert.equal((await cloudRpc<any>('ov_storage_ready',{})).schemaVersion,1);
+delete process.env.SUPABASE_SECRET_KEY;
 const key='openvoley_saved_teams_v1';
 const first=await writeCloud('user','A',key,[{id:'team-A'}],0);assert.equal(first.revision,1);
 assert.deepEqual(await readCloud('user','B'),[]);

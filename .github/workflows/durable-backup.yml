@@ -12,6 +12,7 @@ jobs:
     timeout-minutes: 30
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       OPENVOLEY_BACKUP_ENCRYPTION_KEY: ${{ secrets.OPENVOLEY_BACKUP_ENCRYPTION_KEY }}
     steps:
