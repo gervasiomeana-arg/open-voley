@@ -59,3 +59,21 @@ La primera copia local sigue sujeta a la cuota del navegador. Un fallo de espaci
 Ejecutar también lint, build, seguridad, pagos, recuperación, readiness y sincronización heredada. El driver por defecto permanece local durante la preparación. No marcar el punto como activado o garantizado hasta completar la migración y pruebas reales anteriores.
 
 Compatibilidad: se mantiene `SUPABASE_SERVICE_ROLE_KEY` como alternativa para instalaciones heredadas. La nueva clave tiene prioridad si ambas están presentes. Las claves `sb_secret_...` se envían únicamente en `apikey`, sin tratarlas como un JWT en Authorization.
+
+## Si Google no permite ingresar en la vista previa
+
+El dueño del proyecto puede preparar la migración desde el entorno servidor de AI Studio sin una sesión del navegador. No se debilita la autenticación Google ni se habilita una ruta pública.
+
+Adjuntar el archivo privado de cuentas en AI Studio, guardarlo fuera del código publicado, preferentemente `private-migration/OPEN_VOLEY_Cuentas.json`, y ejecutar primero:
+
+```sh
+node --import tsx scripts/importServerMigration.ts private-migration/OPEN_VOLEY_Cuentas.json --check
+```
+
+El comando valida el JSON, comprueba la conexión y el esquema y detecta conflictos, sin escribir registros. Si responde `success:true`, ejecutar:
+
+```sh
+node --import tsx scripts/importServerMigration.ts private-migration/OPEN_VOLEY_Cuentas.json --apply
+```
+
+Solo informa cantidades; no imprime cuentas ni secretos. Mantener `OPENVOLEY_PERSISTENCE` desactivado: el comando se detiene si ya está activo. Una segunda ejecución con el mismo archivo es idempotente. Conservar el archivo original descargado fuera de AI Studio; no subirlo a GitHub ni a la carpeta `public`. La importación inicial sigue sin sobrescribir registros diferentes. Comprobar en Supabase la cuenta importada y sus fechas antes de activar o publicar.
