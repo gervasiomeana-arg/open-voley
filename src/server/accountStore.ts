@@ -1,15 +1,28 @@
+import {cloudRpc,durableStorageEnabled,readCloud} from './supabaseStore';
 import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 
 const file = () => path.join(process.cwd(), 'clients_db.json');
-export function loadAccounts(): any[] {
+const versions=new WeakMap<object,{revision:number;original:string}>();
+
+export async function loadAccounts(): Promise<any[]> {
+  if(durableStorageEnabled()){
+    const records=await readCloud('accounts','system');
+    const accounts=records.filter(r=>r.value!==null).map(r=>{versions.set(r.value,{revision:r.revision,original:JSON.stringify(r.value)});return r.value;});
+    return accounts;
+  }
   if (!fs.existsSync(file())) return [];
   const value = JSON.parse(fs.readFileSync(file(), 'utf8'));
   if (!Array.isArray(value)) throw new Error('Invalid accounts database');
   return value;
 }
-export function saveAccounts(accounts: any[]): void {
+export async function saveAccounts(accounts: any[],previous?:any[]): Promise<void> {
+ if(durableStorageEnabled()){
+  const writes=accounts.flatMap(a=>{const v=versions.get(a);return v?.original===JSON.stringify(a)?[]:[{namespace:'accounts',owner:'system',key:a.id,value:a,baseRevision:v?.revision||0}];});
+  if(previous)for(const a of previous)if(!accounts.some(x=>x.id===a.id))writes.push({namespace:'accounts',owner:'system',key:a.id,value:null,baseRevision:versions.get(a)?.revision||0});
+  if(writes.length) await cloudRpc('ov_commit_records',{p_writes:writes});return;
+ }
   const temp = `${file()}.${randomUUID()}.tmp`;
   fs.writeFileSync(temp, JSON.stringify(accounts, null, 2), { mode: 0o600 });
   fs.renameSync(temp, file());

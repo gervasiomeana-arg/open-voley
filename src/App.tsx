@@ -1,3 +1,4 @@
+import {UserDataStoragePanel} from './components/UserDataStoragePanel';
 import { userStorage } from './services/userStorage';
 import { TacticalWhiteboard } from './components/TacticalWhiteboard';
 import React, { useState, useEffect } from 'react';
@@ -308,8 +309,13 @@ export default function App() {
         if (active) setMatch(active);
       }
     };
+    const cloudRefresh=()=>{
+      onStorage({key:`ov-user:${encodeURIComponent(currentUser?.id||'')}:openvoley_current_match_v1`} as StorageEvent);
+      try{setUserCuts(JSON.parse(userStorage.getItem('openvoley_user_cuts')||'[]'));setAiRallies(JSON.parse(userStorage.getItem('openvoley_ai_rallies')||'[]'));}catch{setFloatingToast({title:'La copia restaurada requiere revisión.'});}
+    };
+    window.addEventListener('openvoley:cloud-hydrated',cloudRefresh);
     window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
+    return () => {window.removeEventListener('storage', onStorage);window.removeEventListener('openvoley:cloud-hydrated',cloudRefresh);};
   }, [currentUser?.id]);
 
   const handleLoginSuccess = (user: ClientUser, trial: TrialInfo) => {
@@ -987,6 +993,7 @@ export default function App() {
           isSidebarCollapsed ? 'lg:pl-20' : 'lg:pl-60'
         }`}
       >
+        <UserDataStoragePanel/>
         {/* Floating Toast Notification */}
         {floatingToast && (
           <div className="fixed top-4 right-4 z-50 bg-slate-900 border border-amber-500/50 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top duration-300">

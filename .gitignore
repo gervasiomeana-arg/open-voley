@@ -21,3 +21,8 @@ mp_credentials.json
 .openvoley-video-renders/
 
 server-build/
+
+# Private migration exports and encrypted backup working directories
+OPEN_VOLEY_Migracion_Servidor.json
+encrypted-backup/
+*.ovbak

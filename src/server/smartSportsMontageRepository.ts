@@ -1,3 +1,5 @@
+import {durableStorageEnabled} from './supabaseStore';
+import {CloudMontageRepository} from './cloudCollections';
 import fs from 'fs';
 import path from 'path';
 import { DatabaseSync } from 'node:sqlite';
@@ -148,6 +150,7 @@ export interface MontageRepositoryStatus {
 }
 
 function createRepository() {
+  if(durableStorageEnabled())return {repository:new CloudMontageRepository(),status:{requestedDriver:"supabase",activeDriver:"supabase",fallbackActive:false,healthy:true,message:"Supabase adapter selected; verification required"}};
   const requestedDriver = process.env.OPENVOLEY_STORAGE_DRIVER?.trim().toLowerCase() === 'json' ? 'json' : 'sqlite';
   if (requestedDriver === 'sqlite') {
     try {
