@@ -24,5 +24,7 @@ server-build/
 
 # Private migration exports and encrypted backup working directories
 OPEN_VOLEY_Migracion_Servidor.json
+OPEN_VOLEY_Cuentas*.json
+private-migration/
 encrypted-backup/
 *.ovbak

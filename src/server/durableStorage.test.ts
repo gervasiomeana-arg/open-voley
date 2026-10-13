@@ -78,6 +78,17 @@ await assert.rejects(()=>importServerMigration({clients:[{...migrating,trialDura
 assert.equal((await readCloud('accounts','system','migration-test'))[0].value.firstLoginDate,'2026-10-01');
 await assert.rejects(()=>importServerMigration({format:'openvoley-server-migration',version:1,records:[{namespace:'user',owner:'A',key:'openvoley_ai_rallies',value:[{id:'not-committed'}]},{namespace:'user',owner:'A',key:'invalid',value:[]}]}));
 assert.deepEqual(await readCloud('user','A','openvoley_ai_rallies'),[]);
+// The owner-operated CLI checks without writing; applying preserves the exported account.
+const {runMigrationCli}=await import('../../scripts/importServerMigration');
+const cliPath=path.join(root,'accounts.json');fs.writeFileSync(cliPath,JSON.stringify({clients:[{...migrating,id:'cli-account',email:'cli@example.test'}]}));
+await assert.rejects(()=>runMigrationCli([cliPath,'--apply']),(e:any)=>e.status===409);
+delete process.env.OPENVOLEY_PERSISTENCE;
+const checked=await runMigrationCli([cliPath,'--check']);assert.equal(checked.wouldImport,1);assert.equal(checked.imported,0);assert.deepEqual(await readCloud('accounts','system','cli-account'),[]);
+assert.equal((await runMigrationCli([cliPath,'--apply'])).imported,1);assert.equal((await runMigrationCli([cliPath,'--apply'])).unchanged,1);
+assert.equal((await readCloud('accounts','system','cli-account'))[0].value.firstLoginDate,migrating.firstLoginDate);
+fs.writeFileSync(cliPath,'not a JSON backup');await assert.rejects(()=>runMigrationCli([cliPath,'--apply']),(e:any)=>e.status===400);
+await assert.rejects(()=>runMigrationCli([cliPath,'--force']),(e:any)=>e.status===400);
+process.env.OPENVOLEY_PERSISTENCE='supabase';
 // Outages fail closed: no local JSON fallback or falsely acknowledged writes.
 globalThis.fetch=async()=>{throw new Error('offline');};await assert.rejects(()=>loadAccounts(),(e:any)=>e.status===503);await assert.rejects(()=>writeCloud('user','A',key,[],17),(e:any)=>e.status===503);
 globalThis.fetch=originalFetch;await db.close();fs.rmSync(root,{recursive:true,force:true});

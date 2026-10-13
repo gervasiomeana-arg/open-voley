@@ -24,7 +24,7 @@ export async function exportServerMigration(){
  }
  return {format:'openvoley-server-migration',version:1,createdAt:new Date().toISOString(),records};
 }
-export async function importServerMigration(input:any){
+export async function importServerMigration(input:any,options:{dryRun?:boolean}={}){
  // A legacy /api/clients JSON export is also accepted to preserve pre-deployment IDs.
  if(Array.isArray(input?.clients))input={format:'openvoley-server-migration',version:1,records:input.clients.map((a:any)=>({namespace:'accounts',owner:'system',key:a.id,value:a}))};
  if(input?.format!=='openvoley-server-migration'||input.version!==1||!Array.isArray(input.records)||input.records.length>1000)throw new CloudStorageError(400,'Respaldo de migración inválido o demasiado grande.');
@@ -37,5 +37,5 @@ export async function importServerMigration(input:any){
   const old=(await readCloud(r.namespace,r.owner,r.key))[0];if(old){if(!isDeepStrictEqual(old.value,r.value))throw new CloudStorageError(409,'La base de destino ya tiene información diferente. No se sobrescribió.');continue;}
   writes.push({...r,baseRevision:0});
  }
- if(writes.length)await cloudRpc('ov_commit_records',{p_writes:writes});return {imported:writes.length,unchanged:input.records.length-writes.length};
+ if(!options.dryRun&&writes.length)await cloudRpc('ov_commit_records',{p_writes:writes});return {imported:options.dryRun?0:writes.length,unchanged:input.records.length-writes.length,wouldImport:writes.length,dryRun:!!options.dryRun};
 }
