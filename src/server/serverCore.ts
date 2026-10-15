@@ -323,6 +323,12 @@ export async function startServer() {
     }
     else {
         const distPath = path.join(process.cwd(), 'dist');
+        // Only content-hashed build assets get long-lived caching. HTML and
+        // unversioned media must still revalidate after a publication.
+        app.use('/assets', express.static(path.join(distPath, 'assets'), {
+            maxAge: '1y', immutable: true,
+            setHeaders(res) { res.setHeader('Cache-Control', 'public, max-age=31536000, immutable'); },
+        }));
         app.use(express.static(distPath));
         app.get('*', (_req, res) => {
             res.sendFile(path.join(distPath, 'index.html'));

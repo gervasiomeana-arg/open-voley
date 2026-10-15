@@ -6,6 +6,7 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
+    build: { manifest: true },
     plugins: [react(), tailwindcss(), (()=>{
       let googleClientId='';
       return {name:'openvoley-client-build',apply:'build' as const,

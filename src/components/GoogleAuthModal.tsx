@@ -7,6 +7,10 @@ export const GoogleAuthModal:React.FC<Props>=({onLoginSuccess,onClose})=>{
  const button=useRef<HTMLDivElement>(null);const [error,setError]=useState('');const [busy,setBusy]=useState(false);
  useEffect(()=>{
   let cancelled=false;
+  // Google is needed only after the visitor opens the sign-in dialog.
+  if (!window.google?.accounts?.id && !document.querySelector('script[data-openvoley-google]')) {
+   const script=document.createElement('script');script.src='https://accounts.google.com/gsi/client';script.async=true;script.defer=true;script.dataset.openvoleyGoogle='true';document.head.appendChild(script);
+  }
   const clientId=import.meta.env.VITE_GOOGLE_CLIENT_ID;
   if (!clientId) {setError('El acceso con Google todavía no está configurado. Contactá a administración.');return;}
   const initialize=()=>{
