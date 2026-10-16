@@ -20,7 +20,7 @@ export const MANUAL_LAUNCH_CHECKS={
  dependencies:'Se revisaron vulnerabilidades de las dependencias exactas del despliegue.',
  plans:'Se verificó que las funciones y accesos ofrecidos por cada plan corresponden al producto.',
 };
-export function launchConfiguration(env:NodeJS.ProcessEnv=process.env,build=readClientBuild(),storage?:{healthy:boolean;activeDriver:string;fallbackActive:boolean}){
+export function launchConfiguration(env:NodeJS.ProcessEnv=process.env,build=readClientBuild(),storage?:{healthy:boolean;activeDriver:string;fallbackActive:boolean;verified?:boolean;durable?:boolean}){
  const item=(id:string,label:string,ok:boolean,detail:string)=>({id,label,ok,detail});
  return {checkedAt:new Date().toISOString(),builtAt:build?.builtAt||null,checks:[
   item('production','Modo producción',env.NODE_ENV==='production','Configurar NODE_ENV=production en el servidor publicado.'),
@@ -33,6 +33,6 @@ export function launchConfiguration(env:NodeJS.ProcessEnv=process.env,build=read
   item('webhook-secret','Firma de notificaciones',!!env.MERCADOPAGO_WEBHOOK_SECRET?.trim(),'Configurar el secreto del webhook y probar una notificación firmada.'),
   item('ai','Credencial de IA',!!env.GEMINI_API_KEY?.trim(),'Solo se comprueba presencia. Validar una consulta real y sus límites.'),
   item('frame','Protección frente a sitios externos',env.ALLOW_IFRAME_PREVIEW!=='true','Desactivar ALLOW_IFRAME_PREVIEW fuera del entorno de vista previa.'),
-  item('sqlite','Entrenamientos en SQLite',!!storage?.healthy&&storage.activeDriver==='sqlite'&&!storage.fallbackActive,'Se comprueba el almacén activo. La persistencia del volumen requiere un ensayo de reinicio.'),
+  item('storage','Almacenamiento de datos',!!storage?.healthy&&!storage.fallbackActive&&(storage.activeDriver==='supabase'?storage.verified===true&&storage.durable===true:storage.activeDriver==='sqlite'),storage?.activeDriver==='supabase'?'Se verifica la conexión y el esquema de Supabase. El respaldo externo y su restauración requieren pruebas separadas.':'Se comprueba el almacén activo. La persistencia del volumen requiere un ensayo de reinicio.'),
  ]};
 }

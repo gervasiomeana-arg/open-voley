@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MatchData, Player, ScoutCodeAction, TeamSide } from '../types';
+import { mediaCardData, mediaCardLines, mediaCardSvg } from '../utils/mediaCardData';
 import { 
   Camera, 
   Download, 
@@ -77,34 +78,29 @@ export const VolleyballMediaStudio: React.FC<VolleyballMediaStudioProps> = ({
   const allPlayers = [...(match.homePlayers || []), ...(match.awayPlayers || [])];
   const selectedPlayer = allPlayers.find((p) => p.id === selectedPlayerId) || (match.homePlayers || [])[0];
 
-  // Calculate selected player's stats
-  const playerStats = React.useMemo(() => {
-    if (!selectedPlayer) {
-      return { points: 8, attacks: 12, aces: 2, blocks: 2, eff: 48, recPos: 65 };
-    }
-    const pActions = match.actions.filter((a) => a.playerNum === selectedPlayer.number);
-    const points = pActions.filter((a) => a.evaluation === '#').length;
-    const attacks = pActions.filter((a) => a.skill === 'A').length;
-    const aces = pActions.filter((a) => a.skill === 'S' && a.evaluation === '#').length;
-    const blocks = pActions.filter((a) => a.skill === 'B' && a.evaluation === '#').length;
-    const recs = pActions.filter((a) => a.skill === 'R').length;
-    const posRecs = pActions.filter((a) => a.skill === 'R' && (a.evaluation === '#' || a.evaluation === '+')).length;
-    const recPos = recs > 0 ? Math.round((posRecs / recs) * 100) : 60;
-    const eff = attacks > 0 ? Math.round((points / attacks) * 100) : 45;
+  const playerStats = React.useMemo(() => mediaCardData(match, selectedPlayer), [match, selectedPlayer]);
+  const [exportMessage, setExportMessage] = useState('');
+  const [exporting, setExporting] = useState(false);
+  const homeScore = playerStats.homeSets, awayScore = playerStats.awaySets;
 
-    return {
-      points: points || 7,
-      attacks: attacks || 10,
-      aces: aces || 2,
-      blocks: blocks || 1,
-      eff: eff || 50,
-      recPos: recPos || 65,
-    };
-  }, [match.actions, selectedPlayer]);
-
-  // Overall Match Stats
-  const homeScore = match.sets.reduce((acc, s) => acc + (s.scoreHome > s.scoreAway ? 1 : 0), 0);
-  const awayScore = match.sets.reduce((acc, s) => acc + (s.scoreAway > s.scoreHome ? 1 : 0), 0);
+  const downloadCard = async () => {
+    setExporting(true); setExportMessage('');
+    const svg = mediaCardSvg(match, selectedPlayer, selectedCardType, aspectRatio, cardTheme, customHeadline);
+    const source = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }));
+    let output: string | undefined;
+    try {
+      const image = new Image();
+      await new Promise<void>((resolve, reject) => { image.onload = () => resolve(); image.onerror = () => reject(new Error('No se pudo preparar la imagen.')); image.src = source; });
+      const canvas = document.createElement('canvas'); canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
+      const context = canvas.getContext('2d'); if (!context) throw new Error('El navegador no permite exportar la imagen.');
+      context.drawImage(image, 0, 0);
+      const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(value => value ? resolve(value) : reject(new Error('No se pudo generar el PNG.')), 'image/png'));
+      output = URL.createObjectURL(blob);
+      const link = document.createElement('a'); link.href = output; link.download = `openvoley-${selectedCardType}.png`; link.click();
+      setExportMessage('Tarjeta PNG generada.');
+    } catch (error) { setExportMessage(error instanceof Error ? error.message : 'No se pudo descargar la tarjeta.'); }
+    finally { URL.revokeObjectURL(source); if (output) { const finished = output; window.setTimeout(() => URL.revokeObjectURL(finished), 10000); } setExporting(false); }
+  };
 
   // Render Telestrator Canvas elements
   useEffect(() => {
@@ -220,7 +216,7 @@ export const VolleyballMediaStudio: React.FC<VolleyballMediaStudioProps> = ({
         ctx.stroke();
       }
     };
-  }, [backgroundImageUrl, drawnElements, isDrawing, currentDrawPoints, activeDrawTool]);
+  }, [activeStudioTab, backgroundImageUrl, drawnElements, isDrawing, currentDrawPoints, activeDrawTool]);
 
   // Handle Canvas Drawing Mouse/Touch Events
   const handleCanvasStart = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
@@ -292,19 +288,25 @@ export const VolleyballMediaStudio: React.FC<VolleyballMediaStudioProps> = ({
   const handleDownloadCanvas = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const link = document.createElement('a');
-    link.download = `openvoley_analisis_tactico_${Date.now()}.png`;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
+    try {
+      const link = document.createElement('a');
+      link.download = `openvoley_analisis_tactico_${Date.now()}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click(); setExportMessage('Imagen táctica generada.');
+    } catch { setExportMessage('No se pudo exportar esa imagen. Cargá una foto desde tu dispositivo y reintentá.'); }
   };
 
-  const triggerCopyFeedback = () => {
-    setCopiedAlert(true);
-    setTimeout(() => setCopiedAlert(false), 2000);
+  const triggerCopyFeedback = async () => {
+    setExportMessage('');
+    try {
+      await navigator.clipboard.writeText([customHeadline, ...mediaCardLines(match, selectedPlayer, selectedCardType), 'OPEN VOLEY'].join('\n'));
+      setCopiedAlert(true); setTimeout(() => setCopiedAlert(false), 2000);
+    } catch { setExportMessage('No se pudo copiar. Permití el acceso al portapapeles o descargá la tarjeta.'); }
   };
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto text-slate-100 animate-fadeIn">
+      <p role="status" className="text-sm text-amber-200">{exportMessage}</p>
       
       {/* STUDIO HEADER */}
       <div className="bg-gradient-to-r from-amber-600 via-orange-600 to-rose-600 rounded-3xl p-6 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-4">
@@ -370,10 +372,10 @@ export const VolleyballMediaStudio: React.FC<VolleyballMediaStudioProps> = ({
               </span>
               <div className="grid grid-cols-2 gap-2.5">
                 {[
-                  { id: 'top_scorer', label: 'Top Scorer / MVP', icon: Trophy, desc: 'Líder en puntos' },
+                  { id: 'top_scorer', label: 'Jugador destacado', icon: Trophy, desc: 'Puntos registrados' },
                   { id: 'pass_positivity', label: 'Positivity Pass', icon: TrendingUp, desc: '% de Recepción' },
-                  { id: 'match_result', label: 'Resultado Final', icon: ShieldCheck, desc: 'Score & Sets' },
-                  { id: 'shot_chart', label: 'Mapa de Ataques', icon: Zap, desc: 'Trayectorias' },
+                  { id: 'match_result', label: 'Marcador del partido', icon: ShieldCheck, desc: 'Sets registrados' },
+                  { id: 'shot_chart', label: 'Destinos de ataque', icon: Zap, desc: 'Zonas registradas' },
                 ].map((item) => {
                   const Icon = item.icon;
                   const isSel = selectedCardType === item.id;
@@ -498,17 +500,16 @@ export const VolleyballMediaStudio: React.FC<VolleyballMediaStudioProps> = ({
                 className="flex-1 py-3.5 bg-slate-800 hover:bg-slate-700 text-white font-extrabold text-xs rounded-2xl border border-slate-700 flex items-center justify-center gap-2 shadow-lg transition"
               >
                 {copiedAlert ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-amber-400" />}
-                <span>{copiedAlert ? '¡Enlace Copiado!' : 'Copiar para WhatsApp'}</span>
+                <span>{copiedAlert ? 'Resumen copiado' : 'Copiar resumen'}</span>
               </button>
 
               <button
-                onClick={() => {
-                  alert('¡Tarjeta gráfica lista para publicar en Instagram Reels / Stories!');
-                }}
+                onClick={() => void downloadCard()}
+                disabled={exporting}
                 className="flex-1 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-slate-950 font-black text-xs rounded-2xl flex items-center justify-center gap-2 shadow-xl shadow-orange-500/20 transition"
               >
                 <Download className="w-4 h-4" />
-                <span>Descargar Tarjeta HD</span>
+                <span>{exporting ? 'Generando PNG…' : 'Descargar Tarjeta HD'}</span>
               </button>
             </div>
 
@@ -550,7 +551,7 @@ export const VolleyballMediaStudio: React.FC<VolleyballMediaStudioProps> = ({
                   </div>
                   <div>
                     <span className="font-black text-xs tracking-wider text-white block">OPEN VOLEY</span>
-                    <span className="text-[9px] text-amber-200 uppercase font-mono">Official Match Report</span>
+                    <span className="text-[9px] text-amber-200 uppercase font-mono">Datos registrados</span>
                   </div>
                 </div>
 
@@ -576,7 +577,7 @@ export const VolleyballMediaStudio: React.FC<VolleyballMediaStudioProps> = ({
                         </div>
                       </div>
                       <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-3 py-0.5 bg-amber-400 text-slate-950 font-black text-[10px] rounded-full uppercase shadow">
-                        MVP MATCH
+                        JUGADOR DESTACADO
                       </span>
                     </div>
 
@@ -595,7 +596,7 @@ export const VolleyballMediaStudio: React.FC<VolleyballMediaStudioProps> = ({
                       </div>
                       <div className="bg-slate-900/80 backdrop-blur-md p-2 rounded-2xl border border-white/10">
                         <span className="text-[9px] uppercase font-bold text-slate-400 block">Efectividad</span>
-                        <span className="text-xl font-black text-emerald-400 font-mono">{playerStats.eff}%</span>
+                        <span className="text-xl font-black text-emerald-400 font-mono">{playerStats.eff === null ? 'Sin datos' : `${playerStats.eff}%`}</span>
                       </div>
                       <div className="bg-slate-900/80 backdrop-blur-md p-2 rounded-2xl border border-white/10">
                         <span className="text-[9px] uppercase font-bold text-slate-400 block">Aces / Bloq</span>
@@ -615,26 +616,14 @@ export const VolleyballMediaStudio: React.FC<VolleyballMediaStudioProps> = ({
 
                     <div className="bg-slate-900/90 rounded-2xl p-4 border border-white/10 space-y-3">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-slate-300 font-bold">Promedio Global:</span>
-                        <span className="text-2xl font-black text-orange-400 font-mono">68%</span>
+                        <span className="text-slate-300 font-bold">{selectedPlayer?.name || 'Sin jugador'}:</span>
+                        <span className="text-2xl font-black text-orange-400 font-mono">{playerStats.recPos === null ? 'Sin datos' : `${playerStats.recPos}%`}</span>
                       </div>
-
-                      {/* Mini Bar Chart */}
                       <div className="space-y-2">
-                        {['Set 1: 72%', 'Set 2: 65%', 'Set 3: 58%', 'Set 4: 75%'].map((setLabel, idx) => (
-                          <div key={idx} className="space-y-0.5">
-                            <div className="flex justify-between text-[10px] font-bold text-slate-400">
-                              <span>{setLabel.split(':')[0]}</span>
-                              <span className="text-white">{setLabel.split(':')[1]}</span>
-                            </div>
-                            <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-gradient-to-r from-orange-500 to-amber-400 rounded-full"
-                                style={{ width: `${60 + idx * 5}%` }}
-                              />
-                            </div>
-                          </div>
-                        ))}
+                        {playerStats.receptionSets.map(row => <div key={row.number}>
+                          <div className="flex justify-between text-xs"><span>Set {row.number}</span><span>{row.percent}% · {row.total} recepciones</span></div>
+                          <div className="h-2 bg-slate-800 rounded-full"><div className="h-full bg-amber-400 rounded-full" style={{ width: `${row.percent}%` }} /></div>
+                        </div>)}
                       </div>
                     </div>
                   </div>
@@ -644,28 +633,25 @@ export const VolleyballMediaStudio: React.FC<VolleyballMediaStudioProps> = ({
                 {selectedCardType === 'match_result' && (
                   <div className="space-y-4 text-center">
                     <span className="text-xs font-black uppercase tracking-widest text-amber-300">
-                      RESULTADO OFICIAL
+                      {match.isFinished ? 'PARTIDO FINALIZADO' : 'PARTIDO EN CURSO'}
                     </span>
 
                     {/* Dual Scoreboard */}
                     <div className="flex items-center justify-center gap-4">
                       <div className="text-center">
                         <div className="text-xs font-black text-orange-300">{match.homeTeamName}</div>
-                        <div className="text-4xl sm:text-5xl font-black font-mono text-white mt-1">3</div>
+                        <div className="text-4xl sm:text-5xl font-black font-mono text-white mt-1">{homeScore}</div>
                       </div>
                       <div className="text-2xl font-black text-slate-500">:</div>
                       <div className="text-center">
                         <div className="text-xs font-black text-cyan-300">{match.awayTeamName}</div>
-                        <div className="text-4xl sm:text-5xl font-black font-mono text-white mt-1">1</div>
+                        <div className="text-4xl sm:text-5xl font-black font-mono text-white mt-1">{awayScore}</div>
                       </div>
                     </div>
 
                     {/* Set by Set Breakdown */}
                     <div className="bg-slate-900/80 p-3 rounded-2xl border border-white/10 text-xs font-mono flex justify-around text-slate-300">
-                      <span>25-22</span>
-                      <span>23-25</span>
-                      <span>25-19</span>
-                      <span>25-21</span>
+                      {playerStats.sets.map(set => <span key={set.number}>S{set.number}: {set.home}-{set.away}</span>)}
                     </div>
                   </div>
                 )}
@@ -675,25 +661,12 @@ export const VolleyballMediaStudio: React.FC<VolleyballMediaStudioProps> = ({
                   <div className="space-y-2">
                     <div className="text-center">
                       <span className="text-xs font-black uppercase text-amber-300">Mapa de Distribución</span>
-                      <h4 className="text-lg font-black text-white">Direcciones de Ataque</h4>
+                      <h4 className="text-lg font-black text-white">Zonas de destino</h4>
                     </div>
 
-                    {/* Mini Visual Court */}
-                    <div className="bg-[#1e5138] p-3 rounded-2xl border-2 border-white/40 relative h-36">
-                      <div className="w-full h-1 bg-white/80 mb-2" />
-                      <div className="w-full border-t border-dashed border-white/60 my-4" />
-                      
-                      {/* Shot Arrows */}
-                      <svg className="absolute inset-0 w-full h-full pointer-events-none">
-                        <line x1="60" y1="40" x2="220" y2="120" stroke="#10b981" strokeWidth="3" strokeDasharray="3 3" />
-                        <line x1="60" y1="40" x2="80" y2="120" stroke="#ef4444" strokeWidth="2.5" />
-                        <line x1="160" y1="40" x2="160" y2="110" stroke="#38bdf8" strokeWidth="2.5" />
-                      </svg>
-                      
-                      <div className="absolute bottom-1 right-2 text-[9px] font-mono text-white/90 bg-black/60 px-1.5 py-0.5 rounded">
-                        🟢 Puntos (65%) | 🔴 Errores (15%)
-                      </div>
-                    </div>
+                    <p className="text-xs">{playerStats.teamName} · {playerStats.attacksWithDestination} de {playerStats.totalTeamAttacks} ataques con destino registrado</p>
+                    {playerStats.attacksWithDestination ? <div className="grid grid-cols-3 gap-2">{playerStats.destinations.map(zone => <div key={zone.zone} className="bg-slate-900 p-2 rounded text-center">Zona {zone.zone}<br /><strong>{zone.total}</strong></div>)}</div> : <p>Sin zonas de destino registradas. No se infieren trayectorias.</p>}
+
                   </div>
                 )}
 

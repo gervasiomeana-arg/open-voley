@@ -211,6 +211,7 @@ export const CompetitionCenter: React.FC<CompetitionCenterProps> = ({
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
+      <p role="status" className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-200">Vista de demostración de competiciones. Los equipos, fixtures y tablas iniciales son ejemplos. Los cambios de esta sección se mantienen solo mientras permanezca abierta; todavía no se guardan en tu cuenta.</p>
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 bg-slate-900 border border-slate-800 rounded-3xl shadow-xl">
         <div className="flex items-center gap-4">

@@ -43,7 +43,8 @@
     "test:teams-recovery": "node --import tsx src/services/teamStorageRecovery.test.ts",
     "test:payments": "node --import tsx src/server/paymentProcessing.test.ts",
     "check:launch": "node --import tsx scripts/checkLaunch.ts",
-    "test:readiness": "node --import tsx src/server/launchReadiness.test.ts",
+    "test:media-cards": "node --import tsx src/utils/mediaCardData.test.ts",
+    "test:readiness": "node --import tsx src/server/launchReadiness.test.ts && node --import tsx src/server/launchStorageStatus.test.ts",
     "test:landing": "node scripts/checkLanding.mjs",
     "test:durable-storage": "node --import tsx src/server/durableStorage.test.ts && node --import tsx src/services/userDataSync.test.ts"
   },
