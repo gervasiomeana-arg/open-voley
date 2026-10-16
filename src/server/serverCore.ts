@@ -1,3 +1,4 @@
+import { classifyAiError } from '../shared/aiErrors';
 import {durableStorageEnabled,readCloud,updateCloud} from './supabaseStore';
 import {userDataRouter} from './userDataRouter';
 import {asyncHandler,storageErrorHandler} from './asyncHandler';
@@ -266,8 +267,9 @@ export async function startServer() {
             return res.json({ reply: await generateAiText(prompt) });
         }
         catch (error) {
-            console.error('AI scout request failed; no conversation or credentials logged.');
-            return res.status(502).json({ error: 'No se pudo completar el análisis de IA. Revisá la conexión o intentá más tarde.' });
+            const failure=classifyAiError(error);
+            console.error('AI scout request failed', {code:failure.code,status:failure.status});
+            return res.status(failure.status).json({error:failure.error,code:failure.code});
         }
     }));
     app.post('/api/generate-prd', asyncHandler(async (req, res) => {

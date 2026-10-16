@@ -1,3 +1,4 @@
+import { aiResponseError } from '../shared/aiErrors';
 import React, { useState } from 'react';
 import { 
   Sparkles, 
@@ -333,9 +334,7 @@ interface ActionInsightItem {
       const payload = await response.json().catch(() => null);
       const a = response.ok && payload?.reply
         ? String(payload.reply)
-        : payload?.error === 'AI service is not configured'
-          ? 'OPEN AI no está configurado en este servidor. Falta GEMINI_API_KEY.'
-          : 'No fue posible completar la consulta con los datos disponibles.';
+        : aiResponseError(response.status,payload);
       setCustomAnswers((prev) => [{ q, a, timestamp: new Date().toLocaleTimeString().slice(0, 5) }, ...prev].slice(0, 20));
     } catch {
       setCustomAnswers((prev) => [{ q, a: 'No fue posible conectar con OPEN AI.', timestamp: new Date().toLocaleTimeString().slice(0, 5) }, ...prev].slice(0, 20));
