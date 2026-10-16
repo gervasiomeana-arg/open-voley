@@ -28,3 +28,13 @@ La fecha de compilación visible en administración fue 15/10/2026 11:41:03 (for
 - Las pruebas del render FFmpeg existentes se realizaron en entorno local aislado en la revisión anterior; no se presentan como prueba del servidor publicado.
 
 Pendiente: incorporar y publicar estas correcciones, repetir la pregunta de IA para identificar su error real y exportar el archivo técnico en producción. Google queda validado para la cuenta probada; IA y exportación no se consideran aprobadas todavía. Los originales de vídeo y los trabajos siguen siendo temporales por instancia.
+
+## Seguimiento de saturación — 16/10, 04:04 Argentina
+
+El administrador aportó el diagnóstico ejecutado en AI Studio: gemini-3.8-flash devolvió HTTP 503 UNAVAILABLE por alta demanda. La consulta mínima en la publicación volvió a fallar en las pruebas de 00:30 y 04:04. La sesión Google y los datos seguían disponibles. No se considera validada la respuesta del proveedor de IA.
+
+Se agregó un único reintento de las respuestas 503, con una pausa de un segundo y el mismo modelo/contexto. Ambos intentos comparten el presupuesto original de 45 segundos mediante el timeout restante del SDK; sus reintentos internos quedan desactivados. No se reintentan credenciales inválidas, cuotas, peticiones inválidas, errores de modelo ni otros estados. Si falta margen para reintentar, se devuelve el error; si se agota el presupuesto durante la pausa, no se inicia otra llamada. La aplicación muestra un mensaje específico de saturación al recibir el 503 final.
+
+Pruebas simuladas: recuperación del segundo intento; caída continua detenida en dos llamadas; timeout restante 45.000 → 24.000 ms después de 20 s de primera llamada y 1 s de pausa; primer intento de 44 s sin reintento; demora que agota el presupuesto sin segunda llamada; 400/401/403/404/429/500 sin reintento. Tipado, build y portada se verificaron. Configuración de timeout conforme a la interfaz oficial del SDK: https://googleapis.github.io/js-genai/release_docs/interfaces/types.HttpOptions.html .
+
+Esto mejora la tolerancia a un fallo breve. No restablece un modelo que continúa saturado. Después de publicar se requiere una respuesta real satisfactoria antes de marcar IA como aprobada.
