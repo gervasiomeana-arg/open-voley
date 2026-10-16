@@ -1,4 +1,5 @@
 export const AI_MESSAGES = {
+  AI_BUSY: 'El servicio de IA está saturado temporalmente. Volvé a consultar más tarde; tus datos siguen disponibles.',
   AI_NOT_CONFIGURED: 'OPEN AI no está configurado en este servidor. Falta GEMINI_API_KEY.',
   AI_ACCESS_DENIED: 'El proveedor de IA rechazó el acceso. El administrador debe revisar la credencial y los permisos del proyecto.',
   AI_MODEL_UNAVAILABLE: 'El modelo de IA configurado no está disponible. El administrador debe revisar GEMINI_MODEL.',
@@ -15,6 +16,7 @@ export function classifyAiError(error: unknown): {status:number;code:AiErrorCode
   if(e?.message==='AI_NOT_CONFIGURED'){code='AI_NOT_CONFIGURED';http=503;}
   else if(e?.message==='AI_MODEL_INVALID'||status===404){code='AI_MODEL_UNAVAILABLE';http=503;}
   else if(status===401||status===403){code='AI_ACCESS_DENIED';http=503;}
+  else if(status===503){code='AI_BUSY';http=503;}
   else if(status===429){code='AI_RATE_LIMIT';http=429;}
   else if(status===408||status===504||e?.name==='AbortError'||e?.name==='TimeoutError'){code='AI_TIMEOUT';http=504;}
   else if(e?.message==='AI_EMPTY_RESPONSE')code='AI_EMPTY_RESPONSE';
