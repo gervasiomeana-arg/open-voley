@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { SubscriptionPlansModal } from './SubscriptionPlansModal';
+import { ClientUser } from '../types';
+const currentUser={id:'payer',email:'payer@example.test',name:'Test'} as ClientUser;
+let grants=0;
+const html=renderToStaticMarkup(React.createElement(SubscriptionPlansModal,{isOpen:true,onClose:()=>{},currentUser,onPaymentSuccess:()=>{grants++;}}));
+assert.match(html,/href="https:\/\/mpago.la\/34czrYP" target="_blank" rel="noopener noreferrer"/);
+assert.match(html,/payer@example.test/);
+assert.match(html,/no configura un débito mensual automático/);
+assert.match(html,/administración verifique el pago/);
+assert.equal(grants,0);
+const anonymous=renderToStaticMarkup(React.createElement(SubscriptionPlansModal,{isOpen:true,onClose:()=>{}}));
+assert.doesNotMatch(anonymous,/href="https:\/\/mpago.la/);
+assert.match(anonymous,/Ingresá con tu cuenta de Google/);
+console.log('External payment link: destination, account context, manual activation and anonymous state OK');

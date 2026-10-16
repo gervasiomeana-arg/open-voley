@@ -240,6 +240,32 @@ export const SubscriptionPlansModal: React.FC<SubscriptionPlansModalProps> = ({
           })}
         </div>
 
+        <section aria-labelledby="mp-payment-link-title" className="rounded-2xl border border-sky-500/40 bg-sky-950/30 p-5 space-y-3">
+          <h3 id="mp-payment-link-title" className="text-lg font-black text-white">Pago por enlace de Mercado Pago</h3>
+          <p className="text-sm text-slate-300">
+            Usá esta opción para el pago acordado con administración. Confirmá el importe y el concepto que aparecen en Mercado Pago antes de pagar.
+          </p>
+          {currentUser ? (
+            <>
+              <p className="text-xs text-slate-300">Cuenta de OPEN VOLEY: <strong>{currentUser.email}</strong>. Conservá el comprobante e indicá este correo al solicitar la activación.</p>
+              <a
+                href="https://mpago.la/34czrYP"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-describedby="mp-payment-link-details"
+                className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-sky-400 px-5 py-3 text-sm font-black text-slate-950 hover:bg-sky-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-300"
+              >
+                Pagar con Mercado Pago · enlace <ExternalLink className="h-4 w-4" aria-hidden="true" />
+              </a>
+            </>
+          ) : (
+            <p className="text-sm font-bold text-sky-200">Ingresá con tu cuenta de Google en OPEN VOLEY para continuar con el pago.</p>
+          )}
+          <p id="mp-payment-link-details" className="text-xs leading-relaxed text-slate-300">
+            Se abre Mercado Pago en otra pestaña. OPEN VOLEY no configura un débito mensual automático con esta opción. El acceso se activa después de que administración verifique el pago; abrir el enlace no activa una licencia.
+          </p>
+        </section>
+
         <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
