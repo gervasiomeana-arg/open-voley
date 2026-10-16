@@ -21,7 +21,9 @@ assert.equal(launchConfiguration(env, build, { healthy: true, activeDriver: 'sql
 assert.equal(launchConfiguration(env, { ...build, googleClientId: 'different' }).checks.find(c => c.id === 'client-google')?.ok, false);
 assert.equal(launchConfiguration(env, null).checks.find(c => c.id === 'client-google')?.ok, false);
 assert.equal(launchConfiguration({ ...env, ALLOW_IFRAME_PREVIEW: 'true' }, build).checks.find(c => c.id === 'frame')?.ok, false);
-assert.equal(launchConfiguration(env, build, { healthy: true, activeDriver: 'json', fallbackActive: true }).checks.find(c => c.id === 'sqlite')?.ok, false);
+assert.equal(launchConfiguration(env, build, { healthy: true, activeDriver: 'json', fallbackActive: true }).checks.find(c => c.id === 'storage')?.ok, false);
+assert.equal(launchConfiguration(env, build, { healthy: true, activeDriver: 'supabase', fallbackActive: false, verified: true, durable: true }).checks.find(c => c.id === 'storage')?.ok, true);
+assert.equal(launchConfiguration(env, build, { healthy: true, activeDriver: 'supabase', fallbackActive: false }).checks.find(c => c.id === 'storage')?.ok, false);
 assert.equal(readClientBuild(), null);
 fs.mkdirSync('server-build');
 fs.writeFileSync('server-build/client-build.json', JSON.stringify(build));

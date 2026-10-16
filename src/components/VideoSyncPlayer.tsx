@@ -180,6 +180,7 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
 
   // Load Chile vs Argentina example match
   const handleLoadPanamExample = () => {
+    if (userCuts.length && !window.confirm('Cargar el ejemplo reemplaza los cortes guardados de esta cuenta. ¿Querés continuar?')) return;
     onSetVideoSrc(defaultYouTubeMatchUrl, 'Chile vs Argentina - Panamericanos 2023 (YouTube)', 'YouTube HD 1080p');
     setCurrentTime(18);
     setVideoError(null);

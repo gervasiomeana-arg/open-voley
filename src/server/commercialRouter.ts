@@ -2,7 +2,7 @@ import {exportServerMigration,importServerMigration} from './storageMigration';
 import {durableStorageEnabled} from './supabaseStore';
 import {asyncHandler} from './asyncHandler';
 import { launchConfiguration, MANUAL_LAUNCH_CHECKS, readClientBuild } from './launchReadiness';
-import { getTrainingRepositoryStatus } from './trainingRepository';
+import { getLaunchStorageStatus } from './launchStorageStatus';
 import { reconcilePayment } from './paymentProcessing';
 import { Router } from 'express';
 import { getSessionFromRequest } from './sessionSecurity';
@@ -74,7 +74,7 @@ commercialRouter.post('/api/commercial/payments/:paymentId/recheck', asyncHandle
         activeChecks--;
     }
 }));
-commercialRouter.get('/api/commercial/readiness', asyncHandler(async (_req, res) => res.json({ ...launchConfiguration(process.env, readClientBuild(), getTrainingRepositoryStatus()), manualChecks: MANUAL_LAUNCH_CHECKS, review: await getLaunchReview() })));
+commercialRouter.get('/api/commercial/readiness', asyncHandler(async (_req, res) => res.json({ ...launchConfiguration(process.env, readClientBuild(), await getLaunchStorageStatus()), manualChecks: MANUAL_LAUNCH_CHECKS, review: await getLaunchReview() })));
 commercialRouter.put('/api/commercial/readiness', asyncHandler(async (req, res) => {
     const checks: Record<string, boolean> = {};
     for (const id of Object.keys(MANUAL_LAUNCH_CHECKS)) {

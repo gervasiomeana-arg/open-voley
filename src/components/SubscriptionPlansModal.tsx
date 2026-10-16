@@ -10,6 +10,7 @@ import {
   X,
 } from 'lucide-react';
 import { ClientUser, TrialInfo } from '../types';
+import { LeadRegistrationForm } from './LeadRegistrationForm';
 
 interface SubscriptionPlansModalProps {
   isOpen: boolean;
@@ -26,6 +27,7 @@ export const SubscriptionPlansModal: React.FC<SubscriptionPlansModalProps> = ({
 }) => {
   const [catalog,setCatalog]=useState<any>(null);
   const [priceError,setPriceError]=useState('');
+  const [showContactForm, setShowContactForm] = useState(false);
   useEffect(()=>{if(!isOpen)return;setPriceError('');fetch('/api/commercial/prices').then(async r=>{if(!r.ok)throw new Error();const d=await r.json();setCatalog(d.prices)}).catch(()=>{setCatalog(null);setPriceError('No se pudieron cargar los precios. Reabrí esta ventana para reintentar.')})},[isOpen]);
   const billingCycle = 'monthly' as const;
   const [currency, setCurrency] = useState<'ARS' | 'USD'>('ARS');
@@ -249,16 +251,17 @@ export const SubscriptionPlansModal: React.FC<SubscriptionPlansModalProps> = ({
             </div>
           </div>
 
-          <a
-            href="https://wa.me/5491112345678?text=Hola%20OPEN%20VOLEY,%20quiero%20suscribirme%20y%20pagar%20por%20transferencia%20bancaria"
-            target="_blank"
-            rel="noreferrer"
+          <button
+            type="button"
+            onClick={() => setShowContactForm(open => !open)}
+            aria-expanded={showContactForm}
             className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 transition"
           >
-            <span>WhatsApp Comercial</span>
-            <ExternalLink className="w-3.5 h-3.5" />
-          </a>
+            <span>Consultar por transferencia</span>
+            <MessageSquare className="w-3.5 h-3.5" />
+          </button>
         </div>
+        {showContactForm && <div><p className="text-sm text-slate-300">Tu consulta quedará registrada para administración. El formulario no realiza un pago ni activa la licencia.</p><LeadRegistrationForm /></div>}
       </div>
     </div>
   );
