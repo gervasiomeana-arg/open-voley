@@ -182,12 +182,12 @@ export interface RallyDetection {
   serverNum: number;
   attackingTeam: TeamSide;
   attackerNum: number;
-  result: 'home_point' | 'away_point';
+  result: 'home_point' | 'away_point' | 'unknown';
   confidenceScore: number;
   ballMaxSpeedKmh: number;
   spikeReachM: number;
   detectedCode: string;
-  phase: 'Saque' | 'Recepción' | 'Armado' | 'Ataque' | 'Bloqueo' | 'Punto';
+  phase: 'Saque' | 'Recepción' | 'Armado' | 'Ataque' | 'Bloqueo' | 'Punto' | 'Marcador';
   notes?: string;
 }
 

@@ -476,6 +476,7 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
         const fileName = `open-voley-${safeName}.mp4`;
         if (shareAfterExport && typeof navigator.share === 'function') {
           const rendered = await fetch(status.downloadUrl, { credentials: 'same-origin' });
+          if(!rendered.ok)throw new Error('El archivo del montaje ya no está disponible. Volvé a generarlo desde el video original.');
           const blob = await rendered.blob();
           const file = new File([blob], fileName, { type: 'video/mp4' });
           const canShare = typeof navigator.canShare !== 'function' || navigator.canShare({ files: [file] });
@@ -951,9 +952,7 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
                 currentTime={currentTime}
                 isAutoScoutActive={isAutoScoutCvActive}
                 onToggleAutoScout={() => setIsAutoScoutCvActive(!isAutoScoutCvActive)}
-                onDetectedAction={(desc) => {
-                  console.log('CV AutoScout Play Detected:', desc);
-                }}
+                actions={userCuts}
               />
             )}
 
@@ -979,6 +978,8 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
               </div>
             )}
           </div>
+
+            <p className="px-3 py-2 text-xs text-slate-400">Conservá el video original y descargá los montajes terminados. El procesamiento de video es temporal; los respaldos de la cuenta guardan los cortes y las estadísticas, pero no los archivos de video.</p>
 
           {/* Timeline & Tagging Control Bar */}
           {videoSrc && (

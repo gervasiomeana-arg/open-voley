@@ -1,6 +1,8 @@
+import { COMPETITIONS_KEY, validateCompetitionData } from '../shared/competitions';
 import {getStorageUser,userStorage} from './userStorage';
 
 const labels:Record<string,string>={
+ openvoley_competitions_v1:'Torneos, fixtures y resultados',
  openvoley_saved_teams_v1:'Equipos',openvoley_saved_matches_v1:'Partidos guardados',openvoley_training_sessions_v1:'Entrenamientos',
  openvoley_smart_sports_montages_v1:'Montajes',openvoley_user_cuts:'Acciones de vídeo',openvoley_ai_rallies:'Jugadas analizadas',openvoley_current_match_v1:'Partido activo anterior',
 };
@@ -11,6 +13,7 @@ const allowed=(key:string)=>Object.hasOwn(labels,key)||/^openvoley\.whiteboard\.
 const record=(v:any)=>v && typeof v==='object' && typeof v.id==='string' && v.id.length>0 && v.id.length<=200;
 const players=(v:any)=>Array.isArray(v)&&v.length<=1000&&v.every(p=>record(p)&&typeof p.name==='string'&&Number.isInteger(p.number)&&p.number>=0&&p.number<=999&&['S','OH','OPP','MB','L'].includes(p.position));
 function valid(key:string,value:any){
+ if(key===COMPETITIONS_KEY)return validateCompetitionData(value);
  if(key==='openvoley_current_match_v1')return record(value)&&typeof value.homeTeamName==='string'&&typeof value.awayTeamName==='string'&&players(value.homePlayers)&&players(value.awayPlayers);
  if(key.startsWith('openvoley.whiteboard.'))return value&&Array.isArray(value.tokens)&&Array.isArray(value.strokes);
  if(!Array.isArray(value)||value.length>10000||!value.every(record))return false;

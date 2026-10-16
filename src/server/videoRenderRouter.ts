@@ -41,7 +41,7 @@ function sourcePath(userId: string, matchId: string) {
 }
 function ffmpegAvailable() {
     const binary = process.env.FFMPEG_PATH?.trim() || 'ffmpeg';
-    const check = spawnSync(binary, ['-version'], { stdio: 'ignore' });
+    const check = spawnSync(binary, ['-version'], { stdio: 'ignore', timeout: 5000 });
     return check.status === 0;
 }
 function run(binary: string, args: string[]) {
@@ -61,10 +61,12 @@ router.use(asyncHandler(async (req, res, next) => {
     return next();
 }));
 router.get('/capabilities', (_req, res) => {
-    res.json({ ffmpeg: ffmpegAvailable(), maxSourceMb: Math.floor(MAX_SOURCE_BYTES / 1024 / 1024) });
+    res.json({ ffmpeg: ffmpegAvailable(), maxSourceMb: Math.floor(MAX_SOURCE_BYTES / 1024 / 1024), storage: 'temporary', persistent: false });
 });
 router.put('/source/:matchId', asyncHandler(async (req, res) => {
     const userId = String(res.locals.sessionUserId);
+    if ([...jobs.values()].some(j=>j.userId===userId && ['queued','rendering'].includes(j.status)))
+        return res.status(409).json({error:'Esperá a que termine el montaje antes de reemplazar el video fuente.'});
     if (activeUploads >= 2 || uploading.has(userId))
         return res.status(429).json({ error: 'Ya hay una carga en curso. Intentá más tarde.' });
     if (!/^(video\/|application\/octet-stream)/.test(String(req.headers['content-type'] || '')))
@@ -103,6 +105,7 @@ router.put('/source/:matchId', asyncHandler(async (req, res) => {
 }));
 router.post('/render', asyncHandler(async (req, res) => {
     const userId = String(res.locals.sessionUserId);
+    if(uploading.has(userId))return res.status(409).json({error:'Esperá a que termine la carga del video antes de generar el montaje.'});
     const running = [...jobs.values()].filter(j => j.status === 'queued' || j.status === 'rendering');
     if (running.length >= 2 || running.some(j => j.userId === userId))
         return res.status(429).json({ error: 'Hay un montaje en proceso. Intentá más tarde.' });
