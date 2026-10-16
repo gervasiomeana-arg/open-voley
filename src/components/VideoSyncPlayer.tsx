@@ -101,6 +101,13 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
   const [playlistPostRoll, setPlaylistPostRoll] = useState<number>(3);
   const [libraryMontageId, setLibraryMontageId] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (activeMediaTab !== 'video_cuts' && montageRecorderRef.current?.state !== 'recording') {
+      videoRef.current?.pause();
+      setIsPlaying(false);
+    }
+  }, [activeMediaTab]);
+
   // New Tag Form state
   const [tagPlayerName, setTagPlayerName] = useState<string>('Jugador');
   const [tagPlayerNum, setTagPlayerNum] = useState<number>(1);
@@ -740,7 +747,10 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
           onExportVideo={exportPlaylistVideo}
           initialMontageId={libraryMontageId}
         />
-      ) : (
+      ) : null}
+      {videoError && activeMediaTab !== 'video_cuts' && <p role="status" className="rounded-xl border border-amber-500/40 bg-slate-900 p-3 text-sm text-amber-200">{videoError}</p>}
+      {/* Keep the same media element mounted: captureStream and playlist playback depend on it. */}
+      <div hidden={activeMediaTab !== 'video_cuts'}>
         <div className="bg-slate-900 text-white p-3 sm:p-6 rounded-2xl sm:rounded-3xl shadow-xl border border-slate-800 space-y-4 sm:space-y-6 animate-fadeIn">
           
           {/* Top Header */}
@@ -1345,7 +1355,7 @@ export const VideoSyncPlayer: React.FC<VideoSyncPlayerProps> = ({
         </div>
       </div>
       </div>
-      )}
+      </div>
     </div>
   );
 };
