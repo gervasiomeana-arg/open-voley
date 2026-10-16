@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { MatchData, ScoutCodeAction, TeamSide } from '../types';
 import { calculatePlayerStats } from '../utils/codeParser';
+import { matchRecordingStatus } from '../utils/matchRecording';
 import { getMatchStage } from '../utils/matchStatus';
 import { 
   Zap, 
@@ -46,6 +47,9 @@ export const MatchCenter: React.FC<MatchCenterProps> = ({
   onOpenFinishMatch,
   onReopenMatch,
 }) => {
+  const [summaryTeam, setSummaryTeam] = useState<TeamSide>('home');
+  const recording = matchRecordingStatus(match);
+  const summaryTeamName = summaryTeam === 'home' ? match.homeTeamName : match.awayTeamName;
   // 1. Calculate Match Status & Stage from centralized helper
   const stageInfo = useMemo(() => getMatchStage(match), [match]);
 
@@ -70,8 +74,9 @@ export const MatchCenter: React.FC<MatchCenterProps> = ({
   const summaryStats = useMemo(() => {
     if (!match.actions || match.actions.length === 0) return null;
 
-    const allPlayers = [...(match.homePlayers || []), ...(match.awayPlayers || [])];
-    const statsList = calculatePlayerStats(allPlayers, match.actions);
+    const allPlayers = summaryTeam === 'home' ? match.homePlayers : match.awayPlayers;
+    const teamActions = match.actions.filter(action => action.team === summaryTeam);
+    const statsList = calculatePlayerStats(allPlayers, teamActions);
 
     // Top Scorer (Ataque Pts + Bloqueo Pts + Saque Aces)
     let topScorer: { name: string; number: number; points: number; team: TeamSide } | null = null;
@@ -134,9 +139,11 @@ export const MatchCenter: React.FC<MatchCenterProps> = ({
       attackKillPct,
       recPositivePct,
       totalErrors,
-      totalActions: match.actions.length,
+      totalActions: teamActions.length,
+      totalAttacks,
+      totalAttPts,
     };
-  }, [match]);
+  }, [match, summaryTeam]);
 
   // 3. Last 3 to 5 Actions in the match
   const lastActions = useMemo(() => {
@@ -538,7 +545,7 @@ export const MatchCenter: React.FC<MatchCenterProps> = ({
                 ? 'bg-emerald-500 text-slate-950 border-emerald-400 font-bold'
                 : 'text-slate-400 bg-slate-950 border-slate-800'
             }`}>
-              {isFinished ? 'OFICIAL FIVB' : 'FIVB P2'}
+              {'ESTADÍSTICAS'}
             </span>
           </div>
 
@@ -548,7 +555,7 @@ export const MatchCenter: React.FC<MatchCenterProps> = ({
               <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
             </div>
             <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-1">
-              {isFinished ? 'Planilla oficial completa y métricas' : 'Planilla oficial y métricas por jugador'}
+              {isFinished ? 'Planilla de acciones registradas' : 'Planilla y métricas por jugador'}
             </p>
           </div>
         </button>
@@ -573,7 +580,7 @@ export const MatchCenter: React.FC<MatchCenterProps> = ({
                 ? 'bg-purple-600 text-white border-purple-400 font-bold'
                 : 'text-slate-400 bg-slate-950 border-slate-800'
             }`}>
-              {isFinished ? 'INFORME LISTO' : 'IA & TÁCTICA'}
+              {'REVISAR DATOS'}
             </span>
           </div>
 
@@ -601,7 +608,7 @@ export const MatchCenter: React.FC<MatchCenterProps> = ({
             <div className="flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-amber-400" />
               <h3 className="text-sm font-black uppercase tracking-wider text-white">
-                Resumen del Partido
+                Resumen · {summaryTeamName}
               </h3>
             </div>
             {summaryStats && (
@@ -611,6 +618,12 @@ export const MatchCenter: React.FC<MatchCenterProps> = ({
             )}
           </div>
 
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Equipo del resumen">
+            {(['home', 'away'] as const).map(team => <button key={team} onClick={() => setSummaryTeam(team)} aria-pressed={summaryTeam === team} className={`px-3 py-2 rounded-lg border text-xs font-bold ${summaryTeam === team ? 'bg-amber-400 text-slate-950 border-amber-400' : 'bg-slate-950 text-slate-300 border-slate-700'}`}>
+              {team === 'home' ? match.homeTeamName : match.awayTeamName}
+            </button>)}
+          </div>
+          <p className="text-xs text-amber-200" role="status">{recording.message}</p>
           {summaryStats ? (
             <div className="space-y-3">
               {/* Highlight Cards: Mejor Anotador & Mejor Recepción */}
@@ -624,7 +637,7 @@ export const MatchCenter: React.FC<MatchCenterProps> = ({
                     </div>
                     <div className="min-w-0">
                       <span className="text-[10px] font-black uppercase text-amber-400 tracking-wider block">
-                        Mejor Anotador
+                        Mayor anotación registrada
                       </span>
                       <div className="text-sm font-black text-white truncate">
                         {summaryStats.topScorer.name}
@@ -636,7 +649,7 @@ export const MatchCenter: React.FC<MatchCenterProps> = ({
                   </div>
                 ) : (
                   <div className="p-3.5 bg-slate-950/60 rounded-2xl border border-slate-800 text-xs text-slate-500 italic">
-                    Sin remates anotados aún
+                    Sin puntos registrados para este equipo
                   </div>
                 )}
 
@@ -648,7 +661,7 @@ export const MatchCenter: React.FC<MatchCenterProps> = ({
                     </div>
                     <div className="min-w-0">
                       <span className="text-[10px] font-black uppercase text-emerald-400 tracking-wider block">
-                        Mejor Recepción
+                        Mayor recepción positiva observada
                       </span>
                       <div className="text-sm font-black text-white truncate">
                         {summaryStats.bestReceiver.name}
@@ -673,6 +686,7 @@ export const MatchCenter: React.FC<MatchCenterProps> = ({
                     <span className="text-[10px] text-slate-400 font-bold uppercase block">Eficacia Ataque</span>
                     <span className="text-xl font-black font-mono text-white mt-0.5 block">
                       {summaryStats.attackKillPct}%
+                      <span className="block text-[10px] text-slate-400">{summaryStats.totalAttPts}/{summaryStats.totalAttacks} ataques</span>
                     </span>
                   </div>
                 )}
@@ -687,7 +701,7 @@ export const MatchCenter: React.FC<MatchCenterProps> = ({
                 )}
 
                 <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800/80 text-center">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase block">Errores Totales</span>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase block">Errores S/R/A</span>
                   <span className="text-xl font-black font-mono text-rose-400 mt-0.5 block">
                     {summaryStats.totalErrors}
                   </span>

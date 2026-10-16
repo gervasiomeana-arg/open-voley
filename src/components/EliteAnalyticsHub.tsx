@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { MatchData, TeamSide, ScoutCodeAction } from '../types';
+import { matchRecordingStatus } from '../utils/matchRecording';
 import { calculateTeamDataVolleySummary } from '../utils/dataVolleyAnalytics';
 import { 
   TrendingUp, 
@@ -137,7 +138,7 @@ export const EliteAnalyticsHub: React.FC<EliteAnalyticsHubProps> = ({
   onOpenNewMatch,
 }) => {
   const currentMatch = propCurrentMatch || match;
-  const hasEnoughActionsForAdvancedAnalysis: boolean = currentMatch.actions.length >= 20;
+
   void countOpponentServes;
   void hasOpponentServeAce;
   void countOpponentServeAces;
@@ -172,6 +173,8 @@ export const EliteAnalyticsHub: React.FC<EliteAnalyticsHubProps> = ({
     [filteredMatch, analyzedTeamSide],
   );
 
+  const hasEnoughActionsForAdvancedAnalysis = dataVolleySummary.sampleSize >= 20;
+
   const handlePrint = () => {
     window.print();
   };
@@ -193,17 +196,17 @@ export const EliteAnalyticsHub: React.FC<EliteAnalyticsHubProps> = ({
             <div className="flex items-center gap-2 mb-2">
               <span className="px-2.5 py-1 bg-cyan-500/20 text-cyan-400 font-mono font-bold text-[11px] rounded-lg border border-cyan-500/30 flex items-center gap-1.5">
                 <Activity className="w-3.5 h-3.5" />
-                MÓDULO 6: ANALYTICS & INFORMES DE ÉLITE
+                ANÁLISIS DEL PARTIDO
               </span>
               <span className="px-2 py-0.5 bg-amber-500/20 text-amber-300 font-bold text-[10px] rounded border border-amber-500/30">
-                Data Volley 4 & Datearte 2.0 Standard
+                OPEN VOLEY · Datos registrados
               </span>
             </div>
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-white tracking-tight flex items-center gap-3">
-              Informes Tácticos & Estadísticas de Alto Nivel
+              Informes tácticos y estadísticas
             </h1>
             <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-2xl">
-              Análisis avanzado para Directores Técnicos y Analistas de Alto Rendimiento: Estudio del adversario, matriz de distribución del armador, mapa de saque/recepción y fases K1 vs K2.
+              Consultá las acciones registradas por equipo y set: Estudio del adversario, matriz de distribución del armador, mapa de saque/recepción y fases K1 vs K2.
             </p>
           </div>
 
@@ -288,7 +291,7 @@ export const EliteAnalyticsHub: React.FC<EliteAnalyticsHubProps> = ({
           >
             <div className="flex items-center justify-between w-full mb-1">
               <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-cyan-400">
-                Informe 1 • Datearte 2.0
+                Informe 1 • Rival
               </span>
               <Target className="w-4 h-4 text-cyan-400" />
             </div>
@@ -296,7 +299,7 @@ export const EliteAnalyticsHub: React.FC<EliteAnalyticsHubProps> = ({
               Estudio del Adversario
             </div>
             <div className="text-[11px] text-slate-400 mt-1 line-clamp-1">
-              Método Hernán Ferraro: K1/K2, flot vs salto y armador
+              K1/K2, tipos de saque y armado
             </div>
           </button>
 
@@ -334,7 +337,7 @@ export const EliteAnalyticsHub: React.FC<EliteAnalyticsHubProps> = ({
           >
             <div className="flex items-center justify-between w-full mb-1">
               <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-400">
-                Informe 3 • VolleyMetrics
+                Informe 3 • Saque y recepción
               </span>
               <Crosshair className="w-4 h-4 text-amber-400" />
             </div>
@@ -357,7 +360,7 @@ export const EliteAnalyticsHub: React.FC<EliteAnalyticsHubProps> = ({
           >
             <div className="flex items-center justify-between w-full mb-1">
               <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-400">
-                Informe 4 • FIVB VIS
+                Informe 4 • Fases de juego
               </span>
               <Zap className="w-4 h-4 text-emerald-400" />
             </div>
@@ -376,7 +379,7 @@ export const EliteAnalyticsHub: React.FC<EliteAnalyticsHubProps> = ({
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-3">
           <div>
             <div className="text-[10px] font-black tracking-[0.18em] text-cyan-400 uppercase">Lectura rápida del DT</div>
-            <h2 className="text-xl font-black text-white mt-1">Resumen DataVolley • {dataVolleySummary.teamName}</h2>
+            <h2 className="text-xl font-black text-white mt-1">Resumen estadístico • {dataVolleySummary.teamName}</h2>
             <p className="text-xs text-slate-400 mt-1">
               Calculado únicamente con las {dataVolleySummary.sampleSize} acciones registradas en el filtro actual.
             </p>
@@ -452,11 +455,12 @@ export const EliteAnalyticsHub: React.FC<EliteAnalyticsHubProps> = ({
         </div>
       </div>
 
+      <p className="text-xs text-amber-200" role="status">{matchRecordingStatus({ ...filteredMatch, sets: match.sets.filter(set => selectedSetFilter === 0 || set.setNumber === selectedSetFilter) }).message}</p>
       {/* Insufficient data notification or Active Report Content */}
       {hasEnoughActionsForAdvancedAnalysis === false ? (
         <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl text-center">
           <p className="text-xs text-slate-400 font-medium">
-            Datos insuficientes para generar un informe táctico avanzado.
+            Datos insuficientes para abrir este informe: {targetTeamName} tiene {dataVolleySummary.sampleSize} acciones en el filtro seleccionado (mínimo de apertura: 20). Ese mínimo no garantiza una conclusión táctica; cada sección necesita su propio contexto.
           </p>
         </div>
       ) : (
@@ -646,7 +650,7 @@ const ReportFerraroAdversary: React.FC<ReportFerraroAdversaryProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-black uppercase tracking-wider text-cyan-400">
-                Informe de Preparación de Partido • Metodología Hernán Ferraro
+                Informe de Preparación de Partido • Acciones registradas en OPEN VOLEY
               </span>
               <span className="bg-slate-800 text-slate-300 text-[10px] px-2 py-0.5 rounded border border-slate-700">
                 {actions.length} acciones analizadas
