@@ -3,7 +3,7 @@ import {Cloud,CloudOff,ChevronDown} from 'lucide-react';
 import {CLOUD_KEYS} from '../shared/userDataSchema';
 import {getDataSyncStatus,subscribeDataSync,flushUserData,initializeUserDataSync,resolveDataConflict,listDataBackups,restoreDataBackup} from '../services/userDataSync';
 import {getStorageUser} from '../services/userStorage';
-const names:Record<string,string>={openvoley_saved_teams_v1:'Equipos y jugadores',openvoley_saved_matches_v1:'Partidos guardados',openvoley_current_match_v1:'Partido activo',openvoley_training_sessions_v1:'Entrenamientos',openvoley_smart_sports_montages_v1:'Montajes',openvoley_user_cuts:'Acciones de vídeo',openvoley_ai_rallies:'Jugadas analizadas'};
+const names:Record<string,string>={openvoley_competitions_v1:'Torneos, fixtures y resultados',openvoley_saved_teams_v1:'Equipos y jugadores',openvoley_saved_matches_v1:'Partidos guardados',openvoley_current_match_v1:'Partido activo',openvoley_training_sessions_v1:'Entrenamientos',openvoley_smart_sports_montages_v1:'Montajes',openvoley_user_cuts:'Acciones de vídeo',openvoley_ai_rallies:'Jugadas analizadas'};
 export function UserDataStoragePanel(){
  const [status,setStatus]=useState(getDataSyncStatus),[open,setOpen]=useState(false),[selected,setSelected]=useState(CLOUD_KEYS[0]),[backups,setBackups]=useState<any[]>([]),[error,setError]=useState(''),[working,setWorking]=useState(false);
  useEffect(()=>subscribeDataSync(setStatus),[]);

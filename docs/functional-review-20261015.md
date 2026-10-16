@@ -2,6 +2,8 @@
 
 Estado: revisión técnica completada; producto completo no certificado al 100 %.
 
+Continuación: [correcciones de competiciones, vídeo e IA del 16/10 UTC](functional-followup-20261016.md). Los pendientes de este informe describen su fecha original.
+
 ## Comprobaciones realizadas
 
 - [x] Último main revisado: 3a622f5, sin cambios posteriores al PR #67.

@@ -1,25 +1,21 @@
-import React, { useState, useMemo } from 'react';
-import { 
-  Trophy, 
-  Calendar, 
-  List, 
-  Table, 
-  Users, 
-  BarChart2, 
-  Plus, 
-  Check, 
-  Sparkles, 
-  ChevronRight, 
-  ChevronLeft,
-  X,
-  Play,
-  CheckCircle2,
-  Clock,
-  Shield,
-  ArrowRight
-} from 'lucide-react';
-import { Competition, FixtureMatch, StandingEntry } from '../types';
-import { sampleCompetitions, sampleFixtures, sampleStandings } from '../data/sampleCompetitionAndTraining';
+import React, { useEffect, useState } from "react";
+import { Plus, Trophy, X } from "lucide-react";
+import {
+  advanceCompetition,
+  CompetitionData,
+  competitionStandings,
+  createTournament,
+  emptyCompetitions,
+  recordCompetitionResult,
+  setCompetitionTieBreak,
+  Tournament,
+} from "../shared/competitions";
+import {
+  readCompetitions,
+  writeCompetitions,
+} from "../services/competitionStorage";
+import { getStorageUser, userStorage } from "../services/userStorage";
+import type { SavedTeam } from "../services/teamStorage";
 
 interface CompetitionCenterProps {
   onOpenMatch?: (matchId: string) => void;
@@ -27,746 +23,690 @@ interface CompetitionCenterProps {
   isWizardOpenExternal?: boolean;
   onCloseWizardExternal?: () => void;
 }
-
+const formats = {
+  round_robin: "Todos contra todos",
+  single_elimination: "Eliminación directa",
+  groups_playoffs: "Dos zonas + semifinales y final",
+};
+const field =
+  "w-full rounded-lg border border-slate-600 bg-slate-950 p-2 text-white";
+const button =
+  "rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm font-bold disabled:opacity-40";
 export const CompetitionCenter: React.FC<CompetitionCenterProps> = ({
-  onOpenMatch,
   onOpenTeamRoster,
   isWizardOpenExternal = false,
   onCloseWizardExternal,
 }) => {
-  const [competitions, setCompetitions] = useState<Competition[]>(sampleCompetitions);
-  const [activeCompId, setActiveCompId] = useState<string>(sampleCompetitions[0].id);
-  const [fixtures, setFixtures] = useState<FixtureMatch[]>(sampleFixtures);
-
-  // Sub tab: 'fixture' | 'tabla' | 'equipos'
-  const [subTab, setSubTab] = useState<'fixture' | 'tabla' | 'equipos'>('fixture');
-  const [fixtureView, setFixtureView] = useState<'list' | 'calendar'>('list');
-
-  // Wizard state
-  const [isWizardOpen, setIsWizardOpen] = useState(isWizardOpenExternal);
-  const [wizardStep, setWizardStep] = useState<number>(1);
-  const [wizardName, setWizardName] = useState('');
-  const [wizardCategory, setWizardCategory] = useState('Primera División');
-  const [wizardGender, setWizardGender] = useState<'Femenino' | 'Masculino' | 'Mixto'>('Femenino');
-  const [wizardTeamsCount, setWizardTeamsCount] = useState<number>(8);
-  const [wizardCourtsCount, setWizardCourtsCount] = useState<number>(2);
-  const [wizardFormat, setWizardFormat] = useState<'round_robin' | 'groups_playoffs' | 'single_elimination'>('groups_playoffs');
-  const [wizardPointsSystem, setWizardPointsSystem] = useState<'3-1' | '2-1'>('3-1');
-  const [aiRecommendation, setAiRecommendation] = useState<string | null>(null);
-
-  // Sync external wizard trigger
-  React.useEffect(() => {
-    if (isWizardOpenExternal) {
-      setIsWizardOpen(true);
-      setWizardStep(1);
-    }
+  const [data, setData] = useState<CompetitionData>(emptyCompetitions),
+    [teams, setTeams] = useState<SavedTeam[]>([]),
+    [activeId, setActiveId] = useState("");
+  const [error, setError] = useState(""),
+    [loaded, setLoaded] = useState(false),
+    [notice, setNotice] = useState("");
+  const [open, setOpen] = useState(isWizardOpenExternal),
+    [tab, setTab] = useState<"fixture" | "tabla" | "equipos">("fixture");
+  const [name, setName] = useState(""),
+    [category, setCategory] = useState("Primera División"),
+    [gender, setGender] = useState<Tournament["gender"]>("Femenino");
+  const [format, setFormat] = useState<Tournament["format"]>("round_robin"),
+    [points, setPoints] = useState<Tournament["pointsSystem"]>("3-1"),
+    [courts, setCourts] = useState(1),
+    [selected, setSelected] = useState<string[]>([]);
+  const [tieOrder, setTieOrder] = useState<string[]>([]),
+    [resultId, setResultId] = useState(""),
+    [home, setHome] = useState(3),
+    [away, setAway] = useState(0);
+  const close = () => {
+    setOpen(false);
+    onCloseWizardExternal?.();
+  };
+  useEffect(() => {
+    if (isWizardOpenExternal) setOpen(true);
   }, [isWizardOpenExternal]);
-
-  const activeComp = competitions.find((c) => c.id === activeCompId) || competitions[0];
-  const activeFixtures = fixtures.filter((f) => f.competitionId === activeComp.id);
-
-  const standings = useMemo<StandingEntry[]>(() => {
-    if (activeComp.id === 'comp_metro_2026') {
-      return sampleStandings;
-    }
-
-    const finishedMatches = fixtures.filter(
-      (f) => f.competitionId === activeComp.id && f.status === 'finished'
-    );
-
-    const teamStatsMap = new Map<
-      string,
-      {
-        played: number;
-        won: number;
-        lost: number;
-        setsWon: number;
-        setsLost: number;
-        points: number;
-        streak: string[];
+  useEffect(() => {
+    const refresh = () => {
+      try {
+        const stored = readCompetitions();
+        const raw = JSON.parse(
+          userStorage.getItem("openvoley_saved_teams_v1") || "[]",
+        );
+        if (!Array.isArray(raw))
+          throw new Error("No se pudo leer la biblioteca de equipos.");
+        setData(stored);
+        setTeams(raw);
+        setLoaded(true);
+        setError("");
+        setResultId("");
+        setSelected([]);
+      } catch (e) {
+        setLoaded(false);
+        setError(
+          e instanceof Error ? e.message : "No se pudieron cargar los torneos.",
+        );
       }
-    >();
-
-    (activeComp.teams || []).forEach((t) => {
-      teamStatsMap.set(t, {
-        played: 0,
-        won: 0,
-        lost: 0,
-        setsWon: 0,
-        setsLost: 0,
-        points: 0,
-        streak: [],
-      });
-    });
-
-    finishedMatches.forEach((f) => {
-      const homeSets = f.scoreHomeSets ?? 0;
-      const awaySets = f.scoreAwaySets ?? 0;
-      const home = teamStatsMap.get(f.homeTeam);
-      const away = teamStatsMap.get(f.awayTeam);
-
-      if (home) {
-        home.played += 1;
-        home.setsWon += homeSets;
-        home.setsLost += awaySets;
-        if (homeSets > awaySets) {
-          home.won += 1;
-          home.points += homeSets === 3 && (awaySets === 0 || awaySets === 1) ? 3 : 2;
-          home.streak.push('G');
-        } else {
-          home.lost += 1;
-          home.points += awaySets === 3 && homeSets === 2 ? 1 : 0;
-          home.streak.push('P');
-        }
-      }
-
-      if (away) {
-        away.played += 1;
-        away.setsWon += awaySets;
-        away.setsLost += homeSets;
-        if (awaySets > homeSets) {
-          away.won += 1;
-          away.points += awaySets === 3 && (homeSets === 0 || homeSets === 1) ? 3 : 2;
-          away.streak.push('G');
-        } else {
-          away.lost += 1;
-          away.points += homeSets === 3 && awaySets === 2 ? 1 : 0;
-          away.streak.push('P');
-        }
-      }
-    });
-
-    const entries: StandingEntry[] = Array.from(teamStatsMap.entries()).map(([teamName, stats]) => ({
-      position: 1,
-      teamName,
-      played: stats.played,
-      won: stats.won,
-      lost: stats.lost,
-      setsWon: stats.setsWon,
-      setsLost: stats.setsLost,
-      points: stats.points,
-      streak: stats.streak.slice(-5).join('-'),
-    }));
-
-    entries.sort((a, b) => {
-      if (b.points !== a.points) return b.points - a.points;
-      const diffA = a.setsWon - a.setsLost;
-      const diffB = b.setsWon - b.setsLost;
-      if (diffB !== diffA) return diffB - diffA;
-      return a.teamName.localeCompare(b.teamName);
-    });
-
-    return entries.map((e, idx) => ({ ...e, position: idx + 1 }));
-  }, [activeComp, fixtures]);
-
-  const handleAskAiRecommendation = () => {
-    if (wizardTeamsCount <= 6) {
-      setAiRecommendation(
-        `Para ${wizardTeamsCount} equipos y ${wizardCourtsCount} cancha(s), recomendamos "Todos contra Todos (Round Robin)" a una sola rueda. Requiere 5 fechas y asegura que todos jueguen la misma cantidad de partidos.`
-      );
-      setWizardFormat('round_robin');
-    } else if (wizardTeamsCount <= 12) {
-      setAiRecommendation(
-        `Tenés ${wizardTeamsCount} equipos y ${wizardCourtsCount} canchas. Recomendamos "2 Zonas de ${wizardTeamsCount / 2} + Semifinales y Final". Optimiza el tiempo en cancha y clasifica a los 2 mejores de cada zona.`
-      );
-      setWizardFormat('groups_playoffs');
-    } else {
-      setAiRecommendation(
-        `Con ${wizardTeamsCount} equipos y alta densidad, recomendamos "4 Zonas de 4 + Playoffs (Oro y Plata)". Evita saturación de horarios en ${wizardCourtsCount} canchas.`
-      );
-      setWizardFormat('groups_playoffs');
-    }
-  };
-
-  const handleFinishWizard = () => {
-    const newComp: Competition = {
-      id: `comp_${Date.now()}`,
-      name: wizardName || 'Nuevo Torneo Oficial',
-      category: wizardCategory,
-      gender: wizardGender,
-      format: wizardFormat,
-      teamsCount: wizardTeamsCount,
-      courtsCount: wizardCourtsCount,
-      status: 'active',
-      pointsSystem: wizardPointsSystem,
-      teams: [
-        'Club Ciudad de Campana',
-        'Vélez Sarsfield',
-        'Boca Juniors',
-        'Gimnasia y Esgrima LP',
-        'River Plate',
-        'San Lorenzo',
-        'Banco Provincia',
-        'Estudiantes LP'
-      ].slice(0, wizardTeamsCount),
-      startDate: new Date().toISOString().split('T')[0],
-      endDate: '2026-12-20'
     };
-
-    setCompetitions([newComp, ...competitions]);
-    setActiveCompId(newComp.id);
-    setIsWizardOpen(false);
-    if (onCloseWizardExternal) onCloseWizardExternal();
-  };
-
+    refresh();
+    window.addEventListener("openvoley:cloud-hydrated", refresh);
+    window.addEventListener("storage", refresh);
+    return () => {
+      window.removeEventListener("openvoley:cloud-hydrated", refresh);
+      window.removeEventListener("storage", refresh);
+    };
+  }, []);
+  const active =
+    data.competitions.find((c) => c.id === activeId) || data.competitions[0];
+  const fixtures = data.fixtures.filter((f) => f.competitionId === active?.id);
+  // Read again at mutation time so a restored/cloud-hydrated version is never replaced by stale React state.
+  function change(edit: (current: CompetitionData) => CompetitionData) {
+    try {
+      if (!loaded || getStorageUser() === "guest")
+        throw new Error("Ingresá con tu cuenta antes de guardar un torneo.");
+      const next = edit(readCompetitions());
+      writeCompetitions(next);
+      setData(next);
+      setError("");
+      setNotice(
+        "Cambio guardado en este dispositivo. Consultá el indicador de nube para confirmar la sincronización.",
+      );
+      return true;
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "No se pudo guardar el torneo.",
+      );
+      return false;
+    }
+  }
+  function create(event: React.FormEvent) {
+    event.preventDefault();
+    const ownTeams: SavedTeam[] = JSON.parse(
+      userStorage.getItem("openvoley_saved_teams_v1") || "[]",
+    );
+    const chosen = selected
+      .map((id) => ownTeams.find((t) => t.id === id))
+      .filter((t): t is SavedTeam => !!t);
+    const id = `comp_${crypto.randomUUID()}`;
+    if (
+      change((current) => {
+        const added = createTournament({
+          id,
+          name: name.trim(),
+          category: category.trim(),
+          gender,
+          format,
+          teams: chosen.map((t) => t.name),
+          teamIds: chosen.map((t) => t.id),
+          courtsCount: courts,
+          pointsSystem: points,
+          startDate: new Date().toISOString().slice(0, 10),
+        });
+        return {
+          ...current,
+          competitions: [...added.competitions, ...current.competitions],
+          fixtures: [...current.fixtures, ...added.fixtures],
+        };
+      })
+    ) {
+      setActiveId(id);
+      setSelected([]);
+      setName("");
+      close();
+    }
+  }
+  function table(group?: "A" | "B") {
+    if (!active) return null;
+    return (
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-sm">
+          <caption className="py-3 text-left font-bold">
+            {group ? `Zona ${group}` : "Tabla de posiciones"} ·{" "}
+            {pointsLabel(active.pointsSystem)}
+          </caption>
+          <thead>
+            <tr>
+              {["#", "Equipo", "PJ", "PG", "PP", "SF", "SC", "Pts"].map((h) => (
+                <th className="p-2" key={h}>
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {competitionStandings(active, data.fixtures, group).map((row) => (
+              <tr className="border-t border-slate-700" key={row.teamName}>
+                {[
+                  row.position,
+                  row.teamName,
+                  row.played,
+                  row.won,
+                  row.lost,
+                  row.setsWon,
+                  row.setsLost,
+                  row.points,
+                ].map((v, i) => (
+                  <td className="p-2" key={i}>
+                    {v}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
   return (
-    <div className="space-y-6 animate-in fade-in duration-200">
-      <p role="status" className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-200">Vista de demostración de competiciones. Los equipos, fixtures y tablas iniciales son ejemplos. Los cambios de esta sección se mantienen solo mientras permanezca abierta; todavía no se guardan en tu cuenta.</p>
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 bg-slate-900 border border-slate-800 rounded-3xl shadow-xl">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-amber-500/20 text-amber-400 rounded-2xl border border-amber-500/30">
-            <Trophy className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-black text-white">{activeComp.name}</h2>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-bold border border-emerald-500/20">
-                {activeComp.status === 'active' ? 'En Curso' : 'Próximo'}
-              </span>
-            </div>
-            <p className="text-xs text-slate-400 mt-0.5">
-              {activeComp.category} • Rama {activeComp.gender} • {activeComp.teamsCount} Equipos • Sistema {activeComp.pointsSystem}
+    <section className="space-y-4 text-slate-100" aria-label="Competiciones">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-xl font-black">
+          <Trophy className="text-amber-400" />
+          Competiciones
+        </h2>
+        <button
+          disabled={!loaded}
+          className={button}
+          onClick={() => setOpen(true)}
+        >
+          <Plus className="inline w-4" /> Nuevo torneo
+        </button>
+      </header>
+      {error && (
+        <p
+          role="alert"
+          className="rounded-lg border border-red-500 p-3 text-red-200"
+        >
+          {error}
+        </p>
+      )}
+      {notice && (
+        <p role="status" className="text-sm text-slate-300">
+          {notice}
+        </p>
+      )}
+      {loaded && !active && (
+        <div className="rounded-2xl border border-slate-700 p-6">
+          <h3 className="font-bold">Todavía no creaste torneos</h3>
+          <p className="mt-2 text-slate-300">
+            Seleccioná equipos de tu biblioteca para generar el fixture. Los
+            resultados y las tablas se guardan en tu cuenta.
+          </p>
+        </div>
+      )}
+      {active && (
+        <>
+          <label className="block">
+            Torneo
+            <select
+              className={field}
+              value={active.id}
+              onChange={(e) => {
+                setActiveId(e.target.value);
+                setResultId("");
+              }}
+            >
+              {data.competitions.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} ·{" "}
+                  {c.status === "finished" ? "Finalizado" : "En curso"}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="rounded-xl bg-slate-900 p-4">
+            <h3 className="font-bold">{active.name}</h3>
+            <p className="text-sm text-slate-300">
+              {active.category} · {active.gender} · {formats[active.format]} ·{" "}
+              {active.teamsCount} equipos
+            </p>
+            {active.champion && (
+              <p className="mt-2 text-amber-300">
+                Primer puesto: {active.champion}
+              </p>
+            )}
+            <p className="mt-2 text-xs text-slate-400">
+              Partidos al mejor de 5 sets. Desempates de tabla: puntos,
+              victorias y cociente de sets. Los empates sin resolver requieren
+              aplicar el reglamento antes de cerrar la fase.
             </p>
           </div>
-        </div>
-
-        <div className="flex items-center gap-2.5 w-full sm:w-auto">
-          {/* Tournament Switcher */}
-          <select
-            value={activeCompId}
-            onChange={(e) => setActiveCompId(e.target.value)}
-            className="bg-slate-800 border border-slate-700 text-slate-200 text-xs font-bold rounded-xl px-3 py-2 focus:outline-none focus:border-amber-400"
+          <nav
+            className="flex flex-wrap gap-2"
+            aria-label="Secciones del torneo"
           >
-            {competitions.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-
-          <button
-            onClick={() => {
-              setIsWizardOpen(true);
-              setWizardStep(1);
-            }}
-            className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-md shadow-amber-500/20 transition shrink-0 cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Nueva Competición</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Navigation Sub-Tabs */}
-      <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-        <div className="flex items-center gap-2">
-          {[
-            { id: 'fixture', label: 'Fixture & Resultados', icon: Calendar },
-            { id: 'tabla', label: 'Tabla de Posiciones', icon: Table },
-            { id: 'equipos', label: 'Equipos Participantes', icon: Users },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isActive = subTab === tab.id;
-            return (
+            {(["fixture", "tabla", "equipos"] as const).map((t) => (
               <button
-                key={tab.id}
-                onClick={() => setSubTab(tab.id as any)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
-                  isActive
-                    ? 'bg-amber-500 text-slate-950 font-black shadow-lg shadow-amber-500/20'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                }`}
+                aria-pressed={tab === t}
+                className={`${button} ${tab === t ? "text-amber-300" : ""}`}
+                key={t}
+                onClick={() => setTab(t)}
               >
-                <Icon className="w-4 h-4" />
-                <span>{tab.label}</span>
+                {t === "fixture"
+                  ? "Fixture"
+                  : t === "tabla"
+                    ? "Posiciones"
+                    : "Equipos"}
               </button>
-            );
-          })}
-        </div>
-
-        {subTab === 'fixture' && (
-          <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 p-1 rounded-xl">
-            <button
-              onClick={() => setFixtureView('list')}
-              className={`p-1.5 rounded-lg text-xs font-bold transition ${
-                fixtureView === 'list' ? 'bg-slate-800 text-amber-400' : 'text-slate-400 hover:text-white'
-              }`}
-              title="Vista Lista"
-            >
-              <List className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setFixtureView('calendar')}
-              className={`p-1.5 rounded-lg text-xs font-bold transition ${
-                fixtureView === 'calendar' ? 'bg-slate-800 text-amber-400' : 'text-slate-400 hover:text-white'
-              }`}
-              title="Vista Calendario"
-            >
-              <Calendar className="w-4 h-4" />
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* SUB-TAB 1: FIXTURE */}
-      {subTab === 'fixture' && (
-        <div className="space-y-4">
-          {fixtureView === 'list' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {activeFixtures.map((f) => (
-                <div
+            ))}
+          </nav>
+          {tab === "fixture" && (
+            <div className="space-y-3">
+              {active.byeTeams.length > 0 && (
+                <p className="text-sm text-amber-200">
+                  Pasa libre en esta fase: {active.byeTeams.join(", ")}.
+                </p>
+              )}
+              {fixtures.map((f) => (
+                <article
                   key={f.id}
-                  className="p-4 bg-slate-900/90 hover:bg-slate-900 border border-slate-800 hover:border-slate-700/80 rounded-2xl shadow-md transition space-y-3"
+                  className="rounded-xl border border-slate-700 bg-slate-900 p-3"
                 >
-                  <div className="flex items-center justify-between text-[11px] text-slate-400">
-                    <span className="font-bold text-amber-400">{f.roundName}</span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {f.date} • {f.time} hs
+                  <p className="text-xs text-slate-400">
+                    {f.roundName} · {f.court}
+                  </p>
+                  <div className="my-2 flex flex-wrap items-center justify-between gap-2">
+                    <strong className="min-w-0 break-words">
+                      {f.homeTeam} — {f.awayTeam}
+                    </strong>
+                    <span>
+                      {f.status === "finished"
+                        ? `${f.scoreHomeSets} – ${f.scoreAwaySets}`
+                        : "Pendiente"}
                     </span>
                   </div>
-
-                  <div className="flex items-center justify-between bg-slate-950/60 p-3 rounded-xl border border-slate-800/80">
-                    {/* Home */}
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 font-black flex items-center justify-center text-xs shrink-0">
-                        {f.homeTeam.charAt(0)}
-                      </div>
-                      <span className="font-bold text-white text-xs truncate max-w-[130px]">
-                        {f.homeTeam}
-                      </span>
-                    </div>
-
-                    {/* Result or VS */}
-                    <div className="px-3 text-center">
-                      {f.status === 'finished' ? (
-                        <div>
-                          <div className="text-base font-black font-mono text-amber-400">
-                            {f.scoreHomeSets} - {f.scoreAwaySets}
-                          </div>
-                          <div className="text-[9px] text-slate-400 font-mono">
-                            {f.setScores}
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="text-xs font-mono font-bold text-slate-500 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
-                          VS
-                        </span>
+                  <div className="flex flex-wrap items-end gap-2">
+                    <label className="text-xs">
+                      Fecha
+                      <input
+                        aria-label={`Fecha ${f.homeTeam} vs ${f.awayTeam}`}
+                        type="date"
+                        className={field}
+                        value={f.date}
+                        disabled={
+                          active.status === "finished" ||
+                          f.stage !== active.stage
+                        }
+                        onChange={(e) => {
+                          const date = e.target.value;
+                          change((d) => ({
+                            ...d,
+                            fixtures: d.fixtures.map((v) =>
+                              v.id === f.id ? { ...v, date } : v,
+                            ),
+                          }));
+                        }}
+                      />
+                    </label>
+                    <label className="text-xs">
+                      Hora
+                      <input
+                        type="time"
+                        className={field}
+                        value={f.time}
+                        disabled={
+                          active.status === "finished" ||
+                          f.stage !== active.stage
+                        }
+                        onChange={(e) => {
+                          const time = e.target.value;
+                          change((d) => ({
+                            ...d,
+                            fixtures: d.fixtures.map((v) =>
+                              v.id === f.id ? { ...v, time } : v,
+                            ),
+                          }));
+                        }}
+                      />
+                    </label>
+                    {active.status !== "finished" &&
+                      f.stage === active.stage && (
+                        <button
+                          className={button}
+                          onClick={() => {
+                            setResultId(f.id);
+                            setHome(f.scoreHomeSets ?? 3);
+                            setAway(f.scoreAwaySets ?? 0);
+                          }}
+                        >
+                          Cargar / corregir resultado
+                        </button>
                       )}
-                    </div>
-
-                    {/* Away */}
-                    <div className="flex items-center gap-2 min-w-0 justify-end">
-                      <span className="font-bold text-white text-xs truncate max-w-[130px] text-right">
-                        {f.awayTeam}
-                      </span>
-                      <div className="w-7 h-7 rounded-lg bg-cyan-500/20 text-cyan-400 font-black flex items-center justify-center text-xs shrink-0">
-                        {f.awayTeam.charAt(0)}
-                      </div>
-                    </div>
                   </div>
-
-                  <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1">
-                    <span>Sede: {f.court}</span>
-                    {f.status === 'scheduled' && onOpenMatch && (
-                      <button
-                        onClick={() => onOpenMatch(f.id)}
-                        className="text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1"
-                      >
-                        <span>Cargar Partido</span>
-                        <ArrowRight className="w-3 h-3" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="p-6 bg-slate-900 rounded-2xl border border-slate-800 space-y-4">
-              <div className="text-xs font-bold text-slate-300 flex items-center justify-between">
-                <span>Calendario de Fechas de Competición</span>
-                <span className="text-amber-400">Septiembre 2026</span>
-              </div>
-              <div className="grid grid-cols-7 gap-2 text-center text-xs">
-                {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map((d) => (
-                  <div key={d} className="p-2 bg-slate-950 font-bold text-slate-400 rounded-lg">
-                    {d}
-                  </div>
-                ))}
-                {Array.from({ length: 30 }).map((_, i) => {
-                  const day = i + 1;
-                  const isMatchDay = day === 5 || day === 12 || day === 19;
-                  return (
-                    <div
-                      key={day}
-                      className={`p-3 rounded-xl border min-h-[64px] flex flex-col justify-between text-left ${
-                        isMatchDay 
-                          ? 'bg-amber-500/10 border-amber-500/30 text-white' 
-                          : 'bg-slate-800/30 border-slate-800/60 text-slate-400'
-                      }`}
+                  {resultId === f.id && (
+                    <form
+                      className="mt-3 flex flex-wrap items-end gap-2"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        if (
+                          change((d) =>
+                            recordCompetitionResult(d, f.id, home, away),
+                          )
+                        )
+                          setResultId("");
+                      }}
                     >
-                      <span className="font-mono font-bold text-xs">{day}</span>
-                      {isMatchDay && (
-                        <span className="text-[9px] font-bold text-amber-400 truncate">
-                          {day === 12 ? 'Fecha 6' : day === 5 ? 'Fecha 5' : 'Fecha 7'}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+                      <label>
+                        Sets {f.homeTeam}
+                        <input
+                          className={field}
+                          type="number"
+                          min="0"
+                          max="3"
+                          value={home}
+                          onChange={(e) => setHome(Number(e.target.value))}
+                        />
+                      </label>
+                      <label>
+                        Sets {f.awayTeam}
+                        <input
+                          className={field}
+                          type="number"
+                          min="0"
+                          max="3"
+                          value={away}
+                          onChange={(e) => setAway(Number(e.target.value))}
+                        />
+                      </label>
+                      <button className={button} type="submit">
+                        Guardar resultado
+                      </button>
+                      <button
+                        className={button}
+                        type="button"
+                        onClick={() => setResultId("")}
+                      >
+                        Cancelar
+                      </button>
+                    </form>
+                  )}
+                </article>
+              ))}
+              {active.status !== "finished" && (
+                <button
+                  className={button}
+                  onClick={() => {
+                    if (
+                      window.confirm(
+                        "¿Cerrar esta fase con los resultados cargados? Después no se podrán corregir sus resultados.",
+                      )
+                    )
+                      change((d) => advanceCompetition(d, active.id));
+                  }}
+                >
+                  {active.format === "round_robin"
+                    ? "Cerrar torneo"
+                    : "Cerrar fase / generar siguiente cruce"}
+                </button>
+              )}
             </div>
           )}
-        </div>
-      )}
-
-      {/* SUB-TAB 2: TABLA DE POSICIONES */}
-      {subTab === 'tabla' && (
-        <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900 shadow-xl">
-          <table className="w-full text-xs text-left">
-            <thead className="bg-slate-950 text-[11px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-800">
-              <tr>
-                <th className="py-3.5 px-4 w-12 text-center">Pos</th>
-                <th className="py-3.5 px-4">Equipo</th>
-                <th className="py-3.5 px-3 text-center">PJ</th>
-                <th className="py-3.5 px-3 text-center text-emerald-400">PG</th>
-                <th className="py-3.5 px-3 text-center text-rose-400">PP</th>
-                <th className="py-3.5 px-3 text-center">Sets</th>
-                <th className="py-3.5 px-4 text-center text-amber-400 font-bold">Puntos</th>
-                <th className="py-3.5 px-4 text-center">Racha</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60">
-              {standings.map((row) => (
-                <tr 
-                  key={row.position} 
-                  className={`hover:bg-slate-800/50 transition ${row.position <= 4 ? 'bg-emerald-500/5' : ''}`}
+          {tab === "tabla" &&
+            active.stage === 0 &&
+            active.status !== "finished" &&
+            active.format !== "single_elimination" && (
+              <details className="rounded-lg border border-slate-700 p-3">
+                <summary
+                  onClick={() =>
+                    setTieOrder(active.tieBreakOrder || active.teams)
+                  }
                 >
-                  <td className="py-3 px-4 text-center font-mono font-bold">
-                    <span className={`inline-flex items-center justify-center w-6 h-6 rounded-lg ${
-                      row.position <= 4 
-                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
-                        : 'text-slate-400'
-                    }`}>
-                      {row.position}
+                  Desempates según el reglamento
+                </summary>
+                <p className="my-2 text-sm">
+                  Ordená los equipos de mayor a menor prioridad y confirmá. Este
+                  orden sólo decide posiciones con iguales puntos, victorias y
+                  cociente de sets. Corregir un resultado borra esta
+                  confirmación.
+                </p>
+                {tieOrder.map((t, i) => (
+                  <div key={t} className="flex items-center gap-2 py-1">
+                    <span className="flex-1">
+                      {i + 1}. {t}
                     </span>
-                  </td>
-                  <td className="py-3 px-4 font-bold text-white flex items-center gap-2.5">
-                    <div className="w-6 h-6 rounded bg-slate-800 flex items-center justify-center text-xs text-amber-400 font-black">
-                      {row.teamName.charAt(0)}
-                    </div>
-                    <span>{row.teamName}</span>
-                  </td>
-                  <td className="py-3 px-3 text-center font-mono text-slate-300">{row.played}</td>
-                  <td className="py-3 px-3 text-center font-mono font-bold text-emerald-400">{row.won}</td>
-                  <td className="py-3 px-3 text-center font-mono text-rose-400">{row.lost}</td>
-                  <td className="py-3 px-3 text-center font-mono text-slate-300">{row.setsWon}-{row.setsLost}</td>
-                  <td className="py-3 px-4 text-center font-mono font-black text-amber-400 text-sm">{row.points}</td>
-                  <td className="py-3 px-4 text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      {row.streak ? (
-                        row.streak.split('-').filter(Boolean).map((char, i) => (
-                          <span
-                            key={i}
-                            className={`w-4 h-4 rounded text-[9px] font-black flex items-center justify-center font-mono ${
-                              char === 'G' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'
-                            }`}
-                          >
-                            {char}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-slate-600 font-mono text-xs">-</span>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="p-3 bg-slate-950/60 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400" />
-              <span>Puestos 1 al 4 clasifican a Playoffs de Oro (FIVB)</span>
-            </div>
-            <span>Regla de puntuación: 3-0 y 3-1 (3 pts al ganador, 0 al perdedor) • 3-2 (2 pts al ganador, 1 al perdedor)</span>
-          </div>
-        </div>
-      )}
-
-      {/* SUB-TAB 3: EQUIPOS */}
-      {subTab === 'equipos' && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-          {activeComp.teams.map((teamName, i) => (
-            <div
-              key={i}
-              className="p-4 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col justify-between space-y-3"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-black text-base border border-amber-500/30">
-                  {teamName.charAt(0)}
-                </div>
-                <div>
-                  <h4 className="font-bold text-white text-xs">{teamName}</h4>
-                  <span className="text-[10px] text-slate-400">{activeComp.category}</span>
-                </div>
-              </div>
-
-              {onOpenTeamRoster && (
-                <button
-                  onClick={() => onOpenTeamRoster(teamName)}
-                  className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-bold py-2 rounded-xl border border-slate-700 transition flex items-center justify-center gap-1.5"
-                >
-                  <Users className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Ver Roster</span>
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* WIZARD CREAR COMPETICIÓN (5 PASOS CON OPEN AI) */}
-      {isWizardOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
-          <div className="w-full max-w-xl bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl overflow-hidden flex flex-col">
-            {/* Wizard Header */}
-            <div className="p-5 border-b border-slate-800 bg-slate-950/60 flex items-center justify-between">
-              <div>
-                <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">
-                  Asistente de Competición • Paso {wizardStep} de 5
-                </span>
-                <h3 className="text-base font-black text-white mt-0.5">
-                  {wizardStep === 1 && 'Paso 1: Información Básica'}
-                  {wizardStep === 2 && 'Paso 2: Equipos Participantes'}
-                  {wizardStep === 3 && 'Paso 3: Formato de Competencia & IA'}
-                  {wizardStep === 4 && 'Paso 4: Reglas y Sistema de Puntos'}
-                  {wizardStep === 5 && 'Paso 5: Confirmar y Generar Fixture'}
-                </h3>
-              </div>
-              <button
-                onClick={() => {
-                  setIsWizardOpen(false);
-                  if (onCloseWizardExternal) onCloseWizardExternal();
-                }}
-                className="p-1.5 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Wizard Body */}
-            <div className="p-6 space-y-4 text-xs">
-              {/* PASO 1 */}
-              {wizardStep === 1 && (
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-slate-300 font-bold mb-1">Nombre del Torneo</label>
-                    <input
-                      type="text"
-                      value={wizardName}
-                      onChange={(e) => setWizardName(e.target.value)}
-                      placeholder="Ej: Liga Metropolitana Clausura 2026"
-                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-slate-300 font-bold mb-1">Categoría</label>
-                      <select
-                        value={wizardCategory}
-                        onChange={(e) => setWizardCategory(e.target.value)}
-                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none"
-                      >
-                        <option>Primera División</option>
-                        <option>Sub 21</option>
-                        <option>Sub 18</option>
-                        <option>Sub 16</option>
-                        <option>Maxivoley</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-slate-300 font-bold mb-1">Rama</label>
-                      <select
-                        value={wizardGender}
-                        onChange={(e) => setWizardGender(e.target.value as any)}
-                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none"
-                      >
-                        <option value="Femenino">Femenino</option>
-                        <option value="Masculino">Masculino</option>
-                        <option value="Mixto">Mixto</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* PASO 2 */}
-              {wizardStep === 2 && (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-slate-300 font-bold mb-1">Cantidad de Equipos</label>
-                      <input
-                        type="number"
-                        min={4}
-                        max={32}
-                        value={wizardTeamsCount}
-                        onChange={(e) => setWizardTeamsCount(parseInt(e.target.value) || 8)}
-                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white font-mono font-bold"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-slate-300 font-bold mb-1">Canchas Disponibles</label>
-                      <input
-                        type="number"
-                        min={1}
-                        max={8}
-                        value={wizardCourtsCount}
-                        onChange={(e) => setWizardCourtsCount(parseInt(e.target.value) || 2)}
-                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white font-mono font-bold"
-                      />
-                    </div>
-                  </div>
-                  <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-slate-400">
-                    Se asignarán {wizardTeamsCount} equipos desde la biblioteca de clubes disponibles para confeccionar la grilla inicial.
-                  </div>
-                </div>
-              )}
-
-              {/* PASO 3 */}
-              {wizardStep === 3 && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <label className="text-slate-300 font-bold">Formato del Torneo</label>
                     <button
-                      onClick={handleAskAiRecommendation}
-                      className="text-purple-400 hover:text-purple-300 font-bold flex items-center gap-1"
+                      className={button}
+                      disabled={i === 0}
+                      onClick={() =>
+                        setTieOrder((v) => {
+                          const n = [...v];
+                          [n[i - 1], n[i]] = [n[i], n[i - 1]];
+                          return n;
+                        })
+                      }
+                      aria-label={`Subir ${t}`}
                     >
-                      <Sparkles className="w-3.5 h-3.5" />
-                      <span>Recomendar con OPEN AI</span>
+                      ↑
                     </button>
                   </div>
-
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { id: 'round_robin', label: 'Todos contra Todos' },
-                      { id: 'groups_playoffs', label: 'Zonas + Playoffs' },
-                      { id: 'single_elimination', label: 'Playoff Directo' },
-                    ].map((f) => (
-                      <button
-                        key={f.id}
-                        type="button"
-                        onClick={() => setWizardFormat(f.id as any)}
-                        className={`p-3 rounded-xl border text-center font-bold transition ${
-                          wizardFormat === f.id
-                            ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20'
-                            : 'bg-slate-800 text-slate-300 border-slate-700 hover:border-slate-600'
-                        }`}
-                      >
-                        {f.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  {aiRecommendation && (
-                    <div className="p-3.5 bg-purple-950/30 border border-purple-800/50 rounded-xl space-y-1.5 animate-fadeIn">
-                      <div className="flex items-center gap-1.5 text-purple-400 font-black">
-                        <Sparkles className="w-4 h-4" />
-                        <span>Sugerencia Inteligente OPEN AI</span>
-                      </div>
-                      <p className="text-slate-300 leading-relaxed">
-                        {aiRecommendation}
-                      </p>
-                    </div>
+                ))}
+                <button
+                  className={button}
+                  disabled={tieOrder.length !== active.teams.length}
+                  onClick={() => {
+                    if (
+                      window.confirm(
+                        "¿Confirmar este orden para resolver los empates conforme al reglamento del torneo?",
+                      )
+                    )
+                      change((d) =>
+                        setCompetitionTieBreak(d, active.id, tieOrder),
+                      );
+                  }}
+                >
+                  Confirmar desempates
+                </button>
+                {active.tieBreakOrder && (
+                  <p className="text-emerald-300">Orden confirmado.</p>
+                )}
+              </details>
+            )}
+          {tab === "tabla" &&
+            (active.format === "single_elimination" ? (
+              <p>
+                Este formato se define por los cruces del fixture, sin tabla por
+                puntos.
+              </p>
+            ) : active.format === "groups_playoffs" ? (
+              <>
+                {table("A")}
+                {table("B")}
+              </>
+            ) : (
+              table()
+            ))}
+          {tab === "equipos" && (
+            <ul className="space-y-2">
+              {active.teams.map((team, i) => (
+                <li
+                  className="rounded-lg bg-slate-900 p-3"
+                  key={active.teamIds[i]}
+                >
+                  {team}
+                  {onOpenTeamRoster && (
+                    <button
+                      className={`${button} ml-3`}
+                      onClick={() => onOpenTeamRoster(team)}
+                    >
+                      Ver planteles
+                    </button>
                   )}
-                </div>
-              )}
-
-              {/* PASO 4 */}
-              {wizardStep === 4 && (
-                <div className="space-y-3">
-                  <label className="block text-slate-300 font-bold">Sistema de Puntuación FIVB</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setWizardPointsSystem('3-1')}
-                      className={`p-3.5 rounded-xl border text-left font-bold transition ${
-                        wizardPointsSystem === '3-1'
-                          ? 'bg-amber-500/15 border-amber-400 text-white'
-                          : 'bg-slate-800 border-slate-700 text-slate-400'
-                      }`}
-                    >
-                      <div className="text-amber-400 font-black">Sistema 3-1 (FIVB Oficial)</div>
-                      <div className="text-[10px] text-slate-300 mt-1">3 pts (3-0/3-1), 2 pts (3-2 ganador), 1 pt (3-2 perdedor).</div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setWizardPointsSystem('2-1')}
-                      className={`p-3.5 rounded-xl border text-left font-bold transition ${
-                        wizardPointsSystem === '2-1'
-                          ? 'bg-amber-500/15 border-amber-400 text-white'
-                          : 'bg-slate-800 border-slate-700 text-slate-400'
-                      }`}
-                    >
-                      <div className="text-amber-400 font-black">Sistema 2-1 Tradicional</div>
-                      <div className="text-[10px] text-slate-300 mt-1">2 puntos por victoria, 1 punto por derrota.</div>
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* PASO 5 */}
-              {wizardStep === 5 && (
-                <div className="space-y-3 p-4 bg-slate-950 rounded-2xl border border-slate-800">
-                  <div className="flex items-center gap-2 text-emerald-400 font-black">
-                    <CheckCircle2 className="w-5 h-5" />
-                    <span>Listo para crear la competición</span>
-                  </div>
-                  <p className="text-slate-300 leading-relaxed">
-                    Se creará <strong>{wizardName || 'Torneo Oficial'}</strong> con {wizardTeamsCount} equipos, formato {wizardFormat === 'groups_playoffs' ? 'Zonas + Playoffs' : 'Todos contra todos'} y sistema de puntos {wizardPointsSystem}.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Wizard Navigation Footer */}
-            <div className="p-4 border-t border-slate-800 bg-slate-950/80 flex items-center justify-between">
-              <button
-                type="button"
-                disabled={wizardStep === 1}
-                onClick={() => setWizardStep((p) => p - 1)}
-                className="px-4 py-2 rounded-xl text-slate-400 hover:text-white font-bold disabled:opacity-30 transition flex items-center gap-1"
-              >
-                <ChevronLeft className="w-4 h-4" />
-                <span>Anterior</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+      {open && (
+        <div
+          className="fixed inset-0 z-[100] overflow-y-auto bg-black/80 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="competition-title"
+        >
+          <form
+            onSubmit={create}
+            className="mx-auto my-4 max-w-2xl space-y-4 rounded-2xl border border-slate-600 bg-slate-900 p-5"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <h3 id="competition-title" className="text-xl font-bold">
+                Nuevo torneo
+              </h3>
+              <button type="button" aria-label="Cerrar" onClick={close}>
+                <X />
               </button>
-
-              {wizardStep < 5 ? (
-                <button
-                  type="button"
-                  onClick={() => setWizardStep((p) => p + 1)}
-                  className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black flex items-center gap-1 transition shadow-md shadow-amber-500/20"
-                >
-                  <span>Siguiente</span>
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleFinishWizard}
-                  className="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black flex items-center gap-1 transition shadow-md shadow-emerald-500/20"
-                >
-                  <Check className="w-4 h-4 stroke-[3]" />
-                  <span>Crear Competición</span>
-                </button>
-              )}
             </div>
-          </div>
+            {error && (
+              <p role="alert" className="text-red-200">
+                {error}
+              </p>
+            )}
+            <label className="block">
+              Nombre
+              <input
+                required
+                maxLength={200}
+                className={field}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </label>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label>
+                Categoría
+                <input
+                  required
+                  maxLength={200}
+                  className={field}
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                />
+              </label>
+              <label>
+                Rama
+                <select
+                  className={field}
+                  value={gender}
+                  onChange={(e) =>
+                    setGender(e.target.value as Tournament["gender"])
+                  }
+                >
+                  {["Femenino", "Masculino", "Mixto"].map((g) => (
+                    <option key={g}>{g}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <label className="block">
+              Formato
+              <select
+                className={field}
+                value={format}
+                onChange={(e) =>
+                  setFormat(e.target.value as Tournament["format"])
+                }
+              >
+                {Object.entries(formats).map(([id, title]) => (
+                  <option value={id} key={id}>
+                    {title}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="text-sm text-slate-300">
+              {format === "groups_playoffs"
+                ? "Se alternan los equipos seleccionados entre zonas A y B. Clasifican los dos mejores de cada zona: A1–B2 y B1–A2."
+                : format === "single_elimination"
+                  ? "Los cruces siguen el orden de selección. Los pases libres necesarios para completar la llave se asignan a los últimos equipos seleccionados en la primera fase."
+                  : "Una rueda: cada equipo juega una vez contra cada rival."}
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label>
+                Canchas
+                <input
+                  type="number"
+                  min="1"
+                  max="32"
+                  required
+                  className={field}
+                  value={courts}
+                  onChange={(e) => setCourts(Number(e.target.value))}
+                />
+              </label>
+              <label>
+                Puntuación
+                <select
+                  className={field}
+                  value={points}
+                  onChange={(e) =>
+                    setPoints(e.target.value as Tournament["pointsSystem"])
+                  }
+                >
+                  <option value="3-1">3/0 en 3–0 o 3–1; 2/1 en 3–2</option>
+                  <option value="2-1">2 al ganador; 1 al perdedor</option>
+                </select>
+              </label>
+            </div>
+            <fieldset>
+              <legend className="font-bold">
+                Equipos registrados · {selected.length} seleccionados
+              </legend>
+              <p className="my-2 text-xs text-slate-300">
+                Elegí entre 2 y 32 equipos (mínimo 4 para zonas). Los nombres
+                deben ser distintos; podés diferenciarlos por categoría en la
+                biblioteca.
+              </p>
+              <div className="max-h-64 space-y-2 overflow-y-auto">
+                {teams.map((t) => (
+                  <label
+                    key={t.id}
+                    className="flex items-center gap-3 rounded-lg bg-slate-800 p-3"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(t.id)}
+                      onChange={(e) =>
+                        setSelected((v) =>
+                          e.target.checked
+                            ? [...v, t.id]
+                            : v.filter((id) => id !== t.id),
+                        )
+                      }
+                    />
+                    <span>
+                      {t.name} · {t.category} · {t.gender}
+                      {selected.includes(t.id)
+                        ? ` · Orden ${selected.indexOf(t.id) + 1}`
+                        : ""}
+                    </span>
+                  </label>
+                ))}
+              </div>
+              {!teams.length && (
+                <p>Primero cargá los equipos en Equipos y Planteles.</p>
+              )}
+            </fieldset>
+            <div className="flex gap-2">
+              <button type="button" className={button} onClick={close}>
+                Cancelar
+              </button>
+              <button
+                disabled={
+                  !loaded ||
+                  selected.length < (format === "groups_playoffs" ? 4 : 2) ||
+                  selected.length > 32
+                }
+                className="rounded-lg bg-amber-400 px-4 py-2 font-bold text-slate-950"
+                type="submit"
+              >
+                Crear torneo y fixture
+              </button>
+            </div>
+          </form>
         </div>
       )}
-    </div>
+    </section>
   );
 };
+function pointsLabel(system: Tournament["pointsSystem"]) {
+  return system === "3-1"
+    ? "3/0 o 2/1 según sets"
+    : "2 al ganador, 1 al perdedor";
+}

@@ -38,7 +38,7 @@ import { Player360Modal } from './components/Player360Modal';
 import { PlayerVideoInbox } from './components/PlayerVideoInbox';
 import { GlobalQuickActionModal } from './components/GlobalQuickActionModal';
 import { GlobalCommandPalette } from './components/GlobalCommandPalette';
-import { sampleCompetitions } from './data/sampleCompetitionAndTraining';
+import { readCompetitions } from './services/competitionStorage';
 import { 
   getSavedTeams, 
   saveTeam, 
@@ -1822,7 +1822,7 @@ export default function App() {
           onSelectPlayer={(p) => handleOpenPlayer360(p)}
           players={[...(match.homePlayers || []), ...(match.awayPlayers || [])]}
           match={match}
-          competitions={sampleCompetitions}
+          competitions={(() => { try { return readCompetitions().competitions; } catch { return []; } })()}
         />
       )}
 

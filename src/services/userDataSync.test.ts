@@ -20,6 +20,11 @@ const scoped=(owner:string,key:string)=>`ov-user:${owner}:${key}`;
 // Only verified scope is imported. Guest and legacy records never leak.
 memory.setItem(teams,JSON.stringify([{id:'legacy'}]));memory.setItem(scoped('guest',teams),JSON.stringify([{id:'guest'}]));memory.setItem(scoped('A',teams),JSON.stringify([{id:'A'}]));memory.setItem(scoped('B',teams),JSON.stringify([{id:'B'}]));
 setStorageUser('A');await sync.initializeUserDataSync('A');assert.equal(bucket('A').get(teams).value[0].id,'A');assert.equal(bucket('B').size,0);assert.equal(sync.getDataSyncStatus().state,'synced');
+// Tournament bundle uses the same durable queue, hydration and account boundary as other collections.
+const {createTournament,COMPETITIONS_KEY}=await import('../shared/competitions');
+const competition=createTournament({id:'sync-tournament',name:'Liga',category:'Primera',gender:'Mixto',format:'round_robin',teams:['Local','Rival'],teamIds:['a','b'],courtsCount:1,pointsSystem:'3-1',startDate:'2026-10-16'});
+userStorage.setItem(COMPETITIONS_KEY,JSON.stringify(competition));await sync.flushUserData();assert.deepEqual(bucket('A').get(COMPETITIONS_KEY).value,competition);
+memory.removeItem(scoped('A',COMPETITIONS_KEY));await sync.initializeUserDataSync('A');assert.deepEqual(JSON.parse(userStorage.getItem(COMPETITIONS_KEY)!),competition);assert.equal(bucket('B').has(COMPETITIONS_KEY),false);
 // Network failure retains pending writes across a reload/initialization.
 offline=true;userStorage.setItem(teams,JSON.stringify([{id:'edited'}]));await sync.flushUserData();assert.equal(sync.getDataSyncStatus().state,'error');assert.match(memory.getItem(scoped('A','openvoley.cloud.pending.v1'))!,/edited/);offline=false;await sync.initializeUserDataSync('A');assert.equal(bucket('A').get(teams).value[0].id,'edited');
 // A clean old cache takes a newer cloud version automatically.

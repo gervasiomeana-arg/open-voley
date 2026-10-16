@@ -6,7 +6,7 @@ import { loadAccounts, saveAccounts, grantAccessDays } from './accountStore';
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
-import { GoogleGenAI } from '@google/genai';
+import { generateAiText } from './aiGeneration';
 import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
 import { sessionCookieHeader } from './sessionSecurity';
@@ -247,9 +247,9 @@ export async function startServer() {
             const query = cleanText(req.body?.query, 2000);
             if (!query)
                 return res.status(400).json({ error: 'Query is required' });
-            const contextJson = JSON.stringify(req.body?.context || {}).slice(0, 60000);
+            const contextJson = JSON.stringify(req.body?.context || {});
+            if(contextJson.length>60000)return res.status(413).json({error:'El contexto supera el límite de análisis. Seleccioná menos partidos.'});
             const conversationJson = JSON.stringify(Array.isArray(req.body?.conversation) ? req.body.conversation.slice(-6) : []).slice(0, 12000);
-            const ai = new GoogleGenAI({ apiKey });
             const prompt = [
                 'Escribe en español. Eres OPEN AI, analista táctico profesional de voleibol de OPEN VOLEY.',
                 'Responde la consulta de forma concreta y útil para un cuerpo técnico.',
@@ -263,17 +263,11 @@ export async function startServer() {
                 `CONVERSACION_RECIENTE: ${conversationJson}`,
                 `CONTEXTO_OPEN_VOLEY: ${contextJson}`,
             ].join('\n');
-            const response = await ai.models.generateContent({
-                model: 'gemini-3.7-flash',
-                contents: prompt,
-            });
-            return res.json({
-                reply: response.text || 'No hay datos suficientes para generar una recomendación.',
-            });
+            return res.json({ reply: await generateAiText(prompt) });
         }
         catch (error) {
-            console.error('AI scout failed:', error);
-            return res.status(502).json({ error: 'AI analysis failed' });
+            console.error('AI scout request failed; no conversation or credentials logged.');
+            return res.status(502).json({ error: 'No se pudo completar el análisis de IA. Revisá la conexión o intentá más tarde.' });
         }
     }));
     app.post('/api/generate-prd', asyncHandler(async (req, res) => {
@@ -284,7 +278,6 @@ export async function startServer() {
             const idea = cleanText(req.body?.idea, 5000);
             if (!idea)
                 return res.status(400).json({ error: 'Idea is required' });
-            const ai = new GoogleGenAI({ apiKey });
             const prompt = [
                 'Responde en español y devuelve JSON válido.',
                 'Analiza la siguiente idea de producto sin inventar datos externos ni cifras no justificadas.',
@@ -294,17 +287,10 @@ export async function startServer() {
                 `Monetización: ${cleanText(req.body?.monetizationModel, 1000)}`,
                 `Precio estimado: ${cleanText(req.body?.estimatedPrice, 1000)}`,
             ].join('\n');
-            const response = await ai.models.generateContent({
-                model: 'gemini-3.7-flash',
-                contents: prompt,
-                config: { responseMimeType: 'application/json', temperature: 0.2 },
-            });
-            if (!response.text)
-                return res.status(502).json({ error: 'Empty AI response' });
-            return res.json(JSON.parse(response.text));
+            return res.json(JSON.parse(await generateAiText(prompt,true)));
         }
         catch (error) {
-            console.error('PRD generation failed:', error);
+            console.error('PRD generation failed; no prompt or credentials logged.');
             return res.status(502).json({ error: 'PRD generation failed' });
         }
     }));

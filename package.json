@@ -24,7 +24,7 @@
     "test:sqlite-rollout": "tsx src/server/trainingRepositoryRollout.test.ts",
     "test:montage-sqlite": "tsx src/server/smartSportsMontageRepository.test.ts",
     "test:montage-sync": "tsx src/services/smartSportsMontageSync.test.ts",
-    "test:video-render": "tsx src/server/videoRenderPlan.test.ts",
+    "test:video-render": "node --import tsx src/server/videoRenderPlan.test.ts && node --import tsx src/components/ComputerVisionOverlay.test.ts",
     "test:player360": "tsx src/utils/player360Analytics.test.ts",
     "test:open-ai-context": "tsx src/utils/openAiConversationContext.test.ts",
     "test:e2e-real-match": "tsx src/utils/endToEndRealMatch.test.ts",
@@ -46,7 +46,10 @@
     "test:media-cards": "node --import tsx src/utils/mediaCardData.test.ts",
     "test:readiness": "node --import tsx src/server/launchReadiness.test.ts && node --import tsx src/server/launchStorageStatus.test.ts",
     "test:landing": "node scripts/checkLanding.mjs",
-    "test:durable-storage": "node --import tsx src/server/durableStorage.test.ts && node --import tsx src/services/userDataSync.test.ts"
+    "test:durable-storage": "node --import tsx src/server/durableStorage.test.ts && node --import tsx src/services/userDataSync.test.ts",
+    "test:competitions": "node --import tsx src/shared/competitions.test.ts && node --import tsx src/services/competitionStorage.test.ts",
+    "test:ai-generation": "node --import tsx src/server/aiGeneration.test.ts",
+    "test:video-integration": "node --import tsx src/server/videoRenderIntegration.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

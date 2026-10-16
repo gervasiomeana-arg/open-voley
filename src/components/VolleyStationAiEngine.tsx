@@ -72,7 +72,6 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
   onJumpToTimestamp 
 }) => {
   const [activeSubModule, setActiveSubModule] = useState<AiSubModule>('vision');
-  const [isVisionAnalyzing, setIsVisionAnalyzing] = useState(false);
   const [visionNotice, setVisionNotice] = useState<string | null>(null);
   const [showAiOverlays, setShowAiOverlays] = useState(true);
 
@@ -123,7 +122,7 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
       label: rally.phase,
       detail: rally.detectedCode,
       skill: undefined,
-      evaluation: rally.result === 'home_point' ? '#' as const : undefined,
+      evaluation: rally.detectedCode !== 'MANUAL' && rally.result === 'home_point' ? '#' as const : undefined,
       source: 'rally' as const,
     }));
     const combined = [...tagged, ...detected].sort((a, b) => a.timestamp - b.timestamp);
@@ -258,12 +257,7 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
   // returns real detections. Never synthesize rallies or telemetry in the browser.
   const handleRunVisionAnalysis = () => {
     if (!videoSrc) return;
-    setIsVisionAnalyzing(true);
-    setVisionNotice(null);
-    window.setTimeout(() => {
-      setIsVisionAnalyzing(false);
-      setVisionNotice('Auto-Scan experimental: todavía no hay un motor de visión validado conectado para generar detecciones automáticas reales. Usa el etiquetado manual o el scouting sincronizado.');
-    }, 500);
+    setVisionNotice('Auto-Scan no disponible: todavía no hay un motor de visión validado conectado. Usá el etiquetado manual o el scouting sincronizado.');
   };
 
   // Manual marker at the current timestamp. This creates navigation evidence only;
@@ -280,12 +274,12 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
       serverNum: match.server?.playerNum || 0,
       attackingTeam: 'home',
       attackerNum,
-      result: 'home_point',
+      result: 'unknown',
       confidenceScore: 0,
       ballMaxSpeedKmh: 0,
       spikeReachM: 0,
       detectedCode: 'MANUAL',
-      phase: 'Punto',
+      phase: 'Marcador',
       notes: `Marcador manual creado en ${formatTime(sec)}. Sin telemetría automática.`,
     };
     onAddRally(newRally);
@@ -390,20 +384,11 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
 
             <button
               onClick={handleRunVisionAnalysis}
-              disabled={isVisionAnalyzing || !videoSrc}
+              disabled={!videoSrc}
               className="px-5 py-2.5 bg-gradient-to-r from-indigo-500 via-purple-600 to-indigo-600 hover:from-indigo-400 hover:to-purple-500 text-white text-xs sm:text-sm font-black rounded-xl shadow-xl shadow-indigo-600/30 flex items-center gap-2 border border-indigo-400/30 transition transform active:scale-95 disabled:opacity-50"
             >
-              {isVisionAnalyzing ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin text-white" />
-                  <span>Escaneando Frames...</span>
-                </>
-              ) : (
-                <>
-                  <Eye className="w-4 h-4 text-amber-300" />
-                  <span>Auto-Scan Video del Partido</span>
-                </>
-              )}
+              <Eye className="w-4 h-4 text-amber-300" />
+              <span>Auto-Scan: no disponible</span>
             </button>
           </div>
         </div>
@@ -511,7 +496,7 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
                       showAiOverlays ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-slate-950 text-slate-400 border-slate-800'
                     }`}
                   >
-                    Overlay IA: {showAiOverlays ? 'ACTIVO' : 'OCULTO'}
+                    Etiquetas: {showAiOverlays ? 'VISIBLES' : 'OCULTAS'}
                   </button>
                   <div className="text-[11px] font-mono text-slate-400 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800">
                     Análisis visual experimental
@@ -614,9 +599,7 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
                         currentTime={currentTime}
                         isAutoScoutActive={showAiOverlays}
                         onToggleAutoScout={() => setShowAiOverlays(!showAiOverlays)}
-                        onDetectedAction={(desc) => {
-                          console.log('AI AutoScan detected:', desc);
-                        }}
+                        actions={userCuts}
                       />
                     )}
                   </>
@@ -752,7 +735,7 @@ export const VolleyStationAiEngine: React.FC<VolleyStationAiEngineProps> = ({
                           <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
                             rally.result === 'home_point' ? 'bg-amber-500/20 text-amber-300' : 'bg-blue-500/20 text-blue-300'
                           }`}>
-                            {rally.result === 'home_point' ? `Punto ${match.homeTeamName}` : `Punto ${match.awayTeamName}`}
+                            {rally.detectedCode === 'MANUAL' || rally.result === 'unknown' ? 'Marcador sin resultado' : rally.result === 'home_point' ? `Punto ${match.homeTeamName}` : `Punto ${match.awayTeamName}`}
                           </span>
                         </div>
 

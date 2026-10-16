@@ -64,10 +64,10 @@ export const GlobalQuickActionModal: React.FC<GlobalQuickActionModalProps> = ({
     {
       key: 'competition' as const,
       title: 'Nueva Competición',
-      desc: 'Crear torneo con wizard inteligente de 5 pasos y recomendación de formato según canchas.',
+      desc: 'Crear torneo con equipos registrados, fixture, resultados y tabla de posiciones.',
       icon: Trophy,
       color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30 group-hover:bg-yellow-500 group-hover:text-slate-950',
-      badge: 'Wizard IA',
+      badge: 'Torneos',
       badgeColor: 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20'
     },
     {
