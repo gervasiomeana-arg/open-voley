@@ -16,8 +16,9 @@ import {
   BarChart2,
   Users
 } from 'lucide-react';
-import { MatchData, TrainingEvidenceContext } from '../types';
+import { MatchData, TeamSide, TrainingEvidenceContext } from '../types';
 import { getCurrentMatch } from '../services/teamStorage';
+import { matchRecordingStatus } from '../utils/matchRecording';
 import { buildEvidenceInsights } from '../utils/evidenceInsights';
 import { buildOpenAiConversationContext } from '../utils/openAiConversationContext';
 
@@ -33,8 +34,8 @@ export interface AttackCounts {
  * - attackPoints
  * - attackErrors
  */
-export function countMatchAttacks(currentMatch: MatchData): AttackCounts {
-  const actions = currentMatch.actions || [];
+export function countMatchAttacks(currentMatch: MatchData, team: TeamSide = 'home'): AttackCounts {
+  const actions = (currentMatch.actions || []).filter(action => action.team === team);
   const attackActions = actions.filter(
     (a) => a.skill === 'A' || (a as any).type === 'ATTACK' || (a as any).actionType === 'ATTACK'
   );
@@ -66,8 +67,8 @@ export interface ServeCounts {
  * - serveAces
  * - serveErrors
  */
-export function countMatchServes(currentMatch: MatchData): ServeCounts {
-  const actions = currentMatch.actions || [];
+export function countMatchServes(currentMatch: MatchData, team: TeamSide = 'home'): ServeCounts {
+  const actions = (currentMatch.actions || []).filter(action => action.team === team);
   const serveActions = actions.filter(
     (a) => a.skill === 'S' || (a as any).type === 'SERVE' || (a as any).actionType === 'SERVE' || (a as any).skill === 'SERVE'
   );
@@ -99,8 +100,8 @@ export interface ReceptionCounts {
  * - positiveReceptions
  * - receptionErrors
  */
-export function countMatchReceptions(currentMatch: MatchData): ReceptionCounts {
-  const actions = currentMatch.actions || [];
+export function countMatchReceptions(currentMatch: MatchData, team: TeamSide = 'home'): ReceptionCounts {
+  const actions = (currentMatch.actions || []).filter(action => action.team === team);
   const recActions = actions.filter(
     (a) => a.skill === 'R' || (a as any).type === 'RECEPTION' || (a as any).actionType === 'RECEPTION' || (a as any).skill === 'RECEPTION'
   );
@@ -119,66 +120,6 @@ export function countMatchReceptions(currentMatch: MatchData): ReceptionCounts {
     receptionErrors,
   };
 }
-
-export type PerformanceIssueResult = 'ATTACK' | 'SERVE' | 'RECEPTION' | 'INSUFFICIENT_DATA';
-
-/**
- * Evaluates real match performance across Attack, Serve, and Reception.
- * Requires at least 3 actions in a category to draw conclusions.
- * Returns ATTACK, SERVE, RECEPTION, or INSUFFICIENT_DATA.
- */
-export function getPrimaryPerformanceIssue(currentMatch: MatchData): PerformanceIssueResult {
-  const attacks = countMatchAttacks(currentMatch);
-  const serves = countMatchServes(currentMatch);
-  const receptions = countMatchReceptions(currentMatch);
-
-  const MIN_ACTIONS = 3;
-
-  const validSkills: Array<{
-    skill: 'ATTACK' | 'SERVE' | 'RECEPTION';
-    issueScore: number;
-  }> = [];
-
-  // Evaluate Attack only if volume is sufficient (>= 3 actions)
-  if (attacks.totalAttacks >= MIN_ACTIONS) {
-    const errorRate = attacks.attackErrors / attacks.totalAttacks;
-    const efficiency = (attacks.attackPoints - attacks.attackErrors) / attacks.totalAttacks;
-    const issueScore = errorRate + Math.max(0, -efficiency);
-    validSkills.push({ skill: 'ATTACK', issueScore });
-  }
-
-  // Evaluate Serve only if volume is sufficient (>= 3 actions)
-  if (serves.totalServes >= MIN_ACTIONS) {
-    const errorRate = serves.serveErrors / serves.totalServes;
-    const netServeLoss = (serves.serveErrors - serves.serveAces) / serves.totalServes;
-    const issueScore = errorRate + Math.max(0, netServeLoss);
-    validSkills.push({ skill: 'SERVE', issueScore });
-  }
-
-  // Evaluate Reception only if volume is sufficient (>= 3 actions)
-  if (receptions.totalReceptions >= MIN_ACTIONS) {
-    const errorRate = receptions.receptionErrors / receptions.totalReceptions;
-    const nonPositiveRate = (receptions.totalReceptions - receptions.positiveReceptions) / receptions.totalReceptions;
-    const issueScore = errorRate * 1.5 + nonPositiveRate * 0.5;
-    validSkills.push({ skill: 'RECEPTION', issueScore });
-  }
-
-  if (validSkills.length === 0) {
-    return 'INSUFFICIENT_DATA';
-  }
-
-  // Sort by highest issue severity
-  validSkills.sort((a, b) => b.issueScore - a.issueScore);
-
-  return validSkills[0].skill;
-}
-
-const ISSUE_TRANSLATIONS: Record<PerformanceIssueResult, string> = {
-  ATTACK: 'Ataque',
-  SERVE: 'Saque',
-  RECEPTION: 'Recepción',
-  INSUFFICIENT_DATA: 'Datos insuficientes',
-};
 
 interface OpenAiCenterProps {
   match?: MatchData;
@@ -205,23 +146,13 @@ export const OpenAiCenter: React.FC<OpenAiCenterProps> = ({
   const [customAnswers, setCustomAnswers] = useState<Array<{ q: string; a: string; timestamp: string }>>([]);
   const [isAnswering, setIsAnswering] = useState(false);
 
-  const actionsCount = (currentMatch.actions || []).length;
-  const currentMatchAttacks = countMatchAttacks(currentMatch);
-  const currentMatchServes = countMatchServes(currentMatch);
-  const totalServes = currentMatchServes.totalServes;
-  const currentMatchReceptions = countMatchReceptions(currentMatch);
-  void currentMatchReceptions;
-  const primaryPerformanceIssue = getPrimaryPerformanceIssue(currentMatch);
-  const evidenceInsights = buildEvidenceInsights(currentMatch, 'home');
-  const trainingRecommendation =
-    primaryPerformanceIssue === 'ATTACK'
-      ? 'Trabajar definición de ataque y reducción de errores.'
-      : '';
-
-  const serveTrainingAction =
-    primaryPerformanceIssue === 'SERVE'
-      ? 'Trabajar precisión de saque y reducción de errores.'
-      : '';
+  const [analyzedTeam, setAnalyzedTeam] = useState<TeamSide>('home');
+  const teamName = analyzedTeam === 'home' ? currentMatch.homeTeamName : currentMatch.awayTeamName;
+  const recording = matchRecordingStatus(currentMatch);
+  const actionsCount = (currentMatch.actions || []).filter(action => action.team === analyzedTeam).length;
+  const currentMatchAttacks = countMatchAttacks(currentMatch, analyzedTeam);
+  const totalServes = countMatchServes(currentMatch, analyzedTeam).totalServes;
+  const evidenceInsights = buildEvidenceInsights(currentMatch, analyzedTeam);
 
 interface ActionInsightItem {
   id: string;
@@ -241,41 +172,6 @@ interface ActionInsightItem {
   playerNumRef?: number;
   actionCta: string;
 }
-
-  const trainingActions: ActionInsightItem[] = [
-    ...(trainingRecommendation
-      ? [
-          {
-            id: 'action-attack-training',
-            category: 'training' as const,
-            severity: 'high' as const,
-            title: 'Plan de Entrenamiento',
-            description: trainingRecommendation,
-            sourceEvidence: 'Área prioritaria: Ataque',
-            actionType: 'generate_training' as const,
-            actionTarget: trainingRecommendation,
-            performanceMetric: 'attack_efficiency_pct' as const,
-            actionCta: 'Crear Sesión de Entrenamiento',
-          },
-        ]
-      : []),
-    ...(serveTrainingAction
-      ? [
-          {
-            id: 'action-serve-training',
-            category: 'training' as const,
-            severity: 'high' as const,
-            title: 'Plan de Entrenamiento',
-            description: serveTrainingAction,
-            sourceEvidence: 'Área prioritaria: Saque',
-            actionType: 'generate_training' as const,
-            actionTarget: serveTrainingAction,
-            performanceMetric: 'serve_efficiency_pct' as const,
-            actionCta: 'Crear Sesión de Entrenamiento',
-          },
-        ]
-      : []),
-  ];
 
   const evidenceActions: ActionInsightItem[] = evidenceInsights.map((insight) => ({
     id: insight.id,
@@ -308,7 +204,7 @@ interface ActionInsightItem {
           : 'Ver análisis táctico',
   }));
 
-  const allInsights = [...evidenceActions, ...trainingActions];
+  const allInsights = evidenceActions;
 
   const filteredInsights =
     activeCategory === 'all'
@@ -323,7 +219,7 @@ interface ActionInsightItem {
     setCustomQuestion('');
     setIsAnswering(true);
     try {
-      const context = buildOpenAiConversationContext(currentMatch, historicalMatches);
+      const context = { ...buildOpenAiConversationContext(currentMatch, historicalMatches, analyzedTeam), analyzedTeam, analyzedTeamName: teamName };
       const conversation = customAnswers.slice(0, 6).reverse().map((item) => ({ question: item.q, answer: item.a }));
       const response = await fetch('/api/ai-scout', {
         method: 'POST',
@@ -356,7 +252,7 @@ interface ActionInsightItem {
               <div className="flex items-center gap-2">
                 <h2 className="text-base sm:text-xl font-black text-white">OPEN AI Tactical Intelligence</h2>
                 <span className="hidden sm:inline text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30">
-                  Motor FIVB Vóley
+                  Análisis de acciones registradas
                 </span>
               </div>
               <p className="hidden sm:block text-xs text-slate-400">
@@ -369,15 +265,21 @@ interface ActionInsightItem {
           <div className="px-3.5 py-1.5 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center gap-2 text-xs">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span className="text-slate-300 font-medium text-[11px]">
-              Basado en: <strong className="text-white font-mono">{actionsCount} jugadas analizadas</strong>
+              Basado en: <strong className="text-white font-mono">{actionsCount} acciones de {teamName}</strong>
             </span>
           </div>
         </div>
 
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Equipo analizado">
+          {(['home', 'away'] as const).map(team => <button key={team} onClick={() => setAnalyzedTeam(team)} aria-pressed={analyzedTeam === team} className={`px-3 py-2 rounded-lg border text-xs font-bold ${analyzedTeam === team ? 'bg-amber-400 text-slate-950 border-amber-400' : 'bg-slate-950 text-slate-300 border-slate-700'}`}>
+            {team === 'home' ? currentMatch.homeTeamName : currentMatch.awayTeamName}
+          </button>)}
+        </div>
+        <p className="text-xs text-amber-200" role="status">{recording.message}</p>
         {/* Post-Match Summary */}
         <div className="p-3 sm:p-4 bg-slate-950/70 border border-purple-800/30 rounded-2xl space-y-1.5">
           <div className="text-[10px] font-black uppercase text-purple-400 tracking-wider">
-            Dictamen Ejecutivo Post-Partido
+            Resumen descriptivo · {teamName}
           </div>
           {currentMatchAttacks.totalAttacks === 0 ? (
             <p className="text-xs text-slate-400 py-1">
@@ -397,9 +299,7 @@ interface ActionInsightItem {
             {`Se registraron ${totalServes} saques.`}
           </p>
           <div className="text-xs text-purple-300 font-medium pt-1 border-t border-slate-800/60">
-            {primaryPerformanceIssue === 'INSUFFICIENT_DATA'
-              ? 'Datos insuficientes para detectar un área prioritaria.'
-              : `Área prioritaria: ${ISSUE_TRANSLATIONS[primaryPerformanceIssue]}`}
+            No se asigna una prioridad de entrenamiento por volumen de acciones. Revisá la evidencia y el contexto con el cuerpo técnico.
           </div>
         </div>
       </div>

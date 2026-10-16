@@ -1,4 +1,5 @@
 import { MatchData, TeamSide } from '../types';
+import { matchRecordingStatus } from './matchRecording';
 import { buildEvidenceInsights } from './evidenceInsights';
 
 const pct=(n:number,d:number)=>d?Math.round((n/d)*100):null;
@@ -16,14 +17,14 @@ function teamMetrics(match:MatchData,team:TeamSide){
   blockPoints:by('B').filter(a=>a.evaluation==='#').length,digs:by('D').length
  };
 }
-export function buildOpenAiConversationContext(match:MatchData,history:MatchData[]){
+export function buildOpenAiConversationContext(match:MatchData,history:MatchData[],analyzedTeam:TeamSide = 'home'){
  const playerRows=[...match.homePlayers,...match.awayPlayers].map(player=>{
   const actions=(match.actions||[]).filter(a=>a.team===player.team&&a.playerNum===player.number);
   return {number:player.number,name:player.name,team:player.team,position:player.position,actions:actions.length,points:actions.filter(a=>(a.skill==='A'||a.skill==='B'||a.skill==='S')&&a.evaluation==='#').length};
  }).filter(p=>p.actions>0);
- const evidence=buildEvidenceInsights(match,'home').map(i=>({title:i.title,description:i.description,evidenceCount:i.evidenceCount,rallyIds:i.rallyIds||[]}));
+ const evidence=buildEvidenceInsights(match,analyzedTeam).map(i=>({title:i.title,description:i.description,evidenceCount:i.evidenceCount,rallyIds:i.rallyIds||[]}));
  const previous=[...history].filter(m=>m.id!==match.id).sort((a,b)=>new Date(b.date).getTime()-new Date(a.date).getTime()).slice(0,8).map(m=>({
-  id:m.id,date:m.date,title:m.title,homeTeam:m.homeTeamName,awayTeam:m.awayTeamName,home:teamMetrics(m,'home'),away:teamMetrics(m,'away')
+  id:m.id,date:m.date,title:m.title,recording:matchRecordingStatus(m),homeTeam:m.homeTeamName,awayTeam:m.awayTeamName,home:teamMetrics(m,'home'),away:teamMetrics(m,'away')
  }));
- return {match:{id:match.id,title:match.title,date:match.date,competition:match.competition,homeTeam:match.homeTeamName,awayTeam:match.awayTeamName,sets:match.sets,currentSet:match.currentSet},current:{home:teamMetrics(match,'home'),away:teamMetrics(match,'away')},players:playerRows,evidence,history:previous};
+ return {recording:matchRecordingStatus(match),interpretation:'Separar equipos. No inferir scouting completo desde el marcador ni recomendar cambios por una muestra pequeña. Declarar datos faltantes y distinguir observaciones de hipótesis.',match:{id:match.id,title:match.title,date:match.date,competition:match.competition,homeTeam:match.homeTeamName,awayTeam:match.awayTeamName,sets:match.sets,currentSet:match.currentSet},current:{home:teamMetrics(match,'home'),away:teamMetrics(match,'away')},players:playerRows,evidence,history:previous};
 }

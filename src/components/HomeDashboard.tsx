@@ -502,7 +502,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                   <Sparkles className="w-4 h-4 text-purple-400" />
                   <div>
                     <div className="text-xs font-bold text-white">IA Coach & Visión</div>
-                    <div className="text-[10px] text-slate-400">Distribución de armador activa</div>
+                    <div className="text-[10px] text-slate-400">Consultas sobre acciones registradas</div>
                   </div>
                 </div>
                 <button

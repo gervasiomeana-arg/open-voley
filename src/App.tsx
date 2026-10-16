@@ -883,19 +883,19 @@ export default function App() {
       title: matchesSubTab === 'center' ? '4. Centro del Partido' : '4. Partido',
       subtitle: matchesSubTab === 'center'
         ? `${match.homeTeamName} vs ${match.awayTeamName} • Hub de mando, scouting en vivo, video, estadísticas e IA`
-        : 'Cancha 2D táctica, consola de scouting en vivo, planilla oficial FIVB e información',
+        : 'Cancha 2D táctica, consola de scouting en vivo, planilla estadística e información',
       icon: Volleyball,
       color: 'text-orange-400',
     },
     analysis: {
       title: '5. Análisis & Video',
-      subtitle: 'Informes tácticos de élite, distribución de armador, scouting de saque y video sincronizado HD',
+      subtitle: 'Análisis por equipo, distribución de armador, saque y video sincronizado',
       icon: TrendingUp,
       color: 'text-emerald-400',
     },
     ai: {
       title: '6. OPEN AI Coach',
-      subtitle: 'Visión artificial, telemetría, detección automática de rallies y asistente táctico interactivo',
+      subtitle: 'Asistente sobre datos registrados y herramientas experimentales de video',
       icon: Sparkles,
       color: 'text-purple-400',
     },
@@ -1234,7 +1234,7 @@ export default function App() {
                     }`}
                   >
                     <BarChart2 className="w-4 h-4" />
-                    <span className="hidden sm:inline">Planilla Oficial FIVB P2</span><span className="sm:hidden">Planilla</span>
+                    <span className="hidden sm:inline">Planilla estadística</span><span className="sm:hidden">Planilla</span>
                   </button>
 
                   <button
@@ -1508,7 +1508,7 @@ export default function App() {
                     }`}
                   >
                     <TrendingUp className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Informes Tácticos de Élite</span><span className="sm:hidden">Informes</span>
+                    <span className="hidden sm:inline">Informes tácticos</span><span className="sm:hidden">Informes</span>
                   </button>
                   <button
                     onClick={() => setAnalysisSubTab('video')}
@@ -1701,7 +1701,7 @@ export default function App() {
 
         {/* Footer */}
         <footer className="border-t border-slate-900 bg-slate-950 py-4 px-6 text-center text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2 hidden lg:flex">
-          <p>OPEN VOLEY - Plataforma Profesional de Scouting y Análisis Táctico FIVB & Motor Táctico AI</p>
+          <p>OPEN VOLEY · Scouting, análisis y entrenamiento de vóley</p>
           <p className="text-[11px] text-slate-600">Desarrollado por <strong className="text-slate-400">NEXUS</strong></p>
         </footer>
       </div>

@@ -48,6 +48,7 @@
     "test:landing": "node scripts/checkLanding.mjs",
     "test:durable-storage": "node --import tsx src/server/durableStorage.test.ts && node --import tsx src/services/userDataSync.test.ts",
     "test:competitions": "node --import tsx src/shared/competitions.test.ts && node --import tsx src/services/competitionStorage.test.ts",
+    "test:coach-review": "node --import tsx src/utils/coachReview.test.ts",
     "test:ai-generation": "node --import tsx src/server/aiGeneration.test.ts && node --import tsx src/shared/aiErrors.test.ts",
     "test:video-integration": "node --import tsx src/server/videoRenderIntegration.test.ts"
   },
