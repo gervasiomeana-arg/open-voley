@@ -297,6 +297,24 @@ export default function App() {
     };
   }, []);
 
+  // Expire an already open interface too; extending access still requires a fresh server check.
+  useEffect(() => {
+    if (!currentUser || currentUser.isAdmin || !trialInfo) return;
+    const tick = () => setTrialInfo(previous => {
+      if (!previous) return previous;
+      const end = Date.parse(previous.firstLoginDate) + previous.totalAllowedDays * 86400000;
+      if (!Number.isFinite(end)) return previous;
+      const remaining = Math.max(0, end - Date.now());
+      const daysRemaining = Math.ceil(remaining / 86400000);
+      const isExpired = previous.isExpired || remaining <= 0;
+      return daysRemaining === previous.daysRemaining && isExpired === previous.isExpired
+        ? previous : { ...previous, daysRemaining, isExpired };
+    });
+    const timer = window.setInterval(tick, 30000);
+    window.addEventListener('focus', tick);
+    return () => { window.clearInterval(timer); window.removeEventListener('focus', tick); };
+  }, [currentUser?.id, currentUser?.isAdmin, trialInfo?.firstLoginDate, trialInfo?.totalAllowedDays]);
+
   // Storage events only refresh this verified account. They never write or scan other scopes.
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
