@@ -121,7 +121,7 @@ export const ClientHistorySection: React.FC = () => {
 
   const calculateClientStatus = (client: ClientUser) => {
     const firstLoginMs = new Date(client.firstLoginDate).getTime();
-    const totalAllowedDays = (client.trialDurationDays || 30) + (client.customGrantedDays || 0);
+    const totalAllowedDays = (client.trialDurationDays ?? 0) + (client.customGrantedDays || 0);
     const totalAllowedMs = totalAllowedDays * 24 * 60 * 60 * 1000;
     const elapsedMs = Math.max(0, Date.now() - firstLoginMs);
     const remainingMs = Math.max(0, totalAllowedMs - elapsedMs);
@@ -167,30 +167,18 @@ export const ClientHistorySection: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, addDays: days }),
       });
-      if (res.ok) {
-        showFeedback(`Se añadieron +${days} días a ${email}`);
-        fetchClients(true);
-      }
+      if (!res.ok) throw new Error('No se pudo guardar la habilitación.');
+      showFeedback(`Se añadieron +${days} días a ${email}`);
+      fetchClients(true);
     } catch (err) {
       console.error(err);
+      showFeedback('No se pudo guardar la habilitación. Actualizá el listado antes de reintentar.');
     }
   };
 
-  const handleResetClient = async (email: string) => {
-    if (!confirm(`¿Restablecer el contador a 30 días completos para ${email}?`)) return;
-    try {
-      const res = await fetch('/api/clients/extend', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, resetDate: true }),
-      });
-      if (res.ok) {
-        showFeedback(`Contador reiniciado a 30 días para ${email}`);
-        fetchClients(true);
-      }
-    } catch (err) {
-      console.error(err);
-    }
+  const handleActivateMonthly = async (email: string) => {
+    if (!confirm(`¿Verificaste el pago de ${email}? Se habilitarán 30 días desde hoy si venció, o se sumarán al acceso vigente.`)) return;
+    await handleExtendDays(email, 30);
   };
 
   const handleToggleBlock = async (email: string, currentBlocked?: boolean) => {
@@ -651,11 +639,11 @@ export const ClientHistorySection: React.FC = () => {
                             +15d
                           </button>
                           <button
-                            onClick={() => handleResetClient(client.email)}
+                            onClick={() => handleActivateMonthly(client.email)}
                             className="bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold px-2 py-1 rounded-lg text-[11px] border border-amber-300 transition"
-                            title="Resetear a 30 días completos"
+                            title="Habilitar 30 días después de verificar el pago"
                           >
-                            Reset
+                            Habilitar 30 días
                           </button>
                           <button
                             onClick={() => handleToggleBlock(client.email, client.isBlocked)}

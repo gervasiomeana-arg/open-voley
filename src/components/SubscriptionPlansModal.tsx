@@ -10,6 +10,7 @@ import {
   X,
 } from 'lucide-react';
 import { ClientUser, TrialInfo } from '../types';
+import { MERCADO_PAGO_PAYMENT_LINK } from '../shared/paymentLink';
 import { LeadRegistrationForm } from './LeadRegistrationForm';
 
 interface SubscriptionPlansModalProps {
@@ -137,7 +138,7 @@ export const SubscriptionPlansModal: React.FC<SubscriptionPlansModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/90 backdrop-blur-md overflow-y-auto animate-fadeIn">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-6 bg-slate-950/90 backdrop-blur-md overflow-y-auto animate-fadeIn">
       <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-5xl max-h-[94vh] overflow-y-auto p-5 sm:p-8 shadow-2xl text-white relative space-y-6">
         <button
           onClick={onClose}
@@ -249,7 +250,7 @@ export const SubscriptionPlansModal: React.FC<SubscriptionPlansModalProps> = ({
             <>
               <p className="text-xs text-slate-300">Cuenta de OPEN VOLEY: <strong>{currentUser.email}</strong>. Conservá el comprobante e indicá este correo al solicitar la activación.</p>
               <a
-                href="https://mpago.la/34czrYP"
+                href={MERCADO_PAGO_PAYMENT_LINK}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-describedby="mp-payment-link-details"

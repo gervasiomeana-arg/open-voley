@@ -139,6 +139,7 @@ export interface PlayerStats {
 }
 
 export interface ClientUser {
+  isAdmin?: boolean;
   id: string;
   email: string;
   name: string;

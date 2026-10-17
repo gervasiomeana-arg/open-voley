@@ -45,3 +45,13 @@ export function grantAccessDays(account: any, days: number, now = Date.now()) {
   const allowed = Number(account.trialDurationDays || 0) + Number(account.customGrantedDays || 0);
   account.customGrantedDays = Math.max(allowed, elapsedDays) + days - Number(account.trialDurationDays || 0);
 }
+
+/** Legacy reset requests start a fresh paid period without rewriting registration history. */
+export function resetAccessDays(account: any, days = 30, now = Date.now()) {
+  const first = Date.parse(account.firstLoginDate);
+  if (!Number.isFinite(first) || !Number.isFinite(days) || days <= 0 || days > 365)
+    throw new Error('Invalid access period');
+  const elapsedDays = Math.max(0, (now - first) / 86400000);
+  account.customGrantedDays = elapsedDays + days - Number(account.trialDurationDays || 0);
+  account.isBlocked = false;
+}

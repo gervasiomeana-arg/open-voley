@@ -3,7 +3,7 @@ import {durableStorageEnabled,readCloud,updateCloud} from './supabaseStore';
 import {userDataRouter} from './userDataRouter';
 import {asyncHandler,storageErrorHandler} from './asyncHandler';
 import 'dotenv/config';
-import { loadAccounts, saveAccounts, grantAccessDays } from './accountStore';
+import { loadAccounts, saveAccounts, grantAccessDays, resetAccessDays } from './accountStore';
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
@@ -147,9 +147,7 @@ export async function startServer() {
         if (typeof req.body?.isBlocked === 'boolean')
             client.isBlocked = req.body.isBlocked;
         if (req.body?.resetDate === true) {
-            client.firstLoginDate = new Date().toISOString();
-            client.customGrantedDays = 0;
-            client.isBlocked = false;
+            resetAccessDays(client, 30);
         }
         await saveClients(clients);
         return res.json({ success: true, client });

@@ -1,0 +1,36 @@
+import assert from 'node:assert/strict';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { accountTrial, grantAccessDays, resetAccessDays } from './accountStore';
+import { TrialExpiredScreen } from '../components/TrialExpiredScreen';
+import { ClientUser } from '../types';
+const day=86400000, now=Date.parse('2026-10-17T12:00:00Z');
+const original={id:'trial',email:'trial@example.test',name:'Prueba',firstLoginDate:new Date(now-100.5*day).toISOString(),lastLoginDate:new Date(now).toISOString(),trialDurationDays:7,customGrantedDays:0};
+assert.equal(accountTrial(original,now).isExpired,true);
+const renewed={...original};grantAccessDays(renewed,30,now);
+assert.equal(renewed.firstLoginDate,original.firstLoginDate);
+assert.equal(accountTrial(renewed,now).daysRemaining,30);
+assert.equal(accountTrial(renewed,now+30*day-1).isExpired,false);
+assert.equal(accountTrial(renewed,now+30*day).isExpired,true);
+// Payment before expiry preserves the unused balance.
+const active={...original,firstLoginDate:new Date(now-2*day).toISOString()};grantAccessDays(active,30,now);
+assert.equal(accountTrial(active,now).daysRemaining,35);
+// Compatibility for old administrative Reset callers: 30 days, never a new 7-day trial.
+const legacy={...original,isBlocked:true};resetAccessDays(legacy,30,now);
+assert.equal(legacy.firstLoginDate,original.firstLoginDate);
+assert.equal(accountTrial(legacy,now).daysRemaining,30);
+assert.equal(legacy.isBlocked,false);
+assert.throws(()=>resetAccessDays({...original},NaN,now));
+assert.throws(()=>resetAccessDays({...original},366,now));
+let grants=0;
+const html=renderToStaticMarkup(React.createElement(TrialExpiredScreen,{user:original as ClientUser,trial:accountTrial(original,now),onLogout:()=>{},onExtendSuccess:()=>{grants++;}}));
+assert.match(html,/Tu período de prueba de 7 días terminó/);
+assert.match(html,/href="https:\/\/mpago.la\/34czrYP" target="_blank" rel="noopener noreferrer"/);
+assert.match(html,/equipos, jugadores y partidos se conservan/);
+assert.match(html,/Administración verifica el pago y habilita 30 días/);
+assert.match(html,/Actualizar acceso/);
+assert.equal(grants,0);
+const expiredPaid=renderToStaticMarkup(React.createElement(TrialExpiredScreen,{user:renewed as ClientUser,trial:accountTrial(renewed,now+31*day),onLogout:()=>{},onExtendSuccess:()=>{}}));
+assert.match(expiredPaid,/Tu suscripción venció/);
+assert.doesNotMatch(expiredPaid,/prueba de 7 días terminó/);
+console.log('Manual monthly access: expired/active balances, precise 30-day expiry, legacy reset and payment gate passed');
