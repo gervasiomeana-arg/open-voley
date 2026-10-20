@@ -43,7 +43,7 @@ export async function requestProtection(req: Request, res: Response, next: NextF
     const ip = clientKey(req);
     if (req.method === 'POST' && path === '/api/commercial/leads' && !consume(`leads:${ip}`, 10, 3600000))
         return res.status(429).json({ error: 'Demasiadas solicitudes. Intentá más tarde.' });
-    if (req.method === 'POST' && path === '/api/auth/google') {
+    if (req.method === 'POST' && /^\/api\/auth\/google(?:\/redirect)?\/?$/i.test(path)) {
         const credential = req.body?.credential;
         if (typeof credential !== 'string' || credential.length < 50 || credential.length > 10000) {
             return res.status(400).json({ error: 'Invalid Google credential payload' });
