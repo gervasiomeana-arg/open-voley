@@ -1,6 +1,6 @@
 import { userStorage } from '../services/userStorage';
 import React, { useState } from 'react';
-import { MatchData, Player, ScoutCodeAction, TeamSide, VolleySkill, EvaluationSymbol } from '../types';
+import { MatchData, ScoutLayoutPreset, Player, ScoutCodeAction, TeamSide, VolleySkill, EvaluationSymbol } from '../types';
 import { parseScoutCodes, parseScoutCode, EVALUATION_NAMES, SKILL_NAMES } from '../utils/codeParser';
 import { VolleyballScoutMode } from './VolleyballScoutMode';
 import { 
@@ -55,6 +55,8 @@ interface UnifiedTacticalHubProps {
   onOpenHelp?: () => void;
   onSaveMatch?: () => void;
   onBackToMatchCenter?: () => void;
+  onOpenPreparation?: () => void;
+  onSaveScoutPreset?: (team: TeamSide, key: string, preset: ScoutLayoutPreset | null) => void;
 }
 
 // Coordinates for standard volleyball zones 1-9 on a 0..100 grid for each half
@@ -103,6 +105,8 @@ export const UnifiedTacticalHub: React.FC<UnifiedTacticalHubProps> = ({
   onOpenHelp,
   onSaveMatch,
   onBackToMatchCenter,
+  onOpenPreparation,
+  onSaveScoutPreset,
 }) => {
   // Active viewing state (Default: MODO RÁPIDO, remembers preference in localStorage)
   const [scoutViewMode, setScoutViewMode] = useState<'quick_touch' | 'tactical_2d'>(() => {
@@ -537,6 +541,8 @@ export const UnifiedTacticalHub: React.FC<UnifiedTacticalHubProps> = ({
           onSubstitutePlayer={onSubstitutePlayer}
           onLiberoReplacement={onLiberoReplacement}
           onSelectAction={onSelectAction}
+          onSaveScoutPreset={onSaveScoutPreset}
+          onOpenPreparation={onOpenPreparation}
         />
       ) : (
         <>

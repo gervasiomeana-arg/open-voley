@@ -3,7 +3,7 @@ import { CompactScoutPanel } from './CompactScoutPanel';
 import { TargetZoneCourt } from './TargetZoneCourt';
 import { useScoutButtons, evaluationForKey } from '../utils/scoutButtonPreferences';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { MatchData, Player, ScoutCodeAction, TeamSide, VolleySkill, EvaluationSymbol } from '../types';
+import { MatchData, ScoutLayoutPreset, Player, ScoutCodeAction, TeamSide, VolleySkill, EvaluationSymbol } from '../types';
 import { isTerminalScoutAction, nextScoutStep } from '../utils/scoutRallyAssist';
 import { 
   RotateCcw, 
@@ -30,6 +30,8 @@ interface VolleyballScoutModeProps {
   onSubstitutePlayer: (team: TeamSide, playerOut: number, playerIn: number) => void;
   onLiberoReplacement: (team: TeamSide, liberoNum: number, replacedPlayerNum: number | null) => void;
   onSelectAction?: (id: string) => void;
+  onOpenPreparation?: () => void;
+  onSaveScoutPreset?: (team: TeamSide, key: string, preset: ScoutLayoutPreset | null) => void;
 }
 
 // Fundamental skills
@@ -115,6 +117,8 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
   onRotateTeam,
   onSubstitutePlayer,
   onSelectAction,
+  onOpenPreparation,
+  onSaveScoutPreset,
 }) => {
   // Active team being scouted
   const [activeTeam, setActiveTeam] = useState<TeamSide>('home');
@@ -447,7 +451,7 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
   const currentOutcomes = [...(SKILL_OUTCOMES[stagedSkill] || SKILL_OUTCOMES.A)]
     .sort((a, b) => scoutButtons.order.indexOf(a.symbol) - scoutButtons.order.indexOf(b.symbol));
 
-  if (compactView) return <CompactScoutPanel match={match} activeTeam={activeTeam} selectedPlayer={selectedPlayer} skill={stagedSkill} outcomes={currentOutcomes} onPlayer={selectScoutPlayer} onSkill={setStagedSkill} onEvaluate={handleCommitAction} onUndo={handleUndo} onClose={() => setCompactView(false)} confirmation={quickConfirmation} {...courtView} />;
+  if (compactView) return <CompactScoutPanel match={match} activeTeam={activeTeam} selectedPlayer={selectedPlayer} skill={stagedSkill} outcomes={currentOutcomes} onPlayer={selectScoutPlayer} onSkill={setStagedSkill} onEvaluate={handleCommitAction} onUndo={handleUndo} onClose={() => setCompactView(false)} confirmation={quickConfirmation} onFormation={onOpenPreparation} onSaveScoutPreset={onSaveScoutPreset} {...courtView} />;
 
   return (
     <>
@@ -734,7 +738,8 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 sm:p-4 shadow-2xl space-y-3 max-w-4xl mx-auto">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2">
           <span className="text-xs font-black text-white">Rotaciones · Ambos equipos</span>
-          <span className="text-[10px] text-amber-200">A · Armador en amarillo claro · L · Líberos afuera</span>
+          {onOpenPreparation && <button type="button" onClick={onOpenPreparation} className="min-h-11 rounded-lg border border-slate-500 bg-slate-800 px-3 text-xs font-bold text-white">Formación</button>}
+          <span className="text-[10px] text-amber-200">A · Armador en amarillo claro · L · Líberos en verde lima</span>
           <span className="min-w-0 max-w-full break-words whitespace-normal text-xs font-bold text-white bg-blue-600 px-3 py-1 rounded-lg">
             {activeTeam === 'home' ? match.homeTeamName : match.awayTeamName} · {selectedPlayer ? `#${selectedPlayer.number}` : 'Elegí receptor'}
           </span>
@@ -766,7 +771,9 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
                         disabled={!available}
                         onClick={() => selectScoutPlayer(team, player)}
                         className={`w-full text-left text-[11px] flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg transition ${
-                          activeTeam === team && selectedPlayer?.id === player.id
+                          player.position === 'L'
+                            ? `border-2 border-lime-100 bg-lime-300 !text-slate-950 font-black min-h-11 ${activeTeam === team && selectedPlayer?.id === player.id ? 'ring-2 ring-white' : ''}`
+                            : activeTeam === team && selectedPlayer?.id === player.id
                             ? 'bg-blue-700 text-white font-bold ring-1 ring-white/50'
                             : available
                               ? 'text-slate-200 hover:bg-slate-800'
@@ -774,10 +781,10 @@ export const VolleyballScoutMode: React.FC<VolleyballScoutModeProps> = ({
                         }`}
                       >
                         <div className="flex items-center gap-2 min-w-0">
-                          <span className="font-mono font-black text-amber-400 w-5 text-center">#{player.number}</span>
+                          <span className="font-mono font-black w-5 text-center">#{player.number}</span>
                           <span className="truncate">{player.name}</span>
                           <span className="text-[9px] text-slate-400 font-mono">
-                            {player.position === 'L' ? 'L' : position ? `P${position}` : player.position}
+                            {player.position === 'L' ? 'LÍBERO' : position ? `P${position}` : player.position}
                           </span>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
