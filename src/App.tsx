@@ -1,3 +1,4 @@
+import { saveScoutPreset } from './utils/scoutCourtLayout';
 import {UserDataStoragePanel} from './components/UserDataStoragePanel';
 import { userStorage } from './services/userStorage';
 import { TacticalWhiteboard } from './components/TacticalWhiteboard';
@@ -1329,6 +1330,8 @@ export default function App() {
                   onOpenHelp={() => setIsQuickGuideOpen(true)}
                   onSaveMatch={handleSaveCurrentMatch}
                   onBackToMatchCenter={handleBackToMatchCenter}
+                  onSaveScoutPreset={(team,key,preset) => setMatch(previous => saveScoutPreset(previous,team,key,preset))}
+                  onOpenPreparation={() => setIsPreparationModalOpen(true)}
                 />
               )}
 

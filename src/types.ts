@@ -84,7 +84,15 @@ export interface MatchSet {
   winner?: TeamSide;
 }
 
+export interface ScoutLayoutPreset {
+  /** Display zone 1..6 -> real rotation position 1..6. Does not alter lineup. */
+  positions: number[];
+  liberoZone: number;
+}
+
 export interface MatchData {
+  /** Match-owned visual preferences, by team, setter rotation and serve/receive. */
+  scoutLayouts?: Partial<Record<TeamSide, Record<string, ScoutLayoutPreset>>>;
   id: string;
   title: string;
   date: string;

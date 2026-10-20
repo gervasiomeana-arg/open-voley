@@ -109,7 +109,7 @@ export const MatchPreparationModal: React.FC<MatchPreparationModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
+    <div role="dialog" aria-modal="true" aria-label="Formación del set" className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
       <div 
         className="bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl w-full max-w-5xl overflow-hidden shadow-2xl flex flex-col max-h-[96vh] sm:max-h-[92vh]"
         onClick={(e) => e.stopPropagation()}
@@ -130,6 +130,7 @@ export const MatchPreparationModal: React.FC<MatchPreparationModalProps> = ({
 
           <button
             onClick={onClose}
+            aria-label="Cerrar formación"
             className="p-1.5 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
@@ -139,10 +140,12 @@ export const MatchPreparationModal: React.FC<MatchPreparationModalProps> = ({
         {/* Content */}
         <div className="p-3 sm:p-6 overflow-y-auto space-y-3 sm:space-y-6">
           
+          <p className="text-sm text-slate-200">Elegí el número en cada posición para ambos equipos. La vista «Por función» del scout no cambia esta formación.</p>
+          {match.actions.some(a => a.setNumber === match.currentSet) && <p role="note" className="rounded-lg border border-amber-400/40 bg-amber-500/10 p-2 text-xs text-amber-200">El set ya comenzó: corregís la formación actual. El marcador y las acciones anteriores se conservan.</p>}
           {/* Saque Inicial */}
           <div className="bg-slate-950 p-3 sm:p-4 rounded-2xl border border-slate-800 space-y-2">
             <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-              1. Equipo con Saque Inicial — el sacador será automáticamente P1
+              {match.actions.some(a => a.setNumber === match.currentSet) ? 'Equipo al saque ahora — sacador en P1' : '1. Equipo con saque inicial — sacador en P1'}
             </span>
             <div className="grid grid-cols-2 gap-2 sm:gap-3">
               <button
@@ -201,23 +204,23 @@ export const MatchPreparationModal: React.FC<MatchPreparationModalProps> = ({
                           const number = rotation[position - 1];
                           const setter = players.some(p => p.number === number && p.position === 'S');
                           return (
-                            <button
-                              key={position}
-                              type="button"
-                              aria-label={`${team === 'home' ? match.homeTeamName : match.awayTeamName} P${position}, número ${number || 'sin asignar'}${setter ? ', armador' : ''}`}
-                              aria-pressed={selected}
-                              onClick={() => setSelectedPosition({ team, index: position - 1 })}
-                              className={`min-h-16 rounded-xl border-2 text-white flex flex-col items-center justify-center ${setter ? 'bg-amber-100 !text-slate-950' : team === 'home' ? 'bg-blue-600' : 'bg-fuchsia-600'} ${selected ? 'border-white ring-2 ring-amber-400' : 'border-transparent'}`}
-                            >
-                              <span className="text-[10px] opacity-80">P{position}{setter ? ' · A' : ''}{position === 1 && serverTeam === team ? ' · SAQUE' : ''}</span>
-                              <span className="text-2xl font-black font-mono">{number ? `#${number}` : '—'}</span>
-                            </button>
+                            <label key={position} className={`min-h-20 rounded-xl border-2 p-2 text-center ${setter ? 'bg-amber-100 text-slate-950' : team === 'home' ? 'bg-blue-600 text-white' : 'bg-fuchsia-600 text-white'} ${selected ? 'border-white' : 'border-transparent'}`}>
+                              <span className="block text-[10px] font-bold">P{position} · {[2,3,4].includes(position) ? 'Delantero' : 'Zaguero'}{position === 1 && serverTeam === team ? ' · SAQUE' : ''}</span>
+                              <select aria-label={`Formación ${team === 'home' ? match.homeTeamName : match.awayTeamName} P${position}`} value={number || 0} onChange={event => {
+                                const update = team === 'home' ? setHomeRot : setAwayRot;
+                                update(previous => assignSetPosition(previous, position - 1, Number(event.target.value)));
+                                setSelectedPosition({team, index:position - 1});
+                              }} className="mt-1 min-h-11 w-full rounded-lg bg-slate-950 px-1 text-sm font-bold text-white">
+                                {!number && <option value={0}>Sin asignar</option>}
+                                {players.filter(p => p.position !== 'L').sort((a,b)=>a.number-b.number).map(p=><option key={p.id} value={p.number}>#{p.number} · {p.position==='S'?'Armador':p.position==='OH'?'Punta':p.position==='MB'?'Central':'Opuesto'} · {p.name}</option>)}
+                              </select>
+                            </label>
                           );
                         })}
                       </div>
                       <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-400">
                         <span>Líberos:</span>
-                        {players.filter((p) => p.position === 'L').map((p) => <span key={p.id} className="px-2 py-1 rounded-lg border border-purple-500 text-purple-200 font-bold">L #{p.number}</span>)}
+                        {players.filter((p) => p.position === 'L').map((p) => <span key={p.id} className="px-2 py-1 rounded-lg border border-lime-100 bg-lime-300 text-slate-950 font-bold">L #{p.number}</span>)}
                         {!players.some((p) => p.position === 'L') && <span>Sin registrar</span>}
                       </div>
                     </div>
@@ -274,7 +277,7 @@ export const MatchPreparationModal: React.FC<MatchPreparationModalProps> = ({
               onClick={() => handleConfirm(false)}
               className="disabled:opacity-40 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 hover:text-white rounded-xl text-xs font-black border border-cyan-500/30 transition cursor-pointer"
             >
-              [ GUARDAR Y MARCAR PREPARADO ]
+              Guardar formación
             </button>
 
             <button
@@ -284,7 +287,7 @@ export const MatchPreparationModal: React.FC<MatchPreparationModalProps> = ({
               className="disabled:opacity-40 px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-black transition flex items-center gap-2 cursor-pointer shadow-lg shadow-amber-500/20"
             >
               <Play className="w-3.5 h-3.5 fill-current" />
-              <span>[ INICIAR SCOUT ]</span>
+              <span>Guardar y volver al scout</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
