@@ -1,4 +1,6 @@
 import {asyncHandler} from './asyncHandler';
+import type { Request, Response } from 'express';
+import { validGoogleRedirectCsrf } from './googleRedirectLogin';
 import { Router } from 'express';
 import { loadAccounts, saveAccounts, isAdminEmail, accountTrial } from './accountStore';
 import { recordLead } from './commercialStore';
@@ -84,19 +86,20 @@ authMeRouter.get('/me', asyncHandler(async (req, res) => {
 }));
 authMeRouter.post('/authorize', (_req, res) => res.status(410).json({ error: 'Usa el acceso verificado con Google.' }));
 // Endpoint to receive official Google Identity Services credential
-authMeRouter.post('/google', asyncHandler(async (req, res) => {
+async function signInWithGoogle(req: Request, res: Response, redirect = false) {
+    const fail = (status: number, error: string) => redirect ? res.redirect(303, '/ingresar?error=login') : res.status(status).json({ error });
     try {
         const sessionSecret = process.env.SESSION_SECRET?.trim();
         const isSecretConfigured = Boolean(sessionSecret && (process.env.NODE_ENV !== 'production' || sessionSecret.length >= 32));
         if (!process.env.GOOGLE_CLIENT_ID?.trim() || !isSecretConfigured)
-            return res.status(503).json({ error: 'El acceso con Google no está configurado.' });
+            return fail(503, 'El acceso con Google no está configurado.');
         const credential = req.body?.credential;
         if (typeof credential !== 'string' || !credential) {
-            return res.status(400).json({ error: 'Credential is required' });
+            return fail(400, 'Credential is required');
         }
         const verifiedUser = await verifyGoogleCredential(credential);
         if (!verifiedUser) {
-            return res.status(401).json({ error: 'Invalid Google credential' });
+            return fail(401, 'Invalid Google credential');
         }
         const clients = await loadClients();
         const now = new Date().toISOString();
@@ -121,7 +124,7 @@ authMeRouter.post('/google', asyncHandler(async (req, res) => {
         }
         else {
             if (client.isBlocked) {
-                return res.status(403).json({ error: 'Account blocked' });
+                return fail(403, 'Account blocked');
             }
             client.lastLoginDate = now;
             if (verifiedUser.name)
@@ -130,7 +133,7 @@ authMeRouter.post('/google', asyncHandler(async (req, res) => {
                 client.picture = verifiedUser.picture;
         }
         if (client.googleSub && client.googleSub !== verifiedUser.sub)
-            return res.status(403).json({ error: 'La cuenta Google no coincide con el registro.' });
+            return fail(403, 'La cuenta Google no coincide con el registro.');
         client.googleSub = verifiedUser.sub;
         await saveClients(clients);
         await recordLead({ email: client.email, name: client.name, source: "verified-account", verified: true });
@@ -141,6 +144,7 @@ authMeRouter.post('/google', asyncHandler(async (req, res) => {
         });
         const sessionCookie = sessionCookieHeader(sessionToken);
         res.setHeader('Set-Cookie', [sessionCookie, 'ov_logged_out=; Path=/; Max-Age=0']);
+        if (redirect) return res.redirect(303, '/');
         return res.status(200).json({
             verified: true,
             authenticated: true,
@@ -164,8 +168,13 @@ authMeRouter.post('/google', asyncHandler(async (req, res) => {
     }
     catch (error) {
         console.error('Google authentication error:', error);
-        return res.status(500).json({ error: 'Authentication error' });
+        return fail(500, 'Authentication error');
     }
+}
+authMeRouter.post('/google', asyncHandler((req, res) => signInWithGoogle(req, res)));
+authMeRouter.post('/google/redirect', asyncHandler(async (req, res) => {
+    if (!validGoogleRedirectCsrf(req)) return res.status(403).json({ error: 'Google CSRF verification failed' });
+    return signInWithGoogle(req, res, true);
 }));
 authMeRouter.post('/logout', asyncHandler(async (req, res) => {
     const session = await getSessionFromRequest(req);

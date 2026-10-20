@@ -52,7 +52,8 @@
     "test:coach-review": "node --import tsx src/utils/coachReview.test.ts",
     "test:ai-generation": "node --import tsx src/server/aiGeneration.test.ts && node --import tsx src/shared/aiErrors.test.ts",
     "test:video-integration": "node --import tsx src/server/videoRenderIntegration.test.ts",
-    "test:scout-court": "node --import tsx src/utils/scoutCourtLayout.test.ts"
+    "test:scout-court": "node --import tsx src/utils/scoutCourtLayout.test.ts",
+    "test:google-redirect": "node --import tsx src/server/googleRedirectLogin.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
