@@ -69,5 +69,14 @@ try {
   for(let i=0;i<20;i++) {let pass=false;await requestProtection({method:'POST',path:i%2?'/API/AUTH/GOOGLE/REDIRECT/':'/api/auth/google',ip:'shared-redirect-test',body:{credential:'x'.repeat(100)}} as any,response() as any,()=>{pass=true;});assert.equal(pass,true);}
   const limited=response();await requestProtection({method:'POST',path:'/api/auth/google/redirect',ip:'shared-redirect-test',body:{credential:'x'.repeat(100)}} as any,limited as any,()=>assert.fail('shared rate limit'));assert.equal(limited.code,429);
   const crossOrigin=response();await securityMiddleware({method:'POST',path:'/api/auth/google/redirect',headers:{host:'app.example',origin:'https://evil.example'}} as any,crossOrigin as any,()=>assert.fail('CSRF route must not weaken origin guard'));assert.equal(crossOrigin.code,403);
+  // Browser redirects may carry Origin:null or no Origin/Referer at all.
+  // Exercise middleware AND handler, rather than testing the handler alone.
+  for(const origin of ['null',undefined,'https://accounts.google.com']) {
+    const req={method:'POST',path:'/api/auth/google/redirect',body,headers:{...headers,host:'app.example',...(origin?{origin}:{})}};
+    let passed=false;await securityMiddleware(req as any,response() as any,()=>{passed=true;});assert.equal(passed,true);
+    const loggedIn=await route('/google/redirect',body,req.headers);assert.equal(loggedIn.code,303);assert.ok(loggedIn.headers['Set-Cookie']);
+    const rejected=response();await securityMiddleware({...req,body:{...body,g_csrf_token:'wrong'}} as any,rejected as any,()=>assert.fail('mismatched CSRF'));assert.equal(rejected.code,403);
+  }
+  const otherRoute=response();await securityMiddleware({method:'POST',path:'/api/auth/google',body,headers:{...headers,host:'app.example',origin:'null'}} as any,otherRoute as any,()=>assert.fail('only redirect gets GIS CSRF handling'));assert.equal(otherRoute.code,403);
   console.log('Google redirect: CSRF, verified token, blocked accounts, trial continuity, safe return, shared rate limits and popup compatibility OK');
 } finally {OAuth2Client.prototype.verifyIdToken=originalVerify;process.chdir(originalCwd);rmSync(temp,{recursive:true,force:true});}

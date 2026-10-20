@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { loadAccounts, isAdminEmail, accountTrial } from './accountStore';
 import { getSessionFromRequest, isSameOriginMutation } from './sessionSecurity';
+import { validGoogleRedirectCsrf } from './googleRedirectLogin';
 const CLIENTS_FILE = path.join(process.cwd(), 'clients_db.json');
 const protectedAdminRoutes = new Set([
     'GET /api/clients',
@@ -31,7 +32,14 @@ export async function securityMiddleware(req: Request, res: Response, next: Next
     // Mercado Pago is an external server-to-server callback. Its payload is not trusted;
     // the payment handler re-fetches the payment from Mercado Pago before applying it.
     const isPaymentWebhook = req.method === 'POST' && req.path === '/api/mercadopago/webhook';
-    if (!isPaymentWebhook && !await isSameOriginMutation(req)) {
+    // GIS submits credentials through a cross-site navigation. Origin may be null
+    // or absent, so this callback uses Google's cookie/body CSRF check instead.
+    // The route still verifies the signed Google ID token and its audience.
+    const isGoogleRedirect = req.method === 'POST' && /^\/api\/auth\/google\/redirect\/?$/i.test(req.path);
+    if (isGoogleRedirect && !validGoogleRedirectCsrf(req)) {
+        return res.status(403).json({ error: 'Google CSRF verification failed' });
+    }
+    if (!isPaymentWebhook && !isGoogleRedirect && !await isSameOriginMutation(req)) {
         return res.status(403).json({ error: 'Cross-origin request rejected' });
     }
     if (req.method === 'POST' && req.path === '/api/clients/login') {
