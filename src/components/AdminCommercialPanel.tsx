@@ -1,3 +1,4 @@
+import {AdminPushPanel} from './AdminPushPanel';
 import {AdminWhatsAppPanel} from './AdminWhatsAppPanel';
 import {StorageMigrationPanel} from './StorageMigrationPanel';
 import {LaunchReadinessPanel} from './LaunchReadinessPanel';
@@ -13,6 +14,7 @@ export const AdminCommercialPanel=()=>{
  const remove=async(email:string)=>{if(!window.confirm('¿Eliminar los datos de este interesado?'))return;const r=await fetch('/api/commercial/leads/'+encodeURIComponent(email),{method:'DELETE'});if(r.ok)await load();else setMessage('No se pudo eliminar.')};
  return <section className="space-y-5 bg-slate-900 p-5 rounded-2xl border border-slate-700"><h2 className="text-2xl font-bold">Administración comercial</h2>
  <StorageMigrationPanel/><LaunchReadinessPanel />
+ <AdminPushPanel />
  <AdminWhatsAppPanel />
  <AdminPaymentPanel />
  <LegacyRecoveryPanel />

@@ -41,6 +41,11 @@ function stringLength(value: unknown): number {
 export async function requestProtection(req: Request, res: Response, next: NextFunction) {
     const path = req.path;
     const ip = clientKey(req);
+    if (req.method === 'POST' && path.startsWith('/api/commercial/push/')) {
+        const session = await getSessionFromRequest(req);
+        if (!session) return res.status(401).json({ error: 'Authentication required' });
+        if (!consume(`admin-push:${session.userId}`, 30, 3600000)) return res.status(429).json({ error: 'Demasiados intentos de notificaciones. Intentá más tarde.' });
+    }
     if (req.method === 'POST' && path === '/api/commercial/leads' && !consume(`leads:${ip}`, 10, 3600000))
         return res.status(429).json({ error: 'Demasiadas solicitudes. Intentá más tarde.' });
     if (req.method === 'POST' && /^\/api\/auth\/google(?:\/redirect)?\/?$/i.test(path)) {

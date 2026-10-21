@@ -31,7 +31,7 @@ export function trialWhatsAppConfiguration() {
 
 // Account + pending alert are saved together at registration. This CAS changes only
 // the latest account record, preserving concurrent license/profile updates.
-async function changeAlert(id: string, change: (account: any) => TrialAlert | null) {
+export async function changeAlert<T = TrialAlert>(id: string, change: (account: any) => T | null, field: 'trialWhatsAppAlert' | 'trialPushAlert' = 'trialWhatsAppAlert') {
   for (let i = 0; i < 3; i++) {
     const row = durableStorageEnabled() ? (await readCloud('accounts', 'system', id))[0] : null;
     const accounts = row ? null : durableStorageEnabled() ? null : await loadAccounts();
@@ -39,7 +39,7 @@ async function changeAlert(id: string, change: (account: any) => TrialAlert | nu
     if (!account || account.isBlocked || isAdminEmail(account.email)) return null;
     const alert = change(account);
     if (!alert) return null;
-    const updated = { ...account, trialWhatsAppAlert: alert };
+    const updated = { ...account, [field]: alert };
     try {
       if (row) await writeCloud('accounts', 'system', id, updated, row.revision);
       else { accounts![accounts!.findIndex(a => a.id === id)] = updated; await saveAccounts(accounts!); }

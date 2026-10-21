@@ -28,3 +28,6 @@ OPEN_VOLEY_Cuentas*.json
 private-migration/
 encrypted-backup/
 *.ovbak
+
+# Local development notification subscriptions and signing keys
+.openvoley-push.json
