@@ -27,6 +27,9 @@ jobs:
       - name: TypeScript validation
         run: npm run lint
 
+      - name: WhatsApp trial notification safety
+        run: npm run test:whatsapp-trials
+
       - name: Google redirect login security
         run: npm run test:google-redirect
 

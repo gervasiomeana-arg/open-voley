@@ -1,3 +1,4 @@
+import { newTrialAlert, dispatchTrialWhatsApp } from './trialWhatsApp';
 import {asyncHandler} from './asyncHandler';
 import type { Request, Response } from 'express';
 import { validGoogleRedirectCsrf } from './googleRedirectLogin';
@@ -114,6 +115,7 @@ async function signInWithGoogle(req: Request, res: Response, redirect = false) {
                 firstLoginDate: now,
                 lastLoginDate: now,
                 trialDurationDays: isAdmin ? 365 : 7,
+                ...(isAdmin ? {} : { trialWhatsAppAlert: newTrialAlert(now) }),
                 customGrantedDays: isAdmin ? 3650 : 0,
                 isBlocked: false,
                 role: 'Entrenador',
@@ -137,6 +139,7 @@ async function signInWithGoogle(req: Request, res: Response, redirect = false) {
         client.googleSub = verifiedUser.sub;
         await saveClients(clients);
         await recordLead({ email: client.email, name: client.name, source: "verified-account", verified: true });
+        await dispatchTrialWhatsApp(client.id);
         const sessionToken = await createSessionToken({
             userId: client.id,
             email: client.email,
