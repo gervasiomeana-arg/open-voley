@@ -1,3 +1,4 @@
+import { trialWhatsAppStatus, processPendingTrialWhatsApp } from './trialWhatsApp';
 import {exportServerMigration,importServerMigration} from './storageMigration';
 import {durableStorageEnabled} from './supabaseStore';
 import {asyncHandler} from './asyncHandler';
@@ -31,6 +32,8 @@ commercialRouter.use('/api/commercial', asyncHandler(async (req, res, next) => {
     res.locals.adminEmail = session.email;
     next();
 }));
+commercialRouter.get('/api/commercial/whatsapp', asyncHandler(async (_req, res) => res.json(await trialWhatsAppStatus())));
+commercialRouter.post('/api/commercial/whatsapp/process', asyncHandler(async (_req, res) => res.json(await processPendingTrialWhatsApp())));
 commercialRouter.get('/api/commercial/access', (_req, res) => res.json({ isAdmin: true }));
 commercialRouter.get('/api/commercial/leads', asyncHandler(async (_req, res) => res.json({ leads: await listLeads(), ...await listVisits() })));
 commercialRouter.delete('/api/commercial/leads/:email', asyncHandler(async (req, res) => { await deleteLead(String(req.params.email)); res.json({ success: true }); }));

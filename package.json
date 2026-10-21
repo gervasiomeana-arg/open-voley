@@ -53,6 +53,7 @@
     "test:ai-generation": "node --import tsx src/server/aiGeneration.test.ts && node --import tsx src/shared/aiErrors.test.ts",
     "test:video-integration": "node --import tsx src/server/videoRenderIntegration.test.ts",
     "test:scout-court": "node --import tsx src/utils/scoutCourtLayout.test.ts",
+    "test:whatsapp-trials": "node --import tsx src/server/trialWhatsApp.test.ts",
     "test:google-redirect": "node --import tsx src/server/googleRedirectLogin.test.ts"
   },
   "dependencies": {
