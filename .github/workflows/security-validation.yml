@@ -27,6 +27,9 @@ jobs:
       - name: TypeScript validation
         run: npm run lint
 
+      - name: Admin push notification safety
+        run: npm run test:admin-push
+
       - name: WhatsApp trial notification safety
         run: npm run test:whatsapp-trials
 

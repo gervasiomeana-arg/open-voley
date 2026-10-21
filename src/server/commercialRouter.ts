@@ -1,3 +1,4 @@
+import { pushConfiguration, registerPushDevice, removePushDevice, testPushDevice } from './adminPush';
 import { trialWhatsAppStatus, processPendingTrialWhatsApp } from './trialWhatsApp';
 import {exportServerMigration,importServerMigration} from './storageMigration';
 import {durableStorageEnabled} from './supabaseStore';
@@ -31,6 +32,28 @@ commercialRouter.use('/api/commercial', asyncHandler(async (req, res, next) => {
         return res.status(403).json({ error: 'Solo administración.' });
     res.locals.adminEmail = session.email;
     next();
+}));
+commercialRouter.get('/api/commercial/push/config', asyncHandler(async (req, res) => {
+    const session = await getSessionFromRequest(req);
+    res.json(await pushConfiguration(session!.userId));
+}));
+commercialRouter.post('/api/commercial/push/subscribe', asyncHandler(async (req, res) => {
+    const session = await getSessionFromRequest(req);
+    try { res.json(await registerPushDevice(session!.userId, req.body?.subscription)); }
+    catch (error) {
+        if (error instanceof Error && ['Suscripción de notificaciones no válida.', 'Máximo de cinco dispositivos.', 'Límite de dispositivos alcanzado.'].includes(error.message)) return res.status(400).json({ error: error.message });
+        throw error;
+    }
+}));
+commercialRouter.post('/api/commercial/push/unsubscribe', asyncHandler(async (req, res) => {
+    const session = await getSessionFromRequest(req);
+    if (typeof req.body?.id !== 'string' || !/^[a-f0-9]{32}$/.test(req.body.id)) return res.status(400).json({ error: 'Dispositivo inválido.' });
+    await removePushDevice(session!.userId, req.body.id); res.json({ success: true });
+}));
+commercialRouter.post('/api/commercial/push/test', asyncHandler(async (req, res) => {
+    const session = await getSessionFromRequest(req);
+    if (typeof req.body?.id !== 'string' || !/^[a-f0-9]{32}$/.test(req.body.id)) return res.status(400).json({ error: 'Dispositivo inválido.' });
+    res.json(await testPushDevice(session!.userId, req.body.id));
 }));
 commercialRouter.get('/api/commercial/whatsapp', asyncHandler(async (_req, res) => res.json(await trialWhatsAppStatus())));
 commercialRouter.post('/api/commercial/whatsapp/process', asyncHandler(async (_req, res) => res.json(await processPendingTrialWhatsApp())));
