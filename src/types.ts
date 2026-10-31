@@ -147,6 +147,7 @@ export interface PlayerStats {
 }
 
 export interface ClientUser {
+  payments?: unknown[];
   isAdmin?: boolean;
   id: string;
   email: string;

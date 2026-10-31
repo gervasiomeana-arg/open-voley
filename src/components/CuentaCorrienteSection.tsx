@@ -1,3 +1,4 @@
+import { effectiveAccessDays } from '../shared/accessPeriod';
 import React, { useState, useEffect } from 'react';
 import { 
   CreditCard, 
@@ -113,7 +114,7 @@ export const CuentaCorrienteSection: React.FC = () => {
 
   const getClientStatus = (c: ClientUser) => {
     const firstLoginMs = new Date(c.firstLoginDate).getTime();
-    const totalAllowedDays = (c.trialDurationDays || 7) + (c.customGrantedDays || 0);
+    const totalAllowedDays = effectiveAccessDays(c);
     const totalAllowedMs = totalAllowedDays * 24 * 60 * 60 * 1000;
     const elapsedMs = Date.now() - firstLoginMs;
     const remainingMs = totalAllowedMs - elapsedMs;

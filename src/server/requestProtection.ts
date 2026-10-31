@@ -57,7 +57,7 @@ export async function requestProtection(req: Request, res: Response, next: NextF
             return res.status(429).json({ error: 'Too many authentication attempts' });
         }
     }
-    if (req.method === 'POST' && (path === '/api/mercadopago/create-preference' || path === '/api/mercadopago/confirm-payment' || /^\/api\/commercial\/payments\/[^/]+\/recheck$/.test(path))) {
+    if (req.method === 'POST' && (path.startsWith('/api/mercadopago/subscription/') || path === '/api/mercadopago/create-preference' || path === '/api/mercadopago/confirm-payment' || /^\/api\/commercial\/payments\/[^/]+\/recheck$/.test(path))) {
         const session = await getSessionFromRequest(req);
         if (!session) {
             return res.status(401).json({ error: 'Authentication required' });

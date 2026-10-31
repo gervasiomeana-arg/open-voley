@@ -1,3 +1,4 @@
+import { recurringBillingRouter } from './recurringBillingRouter';
 import { classifyAiError } from '../shared/aiErrors';
 import {durableStorageEnabled,readCloud,updateCloud} from './supabaseStore';
 import {userDataRouter} from './userDataRouter';
@@ -115,6 +116,7 @@ export async function startServer() {
     app.use(asyncHandler(securityMiddleware));
     app.use(asyncHandler(requestProtection));
     app.use(commercialRouter);
+    app.use(recurringBillingRouter);
     app.use(asyncHandler(secureMercadoPago));
     app.use(asyncHandler(securePaymentConfirmation));
     app.get('/ingresar', googleLoginPage);

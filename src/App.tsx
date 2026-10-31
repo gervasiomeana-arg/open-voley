@@ -260,6 +260,17 @@ export default function App() {
           }
         }
 
+        if (searchParams.get('subscription_return') === '1') {
+          try {
+          const result = await fetch('/api/mercadopago/subscription/recheck', {
+            method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: '{}',
+          });
+          if (!result.ok) console.warn('Suscripción pendiente de verificar. Actualizá el estado desde Planes.');
+          } catch { console.warn('No se pudo consultar Mercado Pago. El inicio de sesión continúa.'); }
+          const clean = new URL(window.location.href); clean.searchParams.delete('subscription_return');
+          window.history.replaceState({}, '', clean.toString());
+        }
+
         const session = await getAuthenticatedSession();
         if (cancelled) return;
 
@@ -301,7 +312,20 @@ export default function App() {
   // Expire an already open interface too; extending access still requires a fresh server check.
   useEffect(() => {
     if (!currentUser || currentUser.isAdmin || !trialInfo) return;
-    const tick = () => setTrialInfo(previous => {
+    let stopped = false, refreshing = false;
+    const refreshLicense = async () => {
+      if (refreshing) return;
+      refreshing = true;
+      try {
+        const session = await getAuthenticatedSession();
+        if (!stopped && session?.user.id === currentUser.id) setTrialInfo(session.trial);
+      } catch { /* A temporary network failure cannot grant access. */ }
+      finally { refreshing = false; }
+    };
+    const tick = () => {
+      const deadline = Date.parse(trialInfo.firstLoginDate) + trialInfo.totalAllowedDays * 86400000;
+      if (deadline - Date.now() <= 60000) void refreshLicense();
+      setTrialInfo(previous => {
       if (!previous) return previous;
       const end = Date.parse(previous.firstLoginDate) + previous.totalAllowedDays * 86400000;
       if (!Number.isFinite(end)) return previous;
@@ -310,10 +334,12 @@ export default function App() {
       const isExpired = previous.isExpired || remaining <= 0;
       return daysRemaining === previous.daysRemaining && isExpired === previous.isExpired
         ? previous : { ...previous, daysRemaining, isExpired };
-    });
+      });
+    };
+    const onFocus = () => { tick(); void refreshLicense(); };
     const timer = window.setInterval(tick, 30000);
-    window.addEventListener('focus', tick);
-    return () => { window.clearInterval(timer); window.removeEventListener('focus', tick); };
+    window.addEventListener('focus', onFocus);
+    return () => { stopped = true; window.clearInterval(timer); window.removeEventListener('focus', onFocus); };
   }, [currentUser?.id, currentUser?.isAdmin, trialInfo?.firstLoginDate, trialInfo?.totalAllowedDays]);
 
   // Storage events only refresh this verified account. They never write or scan other scopes.
