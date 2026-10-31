@@ -1,3 +1,4 @@
+import { effectiveAccessDays } from '../shared/accessPeriod';
 import React, { useState, useEffect } from 'react';
 import { 
   Users, 
@@ -121,7 +122,7 @@ export const ClientHistorySection: React.FC = () => {
 
   const calculateClientStatus = (client: ClientUser) => {
     const firstLoginMs = new Date(client.firstLoginDate).getTime();
-    const totalAllowedDays = (client.trialDurationDays ?? 0) + (client.customGrantedDays || 0);
+    const totalAllowedDays = effectiveAccessDays(client);
     const totalAllowedMs = totalAllowedDays * 24 * 60 * 60 * 1000;
     const elapsedMs = Math.max(0, Date.now() - firstLoginMs);
     const remainingMs = Math.max(0, totalAllowedMs - elapsedMs);

@@ -1,3 +1,4 @@
+import { effectiveAccessDays } from '../shared/accessPeriod';
 import {cloudRpc,durableStorageEnabled,readCloud} from './supabaseStore';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -32,7 +33,7 @@ export function isAdminEmail(email: string): boolean {
 }
 export function accountTrial(account: any, now = Date.now()) {
   const first = Date.parse(account.firstLoginDate);
-  const totalAllowedDays = Number(account.trialDurationDays || 0) + Number(account.customGrantedDays || 0);
+  const totalAllowedDays = effectiveAccessDays(account);
   const elapsedMs = Number.isFinite(first) ? Math.max(0, now - first) : Infinity;
   const remainingMs = totalAllowedDays * 86400000 - elapsedMs;
   return { daysRemaining: Math.max(0, Math.ceil(remainingMs / 86400000)), isExpired: remainingMs <= 0 || !!account.isBlocked,

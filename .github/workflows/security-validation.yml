@@ -27,6 +27,9 @@ jobs:
       - name: TypeScript validation
         run: npm run lint
 
+      - name: Subscription and payment security
+        run: npm run test:subscriptions && npm run test:payments
+
       - name: Admin push notification safety
         run: npm run test:admin-push
 

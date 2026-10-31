@@ -37,6 +37,11 @@ export async function applyVerifiedPayment(data: any, id: string): Promise<Payme
     const review = (reason: string): PaymentResult => ({ ...base, state: 'review', action: 'none', reason });
     if (String(data?.id) !== id)
         return review('La respuesta no coincide con el pago solicitado.');
+    if (String(data.external_reference || '').startsWith('ovsub:')) {
+        const { reconcileRecurringPayment } = await import('./recurringBilling');
+        const result = await reconcileRecurringPayment(id);
+        return result ? result as PaymentResult : review('Suscripción ajena a OPEN VOLEY.');
+    }
     const ref = parsePaymentReference(data.external_reference);
     if (!ref)
         return review('Referencia ajena a OPEN VOLEY o inválida.');

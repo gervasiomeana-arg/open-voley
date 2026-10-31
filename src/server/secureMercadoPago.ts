@@ -1,3 +1,5 @@
+import { recurringConfigured, syncSubscription, reconcileInvoice, reconcileRecurringPayment } from './recurringBilling';
+import { fetchVerifiedPayment } from './paymentProcessing';
 import { reconcilePayment } from './paymentProcessing';
 import { validPaymentWebhookSignature } from './paymentWebhookSignature';
 import { randomUUID } from 'node:crypto';
@@ -31,6 +33,7 @@ export async function secureMercadoPago(req: Request, res: Response, next: NextF
             publicKey: process.env.MERCADOPAGO_PUBLIC_KEY?.trim() || '',
             isConfigured: Boolean(accessToken()),
             currency: 'ARS',
+            subscriptionsEnabled: recurringConfigured(),
         });
     }
     if (req.method === 'POST' && req.path === '/api/mercadopago/save-credentials') {
@@ -110,16 +113,25 @@ export async function secureMercadoPago(req: Request, res: Response, next: NextF
     }
     if (req.method === 'POST' && req.path === '/api/mercadopago/webhook') {
         // The webhook payload is never trusted. Payment ID is used only to re-query Mercado Pago.
+        const topic = String(req.body?.type || req.query.type || req.query.topic || 'payment');
+        if (!['payment', 'subscription_preapproval', 'subscription_authorized_payment'].includes(topic)) return res.status(200).send('Ignored');
         const paymentId = String(req.query['data.id'] || req.query.id || req.body?.data?.id || '').trim();
-        if (!/^[0-9]{1,30}$/.test(paymentId))
-            return res.status(400).send('Invalid payment id');
+        if (!/^[a-zA-Z0-9]{1,64}$/.test(paymentId) || (topic !== 'subscription_preapproval' && !/^[0-9]{1,30}$/.test(paymentId)))
+            return res.status(400).send('Invalid resource id');
+        if (req.body?.data?.id && String(req.body.data.id) !== paymentId) return res.status(400).send('Resource mismatch');
         const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET?.trim();
         if (!secret)
             return res.status(503).send('Webhook signature secret not configured');
         if (!validPaymentWebhookSignature(paymentId, String(req.headers['x-request-id'] || ''), String(req.headers['x-signature'] || ''), secret))
             return res.status(401).send('Invalid webhook signature');
         try {
-            await reconcilePayment(paymentId, 'webhook');
+            if (topic === 'subscription_preapproval') await syncSubscription(paymentId);
+            else if (topic === 'subscription_authorized_payment') await reconcileInvoice(paymentId);
+            else {
+                const payment = await fetchVerifiedPayment(paymentId);
+                if (String(payment.external_reference || '').startsWith('ovsub:')) await reconcileRecurringPayment(paymentId);
+                else await reconcilePayment(paymentId, 'webhook');
+            }
             return res.status(200).send('OK');
         }
         catch (error) {

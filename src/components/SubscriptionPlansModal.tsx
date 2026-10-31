@@ -1,3 +1,4 @@
+import { RecurringSubscriptionPanel, billingRequest } from './RecurringSubscriptionPanel';
 import React, { useEffect, useState } from 'react';
 import {
   ArrowRight,
@@ -25,6 +26,7 @@ export const SubscriptionPlansModal: React.FC<SubscriptionPlansModalProps> = ({
   isOpen,
   onClose,
   currentUser,
+  onPaymentSuccess,
 }) => {
   const [catalog,setCatalog]=useState<any>(null);
   const [priceError,setPriceError]=useState('');
@@ -33,7 +35,10 @@ export const SubscriptionPlansModal: React.FC<SubscriptionPlansModalProps> = ({
   const billingCycle = 'monthly' as const;
   const [currency, setCurrency] = useState<'ARS' | 'USD'>('ARS');
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
-  const [mpConfig, setMpConfig] = useState<{ publicKey: string; isConfigured: boolean } | null>(null);
+  const [mpConfig, setMpConfig] = useState<{ publicKey: string; isConfigured: boolean; subscriptionsEnabled?: boolean } | null>(null);
+  const [recurring, setRecurring] = useState(false);
+  const [consent, setConsent] = useState(false);
+  const [checkoutError, setCheckoutError] = useState('');
 
   useEffect(() => {
     fetch('/api/mercadopago/config', { credentials: 'same-origin' })
@@ -106,8 +111,17 @@ export const SubscriptionPlansModal: React.FC<SubscriptionPlansModalProps> = ({
       return;
     }
 
+    if (recurring && (!consent || currency !== 'ARS')) {
+      setCheckoutError('Aceptá el cobro mensual automático en pesos para continuar.'); return;
+    }
+    setCheckoutError('');
     setLoadingPlanId(plan.id);
     try {
+      if (recurring) {
+        const data = await billingRequest('/create', { planId: plan.id, currency, consent });
+        if (!data.initPoint) throw new Error('No se recibió el enlace de autorización.');
+        window.location.assign(data.initPoint); return;
+      }
       const res = await fetch('/api/mercadopago/create-preference', {
         method: 'POST',
         credentials: 'same-origin',
@@ -131,7 +145,7 @@ export const SubscriptionPlansModal: React.FC<SubscriptionPlansModalProps> = ({
       }
     } catch (err) {
       console.error('Error initiating MP checkout:', err);
-      alert('No se pudo iniciar Mercado Pago. Intenta nuevamente.');
+      setCheckoutError((err as Error).message || 'No se pudo iniciar Mercado Pago.');
     } finally {
       setLoadingPlanId(null);
     }
@@ -170,7 +184,7 @@ export const SubscriptionPlansModal: React.FC<SubscriptionPlansModalProps> = ({
               🇦🇷 ARS ($)
             </button>
             <button
-              onClick={() => setCurrency('USD')}
+              onClick={() => { setCurrency('USD'); setRecurring(false); setConsent(false); }}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${currency === 'USD' ? 'bg-indigo-500 text-white font-black shadow' : 'text-slate-400 hover:text-slate-200'}`}
             >
               🌎 USD ($)
@@ -178,6 +192,17 @@ export const SubscriptionPlansModal: React.FC<SubscriptionPlansModalProps> = ({
           </div>
         </div>
 
+        {currentUser && <RecurringSubscriptionPanel onAccessUpdated={onPaymentSuccess} />}
+        {mpConfig?.subscriptionsEnabled && currency === 'ARS' && <section className="rounded-xl border border-sky-500/40 p-4 space-y-3 text-sm">
+          <label className="flex gap-3 items-start"><input type="checkbox" checked={recurring} onChange={e => { setRecurring(e.target.checked); setConsent(false); }} />
+            <span>Renovación mensual automática con Mercado Pago</span></label>
+          {recurring && <>
+            <p>El primer cobro se solicita al autorizar. Después, Mercado Pago cobra cada mes el importe del plan elegido hasta que canceles. La autorización del medio de pago se realiza en Mercado Pago.</p>
+            <label className="flex gap-3 items-start"><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} />
+              <span>Acepto los cargos mensuales en pesos del plan que seleccione. Puedo cancelar la renovación desde Mi suscripción mensual. El acceso se activa al confirmarse el pago.</span></label>
+          </>}
+        </section>}
+        {checkoutError && <p role="alert" className="text-rose-300">{checkoutError}</p>}
         {priceError && <p role="alert" className="text-rose-300">{priceError}</p>}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-2">
           {plans.map((plan) => {
@@ -221,13 +246,13 @@ export const SubscriptionPlansModal: React.FC<SubscriptionPlansModalProps> = ({
                 <div className="pt-6">
                   <button
                     onClick={() => handleMercadoPagoCheckout(plan)}
-                    disabled={isLoadingThis || !catalog || !mpConfig?.isConfigured || !currentUser}
+                    disabled={!!loadingPlanId || !catalog || !mpConfig?.isConfigured || !currentUser || (recurring && !consent)}
                     className={`w-full py-3 px-4 rounded-2xl font-black text-xs flex items-center justify-center gap-2.5 transition transform active:scale-95 shadow-xl ${plan.popular ? 'bg-sky-400 hover:bg-sky-300 text-slate-950 shadow-sky-400/20' : 'bg-slate-800 hover:bg-sky-500 hover:text-slate-950 text-white border border-slate-700'} disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
                     {isLoadingThis ? (
                       <><Loader2 className="w-4 h-4 animate-spin" /><span>Conectando Mercado Pago...</span></>
                     ) : (
-                      <><div className="w-5 h-5 rounded-full bg-sky-500 text-slate-950 flex items-center justify-center font-extrabold text-[10px]">MP</div><span>Pagar con Mercado Pago</span><ArrowRight className="w-4 h-4" /></>
+                      <><div className="w-5 h-5 rounded-full bg-sky-500 text-slate-950 flex items-center justify-center font-extrabold text-[10px]">MP</div><span>{recurring ? 'Suscribirme mensualmente' : 'Pagar un mes con Mercado Pago'}</span><ArrowRight className="w-4 h-4" /></>
                     )}
                   </button>
 
