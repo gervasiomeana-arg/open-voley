@@ -1,0 +1,489 @@
+import { getStoredLocale, LocalizedTree } from '../shared/locale';
+import { userStorage } from '../services/userStorage';
+import React, { useState } from 'react';
+import { MatchData, TeamSide, PlayerStats } from '../types';
+import { calculatePlayerStats } from '../utils/codeParser';
+import { 
+  Award, 
+  FileText, 
+  Download, 
+  Printer, 
+  ArrowLeft, 
+  SlidersHorizontal, 
+  Check, 
+  Info,
+  ChevronDown
+} from 'lucide-react';
+
+export const playerTotalPoints = (stats: PlayerStats) => stats.attPts + stats.serveAce + stats.blockPts;
+
+export function sortedBoxScore(match: MatchData, team: TeamSide): PlayerStats[] {
+  const players = team === 'home' ? match.homePlayers : match.awayPlayers;
+  return calculatePlayerStats(players, match.actions).sort((a, b) => a.playerNum - b.playerNum);
+}
+
+export function boxScoreTotals(rows: PlayerStats[]) {
+  const sum = (field: keyof PlayerStats) => rows.reduce((total, row) => total + Number(row[field] || 0), 0);
+  const attack = sum('attTotal'), reception = sum('recTotal');
+  return {
+    points: rows.reduce((total, row) => total + playerTotalPoints(row), 0),
+    attTotal: attack, attPts: sum('attPts'), attErr: sum('attErr'), attBlocked: sum('attBlocked'),
+    attEffPct: attack ? Math.round((sum('attPts') - sum('attErr') - sum('attBlocked')) / attack * 100) : 0,
+    recTotal: reception, recPosPct: reception ? Math.round(sum('recPositive') / reception * 100) : 0,
+    recPerfPct: reception ? Math.round(sum('recPerfect') / reception * 100) : 0,
+    serveTotal: sum('serveTotal'), serveAce: sum('serveAce'), serveErr: sum('serveErr'), blockPts: sum('blockPts'),
+  };
+}
+
+interface BoxScoreReportProps {
+  match: MatchData;
+  onOpenNewMatch?: () => void;
+  onBackToMatchCenter?: () => void;
+}
+
+export const BoxScoreReport: React.FC<BoxScoreReportProps> = ({ 
+  match, 
+  onOpenNewMatch,
+  onBackToMatchCenter 
+}) => {
+  const [selectedTeamTab, setSelectedTeamTab] = useState<TeamSide>('home');
+
+  // Column visibility state (Persisted in localStorage)
+  const [columnsConfig, setColumnsConfig] = useState<{
+    serve: boolean;
+    reception: boolean;
+    attack: boolean;
+    block: boolean;
+  }>(() => {
+    try {
+      const saved = userStorage.getItem('openvoley_boxscore_cols');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      // ignore
+    }
+    return { serve: true, reception: true, attack: true, block: true };
+  });
+
+  const [showColumnMenu, setShowColumnMenu] = useState(false);
+
+  const toggleColumnGroup = (group: keyof typeof columnsConfig) => {
+    const updated = { ...columnsConfig, [group]: !columnsConfig[group] };
+    // Ensure at least one section remains visible
+    if (!updated.serve && !updated.reception && !updated.attack && !updated.block) {
+      return;
+    }
+    setColumnsConfig(updated);
+    try {
+      userStorage.setItem('openvoley_boxscore_cols', JSON.stringify(updated));
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const applyPreset = (preset: 'all' | 'essential' | 'attack_block' | 'serve_pass') => {
+    let updated = { serve: true, reception: true, attack: true, block: true };
+    if (preset === 'essential') {
+      updated = { serve: true, reception: true, attack: true, block: true };
+    } else if (preset === 'attack_block') {
+      updated = { serve: false, reception: false, attack: true, block: true };
+    } else if (preset === 'serve_pass') {
+      updated = { serve: true, reception: true, attack: false, block: false };
+    }
+    setColumnsConfig(updated);
+    try {
+      userStorage.setItem('openvoley_boxscore_cols', JSON.stringify(updated));
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const homeStats = sortedBoxScore(match, 'home');
+  const awayStats = sortedBoxScore(match, 'away');
+
+  const activeStats = selectedTeamTab === 'home' ? homeStats : awayStats;
+  const totals = boxScoreTotals(activeStats);
+  const teamName = selectedTeamTab === 'home' ? match.homeTeamName : match.awayTeamName;
+
+  // Print function
+  const handlePrint = () => {
+    window.print();
+  };
+
+  // Export to CSV (preserves all data regardless of visual column toggles)
+  const handleExportCSV = () => {
+    const headers = [
+      'Numero',
+      'Nombre',
+      'Posicion',
+      'Puntos Totales',
+      'Saque Tot',
+      'Saque Aces',
+      'Saque Err',
+      'Rec Tot',
+      'Rec Pos %',
+      'Rec Perf %',
+      'Ataque Tot',
+      'Ataque Pts',
+      'Ataque Err',
+      'Ataque Bloqueado',
+      'Ataque Eficiencia %',
+      'Bloqueos Pts',
+    ];
+
+    const rows = activeStats.map((s) => [
+      s.playerNum,
+      `"${s.name.replace(/"/g, '""')}"`,
+      s.position,
+      playerTotalPoints(s),
+      s.serveTotal,
+      s.serveAce,
+      s.serveErr,
+      s.recTotal,
+      `${s.recPosPct}%`,
+      `${s.recPerfPct}%`,
+      s.attTotal,
+      s.attPts,
+      s.attErr,
+      s.attBlocked,
+      `${s.attEffPct}%`,
+      s.blockPts,
+    ]);
+
+    rows.push(['', '"TOTAL EQUIPO"', '', totals.points, totals.serveTotal, totals.serveAce, totals.serveErr, totals.recTotal, `${totals.recPosPct}%`, `${totals.recPerfPct}%`, totals.attTotal, totals.attPts, totals.attErr, totals.attBlocked, `${totals.attEffPct}%`, totals.blockPts]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `FIVB_BoxScore_${selectedTeamTab}_${match.id}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  return (
+    <LocalizedTree locale={getStoredLocale()}><div className="bg-white p-3 sm:p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4 sm:space-y-5">
+      {/* Header and Controls */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+        <div>
+          <div className="flex items-center gap-2 text-slate-900 font-black text-lg">
+            <FileText className="w-5 h-5 text-indigo-600" />
+            <span>Planilla Estadística del Partido</span>
+          </div>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Rendimiento por jugador computado en tiempo real desde la consola de scouting.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+          {onBackToMatchCenter && (
+            <button
+              onClick={onBackToMatchCenter}
+              className="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-xl border border-slate-200 transition print:hidden cursor-pointer"
+              title="Volver al Centro del Partido"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 text-amber-600" />
+              <span>← Centro</span>
+            </button>
+          )}
+
+          {/* Team Switcher Tabs */}
+          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
+            <button
+              onClick={() => setSelectedTeamTab('home')}
+              className={`px-3 py-1.5 rounded-lg font-bold transition cursor-pointer ${
+                selectedTeamTab === 'home'
+                  ? 'bg-orange-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {match.homeTeamName}
+            </button>
+            <button
+              onClick={() => setSelectedTeamTab('away')}
+              className={`px-3 py-1.5 rounded-lg font-bold transition cursor-pointer ${
+                selectedTeamTab === 'away'
+                  ? 'bg-cyan-700 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {match.awayTeamName}
+            </button>
+          </div>
+
+          {/* Column Selector Dropdown */}
+          <div className="relative print:hidden">
+            <button
+              onClick={() => setShowColumnMenu((prev) => !prev)}
+              className="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-xl border border-slate-200 transition cursor-pointer"
+              title="Seleccionar qué columnas mostrar"
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5 text-slate-500" />
+              <span>Columnas</span>
+              <ChevronDown className="w-3 h-3 text-slate-400" />
+            </button>
+
+            {showColumnMenu && (
+              <div className="absolute right-0 mt-1.5 w-56 bg-white border border-slate-200 rounded-xl shadow-xl z-30 p-2 text-xs text-slate-700 space-y-1">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2 py-1">
+                  Grupos de Fundamentos
+                </div>
+                {[
+                  { key: 'serve' as const, label: 'Saque (Tot, Ace, Err)' },
+                  { key: 'reception' as const, label: 'Recepción (Tot, Pos %, Perf %)' },
+                  { key: 'attack' as const, label: 'Ataque (Tot, Pts, Err, Blq, Efic %)' },
+                  { key: 'block' as const, label: 'Bloqueo (Pts)' },
+                ].map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => toggleColumnGroup(key)}
+                    className="w-full flex items-center justify-between px-2 py-1.5 hover:bg-slate-100 rounded-lg text-left cursor-pointer"
+                  >
+                    <span>{label}</span>
+                    {columnsConfig[key] && <Check className="w-3.5 h-3.5 text-indigo-600 font-bold" />}
+                  </button>
+                ))}
+
+                <div className="border-t border-slate-100 pt-1 mt-1 flex items-center justify-between px-1">
+                  <button
+                    onClick={() => applyPreset('all')}
+                    className="text-[10px] font-bold text-indigo-600 hover:underline p-1 cursor-pointer"
+                  >
+                    Ver Todas
+                  </button>
+                  <button
+                    onClick={() => setShowColumnMenu(false)}
+                    className="text-[10px] font-bold text-slate-500 hover:text-slate-800 p-1 cursor-pointer"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Primary Action Button */}
+          <button
+            onClick={handlePrint}
+            className="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black px-3.5 py-1.5 rounded-xl transition shadow-xs cursor-pointer print:hidden"
+            title="Imprimir planilla oficial o guardar como PDF"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            <span>[ IMPRIMIR / PDF ]</span>
+          </button>
+
+          {/* Secondary Action */}
+          <button
+            onClick={handleExportCSV}
+            className="inline-flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-xl border border-slate-300 transition cursor-pointer print:hidden"
+            title="Descargar archivo en formato CSV"
+          >
+            <Download className="w-3.5 h-3.5 text-slate-500" />
+            <span>CSV</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Match Details Banner (visible in print too) */}
+      <div className="bg-slate-50 border border-slate-200/80 p-3 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 text-xs">
+        <div className="flex items-center gap-3">
+          <span className="font-black text-slate-800 text-sm">{match.homeTeamName} vs {match.awayTeamName}</span>
+          <span className="bg-indigo-50 text-indigo-700 font-bold px-2 py-0.5 rounded text-[11px] border border-indigo-100">{match.competition}</span>
+          <span className="text-slate-500">{match.date}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-slate-500 text-[11px]">Total Acciones: <strong className="text-slate-700">{match.actions.length}</strong></span>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-emerald-950">
+        <span className="text-xs font-bold">Puntos totales de jugadores · {teamName}: </span><strong className="text-xl">{totals.points}</strong>
+        <p className="text-[11px] mt-1">Ataque {totals.attPts} + Saque {totals.serveAce} + Bloqueo {totals.blockPts}. El marcador del equipo también suma los errores del rival.</p>
+      </div>
+
+      {/* Mobile stats cards: avoid forcing a desktop table into a phone width */}
+      <div className="sm:hidden print:hidden space-y-2">
+        {activeStats.map((s) => (
+          <div key={`mobile-${s.playerNum}`} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <div className="font-black text-slate-900 text-sm truncate">#{s.playerNum} {s.name}</div>
+                <div className="text-[10px] text-slate-500">{s.position}</div>
+              </div>
+              <div className="text-right">
+                <div className="text-[10px] uppercase font-bold text-slate-400">Puntos</div>
+                <div className="text-lg font-black text-slate-900">{playerTotalPoints(s)}</div>
+              </div>
+            </div>
+            <div className="grid grid-cols-4 gap-1.5 mt-3 text-center">
+              <div className="rounded-lg bg-slate-50 p-2">
+                <div className="text-[9px] text-slate-500">Ataque</div>
+                <div className="text-xs font-black text-indigo-900">{s.attTotal ? `${s.attEffPct}%` : '—'}</div>
+              </div>
+              <div className="rounded-lg bg-slate-50 p-2">
+                <div className="text-[9px] text-slate-500">Recep.</div>
+                <div className="text-xs font-black text-blue-700">{s.recTotal ? `${s.recPosPct}%` : '—'}</div>
+              </div>
+              <div className="rounded-lg bg-slate-50 p-2">
+                <div className="text-[9px] text-slate-500">Aces</div>
+                <div className="text-xs font-black text-emerald-700">{s.serveAce}</div>
+              </div>
+              <div className="rounded-lg bg-slate-50 p-2">
+                <div className="text-[9px] text-slate-500">Bloq.</div>
+                <div className="text-xs font-black text-emerald-700">{s.blockPts}</div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Stats Table */}
+      <div className="hidden sm:block print:block overflow-x-auto">
+        <table className="w-full text-left text-xs border-collapse">
+          <thead>
+            {/* Super Header */}
+            <tr className="bg-slate-900 text-white uppercase text-[10px] tracking-wider">
+              <th colSpan={4} className="p-2 rounded-tl-lg border-r border-slate-800">
+                Jugador
+              </th>
+              {columnsConfig.attack && (
+                <th colSpan={5} className="p-2 text-center border-r border-slate-800">
+                  Ataque
+                </th>
+              )}
+              {columnsConfig.reception && (
+                <th colSpan={3} className="p-2 text-center border-r border-slate-800">
+                  Recepción
+                </th>
+              )}
+              {columnsConfig.serve && (
+                <th colSpan={3} className="p-2 text-center border-r border-slate-800">
+                  Saque
+                </th>
+              )}
+              {columnsConfig.block && (
+                <th className="p-2 text-center rounded-tr-lg">
+                  Bloqueo
+                </th>
+              )}
+            </tr>
+            {/* Sub Header */}
+            <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+              <th className="p-2">#</th>
+              <th className="p-2">Nombre</th>
+              <th className="p-2">Pos</th>
+              <th className="p-2 text-center border-r border-slate-200 text-emerald-800" title="Ataques ganadores + aces + bloqueos ganadores">Puntos totales</th>
+
+              {columnsConfig.attack && (
+                <>
+                  <th className="p-2 text-center">Tot</th>
+                  <th className="p-2 text-center text-emerald-700">Pts</th>
+                  <th className="p-2 text-center text-rose-600">Err</th>
+                  <th className="p-2 text-center text-amber-600">Blq</th>
+                  <th className="p-2 text-center font-extrabold text-indigo-900 border-r border-slate-200">Efic %</th>
+                </>
+              )}
+
+              {columnsConfig.reception && (
+                <>
+                  <th className="p-2 text-center">Tot</th>
+                  <th className="p-2 text-center text-blue-700">Pos %</th>
+                  <th className="p-2 text-center text-emerald-700 border-r border-slate-200">Perf %</th>
+                </>
+              )}
+
+              {columnsConfig.serve && (
+                <>
+                  <th className="p-2 text-center">Tot</th>
+                  <th className="p-2 text-center text-emerald-700">Ace</th>
+                  <th className="p-2 text-center text-rose-600 border-r border-slate-200">Err</th>
+                </>
+              )}
+
+              {columnsConfig.block && (
+                <th className="p-2 text-center text-emerald-700 font-extrabold">Pts</th>
+              )}
+            </tr>
+          </thead>
+
+          <tbody className="divide-y divide-slate-100">
+            {activeStats.map((s) => {
+              const isHighScorer = s.attPts + s.serveAce + s.blockPts >= 3;
+              return (
+                <tr key={s.playerNum} className="hover:bg-slate-50 text-slate-800">
+                  <td className="p-2 font-mono font-bold text-slate-900">#{s.playerNum}</td>
+                  <td className="p-2 font-semibold flex items-center gap-1.5">
+                    {s.name}
+                    {isHighScorer && (
+                      <span className="inline-flex items-center gap-0.5 bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded text-[10px]">
+                        <Award className="w-3 h-3 text-amber-600" /> Key
+                      </span>
+                    )}
+                  </td>
+                  <td className="p-2 text-slate-500 font-mono">{s.position}</td>
+                  <td className="p-2 text-center font-mono font-black bg-emerald-50 text-emerald-800 border-r border-slate-200">{playerTotalPoints(s)}</td>
+
+                  {/* Attack */}
+                  {columnsConfig.attack && (
+                    <>
+                      <td className="p-2 text-center font-mono">{s.attTotal}</td>
+                      <td className="p-2 text-center font-mono font-bold text-emerald-600">{s.attPts}</td>
+                      <td className="p-2 text-center font-mono text-rose-600">{s.attErr}</td>
+                      <td className="p-2 text-center font-mono text-amber-600">{s.attBlocked}</td>
+                      <td className="p-2 text-center font-mono font-extrabold text-indigo-900 bg-indigo-50/50 border-r border-slate-200">
+                        {s.attEffPct}%
+                      </td>
+                    </>
+                  )}
+
+                  {/* Reception */}
+                  {columnsConfig.reception && (
+                    <>
+                      <td className="p-2 text-center font-mono">{s.recTotal}</td>
+                      <td className="p-2 text-center font-mono font-bold text-blue-700">{s.recPosPct}%</td>
+                      <td className="p-2 text-center font-mono font-bold text-emerald-600 border-r border-slate-200">
+                        {s.recPerfPct}%
+                      </td>
+                    </>
+                  )}
+
+                  {/* Serve */}
+                  {columnsConfig.serve && (
+                    <>
+                      <td className="p-2 text-center font-mono">{s.serveTotal}</td>
+                      <td className="p-2 text-center font-mono font-bold text-emerald-600">{s.serveAce}</td>
+                      <td className="p-2 text-center font-mono text-rose-600 border-r border-slate-200">{s.serveErr}</td>
+                    </>
+                  )}
+
+                  {/* Block */}
+                  {columnsConfig.block && (
+                    <td className="p-2 text-center font-mono font-bold text-emerald-600">{s.blockPts}</td>
+                  )}
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot className="border-t-2 border-slate-300 bg-slate-100 text-slate-900 font-bold">
+            <tr>
+              <th colSpan={3} className="p-2">TOTAL EQUIPO</th>
+              <td className="p-2 text-center bg-emerald-100 text-emerald-900 border-r border-slate-200">{totals.points}</td>
+              {columnsConfig.attack && <>{[totals.attTotal, totals.attPts, totals.attErr, totals.attBlocked, `${totals.attEffPct}%`].map((value, i) => <td key={`attack-${i}`} className="p-2 text-center">{value}</td>)}</>}
+              {columnsConfig.reception && <>{[totals.recTotal, `${totals.recPosPct}%`, `${totals.recPerfPct}%`].map((value, i) => <td key={`reception-${i}`} className="p-2 text-center">{value}</td>)}</>}
+              {columnsConfig.serve && <>{[totals.serveTotal, totals.serveAce, totals.serveErr].map((value, i) => <td key={`serve-${i}`} className="p-2 text-center">{value}</td>)}</>}
+              {columnsConfig.block && <td className="p-2 text-center">{totals.blockPts}</td>}
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      {/* Formulas Explanation Footer (Low contrast, secondary info) */}
+      <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-[11px] text-slate-500 space-y-0.5">
+        <div className="font-bold text-slate-700">Fórmulas estadísticas utilizadas:</div>
+        <div>• <strong>Puntos totales:</strong> Ataques ganadores [#] + Aces [#] + Bloqueos ganadores [#].</div>
+        <div>• <strong>Eficiencia de Ataque (Efic %):</strong> ((Puntos - Errores - Ataques Bloqueados) / Total de Ataques) × 100</div>
+        <div>• <strong>Recepción Positiva (Pos %):</strong> ((Pases Perfectos [#] + Pases Positivos [+]) / Total de Recepciones) × 100</div>
+      </div>
+    </div></LocalizedTree>
+  );
+};

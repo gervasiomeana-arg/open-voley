@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {setStorageUser,userStorage} from './userStorage';
+const values=new Map<string,string>();
+Object.defineProperty(globalThis,'localStorage',{value:{getItem:(k:string)=>values.get(k)||null,setItem:(k:string,v:string)=>values.set(k,v),removeItem:(k:string)=>values.delete(k)},configurable:true});
+localStorage.setItem('openvoley_training_sessions_v1','legacy-private');
+setStorageUser('account-a');assert.equal(userStorage.getItem('openvoley_training_sessions_v1'),null);
+userStorage.setItem('openvoley_training_sessions_v1','account-a-private');
+setStorageUser('account-b');assert.equal(userStorage.getItem('openvoley_training_sessions_v1'),null);
+userStorage.setItem('openvoley_training_sessions_v1','account-b-private');
+setStorageUser('account-a');assert.equal(userStorage.getItem('openvoley_training_sessions_v1'),'account-a-private');
+setStorageUser(null);assert.equal(userStorage.getItem('openvoley_training_sessions_v1'),null);
+console.log('Account-scoped storage tests passed.');

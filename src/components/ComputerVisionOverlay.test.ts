@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import React from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+import {ComputerVisionOverlay} from './ComputerVisionOverlay';
+import type {ScoutCodeAction} from '../types';
+const actions=[{id:'real',timestamp:12,team:'away',playerNum:4,playerName:'Jugadora registrada',description:'Defensa positiva',skill:'D',evaluation:'+',rawCode:'a04D+'}] as ScoutCodeAction[];
+const render=(currentTime:number,active=true)=>renderToStaticMarkup(React.createElement(ComputerVisionOverlay,{currentTime,isAutoScoutActive:active,actions,onToggleAutoScout(){}}));
+assert.equal(render(12,false),'');
+const atAction=render(12);assert.match(atAction,/Jugadora registrada/);assert.match(atAction,/Rival/);assert.match(atAction,/a04D\+/);assert.ok(!atAction.includes('km/h'));assert.ok(!atAction.includes('OCR'));assert.ok(!atAction.includes('Facundo Conte'));
+const otherMoment=render(30);assert.match(otherMoment,/Sin acción registrada/);assert.ok(!otherMoment.includes('Jugadora registrada'));
+console.log('Video overlay: only actual synchronized actions, no fabricated telemetry or stale action fallback passed.');
